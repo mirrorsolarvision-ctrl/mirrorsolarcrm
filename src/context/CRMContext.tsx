@@ -318,6 +318,7 @@ export type UserStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
 export interface DealerFeatures {
   myEmployees: boolean;
   attendance: boolean;
+  quotations: boolean;
   leads: boolean;
   stock: boolean;
   payments: boolean;
@@ -329,6 +330,7 @@ export interface DealerFeatures {
 export const defaultDealerFeatures: DealerFeatures = {
   myEmployees: true,
   attendance: true,
+  quotations: true,
   leads: true,
   stock: true,
   payments: true,
@@ -336,6 +338,69 @@ export const defaultDealerFeatures: DealerFeatures = {
   tasks: true,
   calendar: true
 };
+
+export interface Responsibility {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface EmployeeResponsibilities {
+  primaryResponsibilityId?: string;
+  secondaryResponsibilityIds?: string[];
+  notes?: string;
+  assignedAt?: string;
+  assignedBy?: string;
+}
+
+export interface ApprovedProduct {
+  id: string;
+  name: string;
+  category: 'Residential' | 'Commercial' | 'Agricultural';
+  systemSizeKw: number;
+  panelType: string;
+  inverterType: string;
+  structureType: string;
+  defaultPanelCount: number;
+  customerPrice: number;
+  maxAllowedDiscount: number;
+  subsidyEstimate: number;
+  subsidyDisclaimer: string;
+  active: boolean;
+}
+
+export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
+
+export interface Quotation {
+  id: string;
+  quotationNumber: string;
+  dealerId: string;
+  dealerName: string;
+  leadId: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress?: string;
+  productId: string;
+  productName: string;
+  systemSizeKw: number;
+  panelType: string;
+  panelQuantity: number;
+  inverterType: string;
+  structureType: string;
+  basePriceAtCreation: number;
+  discount: number;
+  finalAmount: number;
+  subsidyEstimateAtCreation: number;
+  netCustomerCost: number;
+  validityDays: number;
+  notes?: string;
+  status: QuotationStatus;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+}
 
 export interface User {
   id: string;
@@ -356,6 +421,7 @@ export interface Employee extends User {
   role: 'Employee';
   dealerId?: string | null; // null = Company Staff, string = Dealer's Staff
   authId?: string;
+  responsibilities?: EmployeeResponsibilities;
 }
 
 export type DealerStatus = 'Active' | 'Inactive';
@@ -408,6 +474,68 @@ const defaultAdminPermissions: UserPermissions = {
   access: 'full',
   profile: 'edit'
 };
+
+// Initial Masters
+export const defaultResponsibilities: Responsibility[] = [
+  { id: 'RESP_STOCK', name: 'Stock In-Charge', description: 'Warehouse inventory, material receipts, and dispatches', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_SURYAGHAR', name: 'PM Surya Ghar Work In-Charge', description: 'PM Surya Ghar rooftop portal filings, DISCOM approvals, and subsidies', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_INSTALL', name: 'Installation Coordination', description: 'Site technician scheduling, plant commissioning, and field QA', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_DEALER', name: 'Dealer Support', description: 'Assisting dealers with leads, stock allocations, and technical queries', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_CUST', name: 'Customer Support', description: 'Customer onboarding, status updates, and post-installation support', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_QUOT', name: 'Quotation Management', description: 'Preparing, reviewing, and approving customized solar project quotes', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_PURCHASE', name: 'Purchase & Procurement', description: 'Vendor coordination, module/inverter ordering, and OEM warranty', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_ACCOUNTS', name: 'Accounts & Billing', description: 'Customer payment verification, dealer milestone settlements, and invoicing', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_SERVICE', name: 'Service & Maintenance', description: 'AMC renewals, inverter troubleshooting, and generation monitoring', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' }
+];
+
+export const defaultApprovedProducts: ApprovedProduct[] = [
+  {
+    id: 'PROD_3KW_RES',
+    name: '3kW Rooftop Solar On-Grid Package',
+    category: 'Residential',
+    systemSizeKw: 3,
+    panelType: 'Mono Perc DCR 550W',
+    inverterType: '3kW Single Phase High-Efficiency On-Grid',
+    structureType: 'Galvanized Iron Elevated Structure',
+    defaultPanelCount: 6,
+    customerPrice: 195000,
+    maxAllowedDiscount: 10000,
+    subsidyEstimate: 78000,
+    subsidyDisclaimer: 'Estimated subsidy — subject to applicable government eligibility and approval under PM Surya Ghar Muft Bijli Yojana.',
+    active: true
+  },
+  {
+    id: 'PROD_5KW_RES',
+    name: '5kW Rooftop Solar On-Grid Package',
+    category: 'Residential',
+    systemSizeKw: 5,
+    panelType: 'TOPCon Bi-facial 550W',
+    inverterType: '5kW Three Phase Smart Inverter',
+    structureType: 'Heavy Duty Elevated Mounting Structure',
+    defaultPanelCount: 10,
+    customerPrice: 310000,
+    maxAllowedDiscount: 15000,
+    subsidyEstimate: 78000,
+    subsidyDisclaimer: 'Estimated subsidy — subject to applicable government eligibility and approval under PM Surya Ghar Muft Bijli Yojana.',
+    active: true
+  },
+  {
+    id: 'PROD_10KW_COM',
+    name: '10kW Commercial Solar Power Plant',
+    category: 'Commercial',
+    systemSizeKw: 10,
+    panelType: 'Bi-facial Dual Glass 550W',
+    inverterType: '10kW Three Phase Dual MPPT Inverter',
+    structureType: 'Industrial Super Structure (Elevated)',
+    defaultPanelCount: 20,
+    customerPrice: 580000,
+    maxAllowedDiscount: 25000,
+    subsidyEstimate: 0,
+    subsidyDisclaimer: 'Commercial installation — Accelerated depreciation & tax benefits apply.',
+    active: true
+  }
+];
 
 // Real-time data will be fetched from Firestore
 
@@ -481,6 +609,20 @@ interface CRMContextType {
   updateDealerFeatures: (dealerId: string, features: Partial<DealerFeatures>) => Promise<void>;
   addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => Promise<void>;
   updateDealerEmployee: (employeeId: string, dealerId: string, updates: Partial<Employee>) => Promise<void>;
+
+  // Responsibilities Management
+  responsibilities: Responsibility[];
+  addResponsibility: (name: string, description?: string) => Promise<void>;
+  updateResponsibility: (id: string, updates: Partial<Responsibility>) => Promise<void>;
+  assignEmployeeResponsibilities: (employeeId: string, primaryId?: string, secondaryIds?: string[], notes?: string) => Promise<void>;
+
+  // Products & Quotations
+  approvedProducts: ApprovedProduct[];
+  quotations: Quotation[];
+  createQuotation: (quoteData: Omit<Quotation, 'id' | 'quotationNumber' | 'createdAt'>) => Promise<Quotation>;
+  updateQuotationStatus: (id: string, status: QuotationStatus) => Promise<void>;
+  getDealerQuotations: (dealerId: string) => Quotation[];
+  getLeadQuotations: (leadId: string, dealerId: string) => Quotation[];
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
@@ -492,6 +634,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  const [responsibilities, setResponsibilities] = useState<Responsibility[]>(defaultResponsibilities);
+  const [approvedProducts, setApprovedProducts] = useState<ApprovedProduct[]>(defaultApprovedProducts);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const { currentUser: authUser } = useAuth();
@@ -1111,6 +1256,121 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // --- Responsibility Management ---
+  const addResponsibility = async (name: string, description?: string) => {
+    const newId = `RESP_${Date.now()}`;
+    const newResp: Responsibility = {
+      id: newId,
+      name,
+      description,
+      active: true,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setResponsibilities(prev => [...prev, newResp]);
+
+    try {
+      await setDoc(doc(db, 'responsibilities', newId), newResp);
+    } catch (err) {
+      console.warn("Error saving responsibility to Firestore:", err);
+    }
+  };
+
+  const updateResponsibility = async (id: string, updates: Partial<Responsibility>) => {
+    setResponsibilities(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+
+    try {
+      await updateDoc(doc(db, 'responsibilities', id), updates);
+    } catch (err) {
+      console.warn("Error updating responsibility in Firestore:", err);
+    }
+  };
+
+  const assignEmployeeResponsibilities = async (
+    employeeId: string, 
+    primaryId?: string, 
+    secondaryIds?: string[], 
+    notes?: string
+  ) => {
+    const targetEmp = employees.find(e => e.id === employeeId);
+    if (!targetEmp) return;
+
+    const updatedResp: EmployeeResponsibilities = {
+      primaryResponsibilityId: primaryId,
+      secondaryResponsibilityIds: secondaryIds || [],
+      notes: notes || '',
+      assignedAt: new Date().toISOString(),
+      assignedBy: currentUser?.name || 'Admin'
+    };
+
+    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, responsibilities: updatedResp } : e));
+
+    try {
+      await updateDoc(doc(db, 'users', employeeId), { responsibilities: updatedResp });
+      await addActivity({
+        type: 'Responsibilities Assigned',
+        message: `Admin updated operational responsibilities for ${targetEmp.name}`,
+        user: currentUser?.name || 'Admin',
+        employee: targetEmp.name
+      });
+    } catch (err) {
+      console.warn("Error assigning responsibilities in Firestore:", err);
+    }
+  };
+
+  // --- Quotations Management ---
+  const createQuotation = async (quoteData: Omit<Quotation, 'id' | 'quotationNumber' | 'createdAt'>): Promise<Quotation> => {
+    const newId = `QT_${Date.now()}`;
+    const seqNum = String(quotations.length + 1).padStart(3, '0');
+    const quotationNumber = `MS-QT-2026-${seqNum}`;
+
+    const newQuotation: Quotation = {
+      ...quoteData,
+      id: newId,
+      quotationNumber,
+      createdAt: new Date().toISOString()
+    };
+
+    setQuotations(prev => [newQuotation, ...prev]);
+
+    try {
+      await setDoc(doc(db, 'quotations', newId), newQuotation);
+      await addActivity({
+        type: 'Quotation Generated',
+        message: `${quoteData.createdByName || 'Dealer'} generated Quote ${quotationNumber} (₹${quoteData.finalAmount.toLocaleString('en-IN')}) for ${quoteData.customerName}`,
+        user: quoteData.createdByName || currentUser?.name || 'Dealer',
+        dealer: quoteData.dealerName,
+        leadId: quoteData.leadId
+      });
+    } catch (err) {
+      console.warn("Error saving quotation to Firestore:", err);
+    }
+
+    return newQuotation;
+  };
+
+  const updateQuotationStatus = async (id: string, status: QuotationStatus) => {
+    setQuotations(prev => prev.map(q => q.id === id ? { ...q, status } : q));
+
+    try {
+      await updateDoc(doc(db, 'quotations', id), { status });
+    } catch (err) {
+      console.warn("Error updating quotation status in Firestore:", err);
+    }
+  };
+
+  const getDealerQuotations = (dealerId: string): Quotation[] => {
+    return quotations
+      .filter(q => q.dealerId === dealerId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const getLeadQuotations = (leadId: string, dealerId: string): Quotation[] => {
+    return quotations
+      .filter(q => q.leadId === leadId && q.dealerId === dealerId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
@@ -1125,7 +1385,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Attendance & Dealer Feature Management
       attendances, markAttendance, removeAttendance, isEmployeePresent,
       getEmployeeAttendance, getAttendanceForDate, getEmployeeAttendanceHistory,
-      updateDealerFeatures, addDealerEmployee, updateDealerEmployee
+      updateDealerFeatures, addDealerEmployee, updateDealerEmployee,
+
+      // Responsibilities Management
+      responsibilities, addResponsibility, updateResponsibility, assignEmployeeResponsibilities,
+
+      // Products & Quotations
+      approvedProducts, quotations, createQuotation, updateQuotationStatus,
+      getDealerQuotations, getLeadQuotations
     }}>
       {children}
     </CRMContext.Provider>

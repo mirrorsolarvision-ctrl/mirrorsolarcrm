@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Calendar,
   CreditCard,
+  FileText,
   X
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
@@ -43,6 +44,7 @@ export default function DealerSidebar({
   const allNavItems = [
     { name: 'Dashboard', path: '/dealer/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'My Leads', path: '/dealer/leads', icon: Users, routeName: 'Leads' },
+    { name: 'Quotations', path: '/dealer/quotations', icon: FileText, routeName: 'Quotations' },
     { name: 'My Employees', path: '/dealer/employees', icon: Users, routeName: 'My Employees' },
     { name: 'Team Attendance', path: '/dealer/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: 'Payments', path: '/dealer/payments', icon: CreditCard, routeName: 'Payments' },

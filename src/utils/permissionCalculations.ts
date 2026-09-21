@@ -58,6 +58,7 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
   if (user.role === 'Dealer' && dealers) {
     if (routeTabName === 'Attendance') return hasDealerFeature(dealers, user.id, 'attendance');
     if (routeTabName === 'My Employees') return hasDealerFeature(dealers, user.id, 'myEmployees');
+    if (routeTabName === 'Quotations') return hasDealerFeature(dealers, user.id, 'quotations');
     if (routeTabName === 'Stock') return hasDealerFeature(dealers, user.id, 'stock');
     if (routeTabName === 'Reports') return hasDealerFeature(dealers, user.id, 'reports');
     if (routeTabName === 'Payments') return hasDealerFeature(dealers, user.id, 'payments');
@@ -71,6 +72,10 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
       return canAccessDashboard(user);
     case 'Attendance':
       return true;
+    case 'Quotations':
+      return true;
+    case 'Responsibilities':
+      return user.role === 'Admin';
     case 'Leads':
       return canAccessLeads(user);
     case 'Employees':

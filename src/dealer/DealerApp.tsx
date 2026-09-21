@@ -8,6 +8,7 @@ import DealerSidebar from './DealerSidebar';
 import DealerDashboard from './DealerDashboard';
 import DealerEmployeesPage from './DealerEmployeesPage';
 import DealerAttendancePage from './DealerAttendancePage';
+import DealerQuotationsPage from './DealerQuotationsPage';
 import DealerStockPage from './DealerStockPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
@@ -65,6 +66,7 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
     // Determine route name for permission check
     const routeName = currentPath === '/dealer/dashboard' ? 'Dashboard' :
                       currentPath === '/dealer/leads' ? 'Leads' :
+                      currentPath === '/dealer/quotations' ? 'Quotations' :
                       currentPath === '/dealer/employees' ? 'My Employees' :
                       currentPath === '/dealer/attendance' ? 'Attendance' :
                       currentPath === '/dealer/payments' ? 'Payments' :
@@ -84,6 +86,8 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
         return <DealerDashboard onNavigate={handleNavigate} />;
       case '/dealer/leads':
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/dealer/quotations':
+        return <DealerQuotationsPage />;
       case '/dealer/employees':
         return <DealerEmployeesPage />;
       case '/dealer/attendance':

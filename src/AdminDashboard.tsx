@@ -18,6 +18,7 @@ import AdminEmployeesPage from './AdminEmployeesPage';
 import AdminDealersPage from './AdminDealersPage';
 import AdminAccessPage from './AdminAccessPage';
 import AdminAttendancePage from './AdminAttendancePage';
+import AdminResponsibilitiesPage from './AdminResponsibilitiesPage';
 import AccessRestricted from './components/AccessRestricted';
 import { canAccessRoute } from './utils/permissionCalculations';
 import LeadsPage from './LeadsPage';
@@ -244,6 +245,10 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
       icon: <Users size={20} />
     },
     { 
+      name: 'Responsibilities', 
+      icon: <Briefcase size={20} />
+    },
+    { 
       name: 'Attendance', 
       icon: <UserCheck size={20} />
     },
@@ -406,6 +411,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               setActiveTab('Access');
             }} 
           />
+        ) : activeTab === 'Responsibilities' ? (
+          <AdminResponsibilitiesPage />
         ) : activeTab === 'Attendance' ? (
           <AdminAttendancePage />
         ) : activeTab === 'Dealers' ? (
