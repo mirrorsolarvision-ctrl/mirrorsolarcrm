@@ -727,6 +727,63 @@
   background: #0369A1;
 }
 
+/* Responsive Styles */
+@media (max-width: 900px) {
+  .packages-selection-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quotations-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-filter-tabs {
+    overflow-x: auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .dealer-quotations-page {
+    padding: 12px;
+  }
+
+  .quotations-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .btn-create-quote {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .packages-selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet-parties-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet-signatures-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .modal-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-change-buttons, .right-action-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 /* Print CSS */
 @media print {
   .no-print,

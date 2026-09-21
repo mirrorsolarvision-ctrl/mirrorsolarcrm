@@ -1303,7 +1303,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!targetEmp) return;
 
     const updatedResp: EmployeeResponsibilities = {
-      primaryResponsibilityId: primaryId,
+      primaryResponsibilityId: primaryId || '',
       secondaryResponsibilityIds: secondaryIds || [],
       notes: notes || '',
       assignedAt: new Date().toISOString(),
