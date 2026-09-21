@@ -44,6 +44,7 @@ export default function DealerQuotationsPage() {
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [validityDays, setValidityDays] = useState<number>(30);
   const [quotationNotes, setQuotationNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Strict ID-based isolation: Leads belonging ONLY to this dealer
   const dealerLeads = useMemo(() => {
@@ -93,6 +94,7 @@ export default function DealerQuotationsPage() {
   // Pricing calculations
   const basePrice = currentProduct?.customerPrice || 0;
   const maxDiscount = currentProduct?.maxAllowedDiscount || 0;
+  const isDiscountInvalid = discountAmount < 0 || discountAmount > maxDiscount;
   const effectiveDiscount = Math.min(Math.max(0, discountAmount), maxDiscount);
   const finalAmount = Math.max(0, basePrice - effectiveDiscount);
   const subsidyEstimate = currentProduct?.subsidyEstimate || 0;
@@ -119,13 +121,18 @@ export default function DealerQuotationsPage() {
       showToast('Please select a solar package', 'warning');
       return;
     }
-    if (!currentUser) return;
+    if (!currentUser || isSubmitting) return;
 
     if (discountAmount > maxDiscount) {
       showToast(`Discount cannot exceed maximum allowed ₹${maxDiscount.toLocaleString('en-IN')}`, 'error');
       return;
     }
+    if (discountAmount < 0) {
+      showToast('Discount amount cannot be negative', 'error');
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       const newQuote = await createQuotation({
         dealerId: currentUser.id,
@@ -153,11 +160,13 @@ export default function DealerQuotationsPage() {
         createdByName: currentUser.name
       });
 
-      showToast(`Quotation ${newQuote.quotationNumber} created successfully!`, 'success');
+      showToast(`Quotation ${newQuote.quotationNumber} generated as Draft!`, 'success');
       setIsCreateModalOpen(false);
       setSelectedQuotation(newQuote);
     } catch (err) {
       showToast('Failed to generate quotation', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -422,10 +431,21 @@ export default function DealerQuotationsPage() {
                         type="number" 
                         min="0"
                         max={maxDiscount}
-                        value={discountAmount || ''}
+                        value={discountAmount === 0 ? '' : discountAmount}
                         placeholder="0"
                         onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                        style={isDiscountInvalid ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
                       />
+                      {discountAmount > maxDiscount && (
+                        <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 600, marginTop: '2px' }}>
+                          ⚠️ Exceeds max allowed ₹{maxDiscount.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                      {discountAmount < 0 && (
+                        <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 600, marginTop: '2px' }}>
+                          ⚠️ Discount cannot be negative
+                        </span>
+                      )}
                     </div>
 
                     <div className="input-group">
@@ -470,7 +490,7 @@ export default function DealerQuotationsPage() {
                       <span>₹{netCustomerCost.toLocaleString('en-IN')}</span>
                     </div>
                     <span className="subsidy-disclaimer-note">
-                      * Estimated subsidy — subject to applicable government eligibility and approval.
+                      * Estimated subsidy — subject to applicable government eligibility and approval under PM Surya Ghar Muft Bijli Yojana.
                     </span>
                   </div>
                 </div>
@@ -488,11 +508,15 @@ export default function DealerQuotationsPage() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setIsCreateModalOpen(false)}>
+                <button type="button" className="btn-cancel" disabled={isSubmitting} onClick={() => setIsCreateModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit" disabled={dealerLeads.length === 0}>
-                  Generate Quotation
+                <button 
+                  type="submit" 
+                  className="btn-submit" 
+                  disabled={dealerLeads.length === 0 || !currentProduct || isDiscountInvalid || isSubmitting}
+                >
+                  {isSubmitting ? 'Generating Quotation...' : 'Generate Quotation'}
                 </button>
               </div>
             </form>
@@ -646,16 +670,43 @@ export default function DealerQuotationsPage() {
             {/* Modal Actions */}
             <div className="modal-actions-bar no-print">
               <div className="status-change-buttons">
-                <span className="status-label">Update Status:</span>
-                {(['Draft', 'Sent', 'Accepted', 'Rejected'] as QuotationStatus[]).map(st => (
+                <span className="status-label">Status:</span>
+                {selectedQuotation.status === 'Draft' && (
                   <button 
-                    key={st}
-                    className={`btn-status-toggle ${selectedQuotation.status === st ? 'active' : ''}`}
-                    onClick={() => handleUpdateStatus(selectedQuotation.id, st)}
+                    className="btn-status-action btn-send-quote"
+                    onClick={() => handleUpdateStatus(selectedQuotation.id, 'Sent')}
                   >
-                    {st}
+                    <Send size={14} />
+                    <span>Mark as Sent to Customer</span>
                   </button>
-                ))}
+                )}
+                {selectedQuotation.status === 'Sent' && (
+                  <>
+                    <button 
+                      className="btn-status-action btn-accept-quote"
+                      onClick={() => handleUpdateStatus(selectedQuotation.id, 'Accepted')}
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>Mark Accepted (Won)</span>
+                    </button>
+                    <button 
+                      className="btn-status-action btn-reject-quote"
+                      onClick={() => handleUpdateStatus(selectedQuotation.id, 'Rejected')}
+                    >
+                      <XCircle size={14} />
+                      <span>Mark Rejected</span>
+                    </button>
+                  </>
+                )}
+                {selectedQuotation.status === 'Accepted' && (
+                  <span className="finalized-badge badge-accepted">✓ Accepted & Finalized</span>
+                )}
+                {selectedQuotation.status === 'Rejected' && (
+                  <span className="finalized-badge badge-rejected">✕ Rejected / Closed</span>
+                )}
+                {selectedQuotation.status === 'Expired' && (
+                  <span className="finalized-badge badge-expired">Expired</span>
+                )}
               </div>
 
               <div className="right-action-buttons">

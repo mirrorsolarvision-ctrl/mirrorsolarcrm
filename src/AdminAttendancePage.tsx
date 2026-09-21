@@ -91,6 +91,11 @@ export default function AdminAttendancePage() {
 
   // Admin Actions (can mark/remove for Today and Past dates)
   const handleToggleAttendance = async (empId: string, empName: string, currentlyPresent: boolean) => {
+    if (selectedDate > todayIso) {
+      showToast('Attendance cannot be marked for future dates', 'warning');
+      return;
+    }
+
     try {
       if (currentlyPresent) {
         await removeAttendance(empId, selectedDate);

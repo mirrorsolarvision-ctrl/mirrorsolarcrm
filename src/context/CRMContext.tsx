@@ -1153,6 +1153,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // --- Attendance Management ---
   const markAttendance = async (employeeId: string, date?: string, dealerId?: string | null, customTime?: string) => {
     const targetDate = date || new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    if (targetDate > todayStr) {
+      console.warn("Rejected: Cannot mark attendance for future dates", targetDate);
+      throw new Error("Cannot mark attendance for future dates");
+    }
+
     const time = customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     
     // Find employee to resolve dealerId if not provided

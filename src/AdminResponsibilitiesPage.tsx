@@ -42,6 +42,9 @@ export default function AdminResponsibilitiesPage() {
   const [newRespName, setNewRespName] = useState('');
   const [newRespDesc, setNewRespDesc] = useState('');
 
+  // Form submission loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Strict isolation: Company employees ONLY
   const companyEmployees = useMemo(() => {
     return employees.filter(e => (!e.dealerId || e.dealerId === null) && e.status === 'Active');
@@ -87,13 +90,25 @@ export default function AdminResponsibilitiesPage() {
 
   const handleOpenAssign = (emp: Employee) => {
     setSelectedEmployee(emp);
-    setPrimaryRespId(emp.responsibilities?.primaryResponsibilityId || '');
-    setSecondaryRespIds(emp.responsibilities?.secondaryResponsibilityIds || []);
+    const primId = emp.responsibilities?.primaryResponsibilityId || '';
+    setPrimaryRespId(primId);
+    // Ensure primary role is not in secondary roles
+    const secIds = (emp.responsibilities?.secondaryResponsibilityIds || []).filter(id => id !== primId);
+    setSecondaryRespIds(secIds);
     setAssignmentNotes(emp.responsibilities?.notes || '');
     setIsAssignModalOpen(true);
   };
 
+  const handlePrimaryChange = (newPrimId: string) => {
+    setPrimaryRespId(newPrimId);
+    // Auto-remove new primary from secondary selection
+    if (newPrimId) {
+      setSecondaryRespIds(prev => prev.filter(id => id !== newPrimId));
+    }
+  };
+
   const toggleSecondaryId = (id: string) => {
+    if (id === primaryRespId) return; // Cannot toggle primary as secondary
     setSecondaryRespIds(prev => {
       if (prev.includes(id)) {
         return prev.filter(x => x !== id);
@@ -105,37 +120,57 @@ export default function AdminResponsibilitiesPage() {
 
   const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
+      // Ensure primary is stripped from secondary
+      const cleanSecondaryIds = secondaryRespIds.filter(id => id !== primaryRespId);
       await assignEmployeeResponsibilities(
         selectedEmployee.id,
         primaryRespId || undefined,
-        secondaryRespIds,
+        cleanSecondaryIds,
         assignmentNotes
       );
       showToast(`Responsibilities updated for ${selectedEmployee.name}`, 'success');
       setIsAssignModalOpen(false);
     } catch (err) {
       showToast('Failed to save responsibilities', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCreateResponsibility = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRespName.trim()) {
+    const cleanName = newRespName.trim();
+    if (!cleanName) {
       showToast('Please enter a responsibility title', 'warning');
       return;
     }
 
+    // Duplicate Check (Case-Insensitive)
+    const isDuplicate = responsibilities.some(
+      r => r.name.toLowerCase() === cleanName.toLowerCase()
+    );
+    if (isDuplicate) {
+      showToast(`A responsibility named "${cleanName}" already exists`, 'error');
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
-      await addResponsibility(newRespName.trim(), newRespDesc.trim());
-      showToast(`Added new responsibility: "${newRespName}"`, 'success');
+      await addResponsibility(cleanName, newRespDesc.trim());
+      showToast(`Added new responsibility: "${cleanName}"`, 'success');
       setNewRespName('');
       setNewRespDesc('');
       setIsCreateRespModalOpen(false);
     } catch (err) {
       showToast('Failed to create responsibility', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -352,7 +387,7 @@ export default function AdminResponsibilitiesPage() {
                 </label>
                 <select 
                   value={primaryRespId}
-                  onChange={(e) => setPrimaryRespId(e.target.value)}
+                  onChange={(e) => handlePrimaryChange(e.target.value)}
                   className="primary-select"
                 >
                   <option value="">— Select Primary Responsibility —</option>
@@ -408,11 +443,11 @@ export default function AdminResponsibilitiesPage() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setIsAssignModalOpen(false)}>
+                <button type="button" className="btn-cancel" disabled={isSubmitting} onClick={() => setIsAssignModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit">
-                  Save Responsibilities
+                <button type="submit" className="btn-submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Responsibilities'}
                 </button>
               </div>
             </form>
@@ -422,14 +457,14 @@ export default function AdminResponsibilitiesPage() {
 
       {/* Create Master Responsibility Modal */}
       {isCreateRespModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsCreateRespModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => !isSubmitting && setIsCreateRespModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <Plus size={20} className="text-blue" />
                 <h3>Create New Master Responsibility</h3>
               </div>
-              <button className="modal-close-btn" onClick={() => setIsCreateRespModalOpen(false)}>
+              <button className="modal-close-btn" disabled={isSubmitting} onClick={() => setIsCreateRespModalOpen(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -457,11 +492,11 @@ export default function AdminResponsibilitiesPage() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setIsCreateRespModalOpen(false)}>
+                <button type="button" className="btn-cancel" disabled={isSubmitting} onClick={() => setIsCreateRespModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit">
-                  Create Responsibility
+                <button type="submit" className="btn-submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Responsibility'}
                 </button>
               </div>
             </form>
