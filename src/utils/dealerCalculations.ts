@@ -9,16 +9,29 @@ export interface DealerPerformance {
   performanceLevel: 'High' | 'Medium' | 'Low';
 }
 
-export const getDealerLeads = (dealerName: string, leads: MockLead[]) => {
-  return leads.filter(l => l.dealer === dealerName && !l.archived);
+export const matchesDealer = (l: MockLead, dealer: string | { id?: string; name?: string }): boolean => {
+  if (!dealer) return false;
+  if (typeof dealer === 'string') {
+    return (l.dealerId && l.dealerId === dealer) || l.dealer === dealer;
+  }
+  if (dealer.id && l.dealerId) {
+    return l.dealerId === dealer.id;
+  }
+  if (dealer.id && l.dealerId === dealer.id) return true;
+  if (dealer.name && l.dealer === dealer.name) return true;
+  return false;
 };
 
-export const getDealerConvertedLeads = (dealerName: string, leads: MockLead[]) => {
-  return leads.filter(l => l.dealer === dealerName && l.stage === 'Converted' && !l.archived);
+export const getDealerLeads = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  return leads.filter(l => matchesDealer(l, dealer) && !l.archived);
 };
 
-export const getDealerActiveLeads = (dealerName: string, leads: MockLead[]) => {
-  return leads.filter(l => l.dealer === dealerName && l.stage !== 'Converted' && l.stage !== 'Completed' && !l.archived);
+export const getDealerConvertedLeads = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  return leads.filter(l => matchesDealer(l, dealer) && l.stage === 'Converted' && !l.archived);
+};
+
+export const getDealerActiveLeads = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  return leads.filter(l => matchesDealer(l, dealer) && l.stage !== 'Converted' && l.stage !== 'Completed' && !l.archived);
 };
 
 export const getDealerConversionRate = (total: number, converted: number): number => {
@@ -32,11 +45,11 @@ export const getDealerPerformanceLevel = (conversionRate: number): 'High' | 'Med
   return 'Low';
 };
 
-export const getDealerPerformance = (dealerName: string, leads: MockLead[]): DealerPerformance => {
-  const dLeads = getDealerLeads(dealerName, leads);
+export const getDealerPerformance = (dealer: string | { id?: string; name?: string }, leads: MockLead[]): DealerPerformance => {
+  const dLeads = getDealerLeads(dealer, leads);
   const totalLeads = dLeads.length;
-  const convertedLeads = getDealerConvertedLeads(dealerName, leads).length;
-  const activeLeads = getDealerActiveLeads(dealerName, leads).length;
+  const convertedLeads = getDealerConvertedLeads(dealer, leads).length;
+  const activeLeads = getDealerActiveLeads(dealer, leads).length;
   const conversionRate = getDealerConversionRate(totalLeads, convertedLeads);
   const performanceLevel = getDealerPerformanceLevel(conversionRate);
 
@@ -57,8 +70,8 @@ export const getDealerActivity = (dealerName: string, activities: Activity[]) =>
   return activities.filter(a => a.dealer === dealerName);
 };
 
-export const getDealerEmployees = (dealerName: string, leads: MockLead[], employees: Employee[]) => {
-  const dLeads = getDealerLeads(dealerName, leads);
+export const getDealerEmployees = (dealer: string | { id?: string; name?: string }, leads: MockLead[], employees: Employee[]) => {
+  const dLeads = getDealerLeads(dealer, leads);
   const employeeNames = Array.from(new Set(dLeads.map(l => l.assignedEmployee)));
   
   return employeeNames.map(name => {
@@ -74,8 +87,8 @@ export const getDealerEmployees = (dealerName: string, leads: MockLead[], employ
   }).sort((a, b) => b.totalLeads - a.totalLeads);
 };
 
-export const getDealerFollowUps = (dealerName: string, leads: MockLead[]) => {
-  const dLeads = getDealerLeads(dealerName, leads);
+export const getDealerFollowUps = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  const dLeads = getDealerLeads(dealer, leads);
   const followUps = dLeads.map(l => l.followUp).filter(f => f !== undefined);
   
   return {
@@ -87,8 +100,8 @@ export const getDealerFollowUps = (dealerName: string, leads: MockLead[]) => {
   };
 };
 
-export const getDealerPipeline = (dealerName: string, leads: MockLead[]) => {
-  const dLeads = getDealerLeads(dealerName, leads);
+export const getDealerPipeline = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  const dLeads = getDealerLeads(dealer, leads);
   return {
     'Lead': dLeads.filter(l => l.stage === 'Lead').length,
     'Converted': dLeads.filter(l => l.stage === 'Converted').length,
@@ -99,22 +112,22 @@ export const getDealerPipeline = (dealerName: string, leads: MockLead[]) => {
   };
 };
 
-export const getDealerFollowUpsRaw = (dealerName: string, leads: MockLead[]) => {
-  return getDealerLeads(dealerName, leads)
+export const getDealerFollowUpsRaw = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  return getDealerLeads(dealer, leads)
     .filter(l => l.followUp)
     .map(l => ({ ...l.followUp, lead: l }));
 };
 
-export const getDealerOverdueFollowUps = (dealerName: string, leads: MockLead[]) => {
-  return getDealerFollowUpsRaw(dealerName, leads).filter(f => f.status === 'Overdue');
+export const getDealerOverdueFollowUps = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  return getDealerFollowUpsRaw(dealer, leads).filter(f => f.status === 'Overdue');
 };
 
-export const getDealerLeadOverview = (dealerName: string, leads: MockLead[]) => {
-  const dLeads = getDealerLeads(dealerName, leads);
+export const getDealerLeadOverview = (dealer: string | { id?: string; name?: string }, leads: MockLead[]) => {
+  const dLeads = getDealerLeads(dealer, leads);
   return {
     'New': dLeads.filter(l => l.stage === 'Lead').length,
     'In Progress': dLeads.filter(l => l.stage === 'Installation' || l.stage === 'Loan' || l.stage === 'Material').length,
     'Converted': dLeads.filter(l => l.stage === 'Converted' || l.stage === 'Completed').length,
-    'Lost': 0 // Assuming no lost stage for now based on current STAGES
+    'Lost': 0
   };
 };

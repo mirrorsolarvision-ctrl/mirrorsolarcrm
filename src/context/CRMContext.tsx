@@ -245,7 +245,9 @@ export interface MockLead {
   email: string;
   location: string;
   dealer: string;
+  dealerId?: string;
   assignedEmployee: string;
+  assignedEmployeeId?: string;
   stage: Stage;
   priority: LeadPriority;
   followUp: FollowUp;
@@ -790,7 +792,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addLead = async (lead: Omit<MockLead, 'id'>) => {
     try {
-      await addDoc(collection(db, 'leads'), lead);
+      const leadPayload = {
+        ...lead,
+        dealerId: lead.dealerId || (authUser?.role === 'Dealer' ? authUser.id : undefined),
+        dealer: lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : '')
+      };
+      await addDoc(collection(db, 'leads'), leadPayload);
     } catch (err) {
       console.error("Error adding lead:", err);
     }

@@ -45,10 +45,10 @@ export default function DealerQuotationsPage() {
   const [validityDays, setValidityDays] = useState<number>(30);
   const [quotationNotes, setQuotationNotes] = useState('');
 
-  // Strict isolation: Leads belonging ONLY to this dealer
+  // Strict ID-based isolation: Leads belonging ONLY to this dealer
   const dealerLeads = useMemo(() => {
     if (!currentUser) return [];
-    return leads.filter(l => l.dealer === currentUser.name && !l.archived);
+    return leads.filter(l => (l.dealerId ? l.dealerId === currentUser.id : l.dealer === currentUser.name) && !l.archived);
   }, [leads, currentUser]);
 
   // Strict isolation: Quotations belonging ONLY to this dealer
