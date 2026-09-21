@@ -53,7 +53,9 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   });
 
   const processedEmployees = useMemo(() => {
-    return employees.map(emp => {
+    // Strict isolation: only Company Staff (dealerId is null or undefined)
+    const companyStaffOnly = employees.filter(emp => !emp.dealerId || emp.dealerId === null);
+    return companyStaffOnly.map(emp => {
       const perf = getEmployeePerformance(emp.name, leads);
       return { ...emp, ...perf };
     });

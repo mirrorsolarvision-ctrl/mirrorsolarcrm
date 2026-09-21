@@ -4,8 +4,8 @@ import { useCRM } from '../context/CRMContext';
 import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import EmployeeSidebar from './EmployeeSidebar';
-// Stubs for future pages
 import EmployeeDashboard from './EmployeeDashboard';
+import EmployeeAttendancePage from './EmployeeAttendancePage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
 import FollowupsPage from '../FollowupsPage';
@@ -58,6 +58,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
   const renderPage = () => {
     // Determine route name for permission check
     const routeName = currentPath === '/employee/dashboard' ? 'Dashboard' :
+                      currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
                       currentPath === '/employee/followups' ? 'Leads' :
                       currentPath === '/employee/tasks' ? 'Dashboard' :
@@ -73,6 +74,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
     switch (currentPath) {
       case '/employee/dashboard':
         return <EmployeeDashboard onNavigate={handleNavigate} />;
+      case '/employee/attendance':
+        return <EmployeeAttendancePage />;
       case '/employee/leads':
         // Pass filters to Leads page (e.g. stage, status) if it supports it
         return <LeadsPage {...(routeFilters || {})} />;

@@ -315,6 +315,28 @@ export interface UserPermissions {
 export type UserRole = 'Admin' | 'Employee' | 'Dealer';
 export type UserStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
 
+export interface DealerFeatures {
+  myEmployees: boolean;
+  attendance: boolean;
+  leads: boolean;
+  stock: boolean;
+  payments: boolean;
+  reports: boolean;
+  tasks: boolean;
+  calendar: boolean;
+}
+
+export const defaultDealerFeatures: DealerFeatures = {
+  myEmployees: true,
+  attendance: true,
+  leads: true,
+  stock: true,
+  payments: true,
+  reports: false,
+  tasks: true,
+  calendar: true
+};
+
 export interface User {
   id: string;
   name: string;
@@ -332,6 +354,8 @@ export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
 
 export interface Employee extends User {
   role: 'Employee';
+  dealerId?: string | null; // null = Company Staff, string = Dealer's Staff
+  authId?: string;
 }
 
 export type DealerStatus = 'Active' | 'Inactive';
@@ -339,6 +363,16 @@ export type DealerStatus = 'Active' | 'Inactive';
 export interface Dealer extends User {
   role: 'Dealer';
   address: string;
+  features?: DealerFeatures;
+}
+
+export interface AttendanceRecord {
+  id: string; // e.g. `${employeeId}_${date}`
+  employeeId: string;
+  dealerId: string | null; // null for company employee, string for dealer staff
+  date: string; // YYYY-MM-DD
+  status: 'PRESENT';
+  markedAt: string; // e.g. "09:14 AM"
 }
 
 // Default Permissions
@@ -356,7 +390,7 @@ const defaultEmployeePermissions: UserPermissions = {
 const defaultDealerPermissions: UserPermissions = {
   dashboard: 'view',
   leads: 'edit',
-  employees: 'none',
+  employees: 'edit',
   dealers: 'none',
   stock: 'view',
   reports: 'none',
@@ -435,6 +469,18 @@ interface CRMContextType {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   resetData: () => void;
+
+  // Attendance & Dealer Feature Management
+  attendances: AttendanceRecord[];
+  markAttendance: (employeeId: string, date?: string, dealerId?: string | null, customTime?: string) => Promise<void>;
+  removeAttendance: (employeeId: string, date: string) => Promise<void>;
+  isEmployeePresent: (employeeId: string, date: string) => boolean;
+  getEmployeeAttendance: (employeeId: string, date: string) => AttendanceRecord | undefined;
+  getAttendanceForDate: (date: string, dealerId?: string | null) => AttendanceRecord[];
+  getEmployeeAttendanceHistory: (employeeId: string) => AttendanceRecord[];
+  updateDealerFeatures: (dealerId: string, features: Partial<DealerFeatures>) => Promise<void>;
+  addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => Promise<void>;
+  updateDealerEmployee: (employeeId: string, dealerId: string, updates: Partial<Employee>) => Promise<void>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
@@ -445,6 +491,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const { currentUser: authUser } = useAuth();
@@ -471,6 +518,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDealers([]);
       setActivities([]);
       setTasks([]);
+      setAttendances([]);
       return;
     }
 
@@ -497,7 +545,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       snapshot.forEach(doc => {
         allLeads.push({ id: doc.id, ...doc.data() } as MockLead);
       });
-      // Sort by creation date descending
       allLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setLeads(allLeads);
     });
@@ -507,7 +554,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (authUser.role === 'Dealer') {
       activitiesQuery = query(collection(db, 'activities'), where('dealer', '==', authUser.name)) as any;
     } else if (authUser.role === 'Employee') {
-      activitiesQuery = query(collection(db, 'activities'), where('assignedEmployee', '==', authUser.name)) as any; // Assuming activities might eventually have this, currently they have dealer/leadId. We will just load all for now if this breaks. Actually, activities have 'dealer' and 'user'.
+      activitiesQuery = query(collection(db, 'activities'), where('assignedEmployee', '==', authUser.name)) as any;
     }
 
     const unsubscribeActivities = onSnapshot(activitiesQuery, (snapshot) => {
@@ -515,20 +562,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       snapshot.forEach(doc => {
         allActivities.push({ id: doc.id, ...doc.data() } as Activity);
       });
-      // Sort by creation date descending
       allActivities.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
       setActivities(allActivities);
     });
 
     // 4. Listen for Live Tasks - SCOPED BY ROLE
     let tasksQuery = collection(db, 'tasks');
-    if (authUser.role === 'Dealer') {
-      // Dealers don't use the tasks collection for their own tasks right now, their widget filters tasks.
-      // Wait, tasks have assignedToUserId or createdByUserId.
-      // To be safe, we query all tasks they are involved in. Firestore doesn't support OR well, so we pull all for now and filter client-side, but ideally we'd use multiple queries.
-      // Since it's a small CRM, we'll keep it simple: no filter if it requires complex OR.
-    }
-
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
       const allTasks: Task[] = [];
       snapshot.forEach(doc => {
@@ -538,11 +577,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTasks(allTasks);
     });
 
+    // 5. Listen for Live Attendance Records
+    const unsubscribeAttendance = onSnapshot(collection(db, 'attendance'), (snapshot) => {
+      const allRecords: AttendanceRecord[] = [];
+      snapshot.forEach(doc => {
+        allRecords.push(doc.data() as AttendanceRecord);
+      });
+      setAttendances(allRecords);
+    }, (err) => {
+      console.warn("Attendance collection listener fallback to local state:", err);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeLeads();
       unsubscribeActivities();
       unsubscribeTasks();
+      unsubscribeAttendance();
     };
   }, [authUser]);
 
@@ -947,6 +998,119 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // --- Attendance Management ---
+  const markAttendance = async (employeeId: string, date?: string, dealerId?: string | null, customTime?: string) => {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const time = customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    // Find employee to resolve dealerId if not provided
+    const targetEmp = employees.find(e => e.id === employeeId);
+    const targetDealerId = dealerId !== undefined ? dealerId : (targetEmp?.dealerId || null);
+
+    const recordId = `${employeeId}_${targetDate}`;
+    const record: AttendanceRecord = {
+      id: recordId,
+      employeeId,
+      dealerId: targetDealerId,
+      date: targetDate,
+      status: 'PRESENT',
+      markedAt: time
+    };
+
+    // Update local state first for instant UX
+    setAttendances(prev => {
+      const filtered = prev.filter(a => !(a.employeeId === employeeId && a.date === targetDate));
+      return [...filtered, record];
+    });
+
+    try {
+      await setDoc(doc(db, 'attendance', recordId), record);
+    } catch (err) {
+      console.warn("Could not persist attendance to Firestore, keeping in local state:", err);
+    }
+  };
+
+  const removeAttendance = async (employeeId: string, date: string) => {
+    const recordId = `${employeeId}_${date}`;
+    
+    // Update local state first
+    setAttendances(prev => prev.filter(a => !(a.employeeId === employeeId && a.date === date)));
+
+    try {
+      await deleteDoc(doc(db, 'attendance', recordId));
+    } catch (err) {
+      console.warn("Could not remove attendance from Firestore, updated local state:", err);
+    }
+  };
+
+  const isEmployeePresent = (employeeId: string, date: string): boolean => {
+    return attendances.some(a => a.employeeId === employeeId && a.date === date && a.status === 'PRESENT');
+  };
+
+  const getEmployeeAttendance = (employeeId: string, date: string): AttendanceRecord | undefined => {
+    return attendances.find(a => a.employeeId === employeeId && a.date === date && a.status === 'PRESENT');
+  };
+
+  const getAttendanceForDate = (date: string, dealerId?: string | null): AttendanceRecord[] => {
+    return attendances.filter(a => {
+      if (a.date !== date || a.status !== 'PRESENT') return false;
+      if (dealerId !== undefined) {
+        return a.dealerId === dealerId;
+      }
+      return true;
+    });
+  };
+
+  const getEmployeeAttendanceHistory = (employeeId: string): AttendanceRecord[] => {
+    return attendances
+      .filter(a => a.employeeId === employeeId && a.status === 'PRESENT')
+      .sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  // --- Dealer Feature & Staff Management ---
+  const updateDealerFeatures = async (dealerId: string, newFeatures: Partial<DealerFeatures>) => {
+    const targetDealer = dealers.find(d => d.id === dealerId);
+    const existingFeatures = targetDealer?.features || defaultDealerFeatures;
+    const updatedFeatures: DealerFeatures = { ...existingFeatures, ...newFeatures };
+
+    setDealers(prev => prev.map(d => d.id === dealerId ? { ...d, features: updatedFeatures } : d));
+
+    try {
+      await updateDoc(doc(db, 'users', dealerId), { features: updatedFeatures });
+    } catch (err) {
+      console.warn("Error updating dealer features in Firestore:", err);
+    }
+  };
+
+  const addDealerEmployee = async (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => {
+    const newId = `EMP${Date.now()}`;
+    const newEmployee: Employee = {
+      ...emp,
+      id: newId,
+      dealerId,
+      role: 'Employee',
+      permissions: { ...defaultEmployeePermissions }
+    };
+
+    setEmployees(prev => [...prev, newEmployee]);
+
+    try {
+      await setDoc(doc(db, 'users', newId), newEmployee);
+    } catch (err) {
+      console.warn("Error adding dealer employee to Firestore:", err);
+    }
+  };
+
+  const updateDealerEmployee = async (employeeId: string, dealerId: string, updates: Partial<Employee>) => {
+    setEmployees(prev => prev.map(e => (e.id === employeeId && e.dealerId === dealerId) ? { ...e, ...updates } : e));
+
+    try {
+      await updateDoc(doc(db, 'users', employeeId), updates);
+    } catch (err) {
+      console.warn("Error updating dealer employee in Firestore:", err);
+    }
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
@@ -956,7 +1120,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,
       addCustomerPayment, verifyCustomerPayment, deleteCustomerPayment,
-      tasks, addTask, updateTask, deleteTask, resetData
+      tasks, addTask, updateTask, deleteTask, resetData,
+
+      // Attendance & Dealer Feature Management
+      attendances, markAttendance, removeAttendance, isEmployeePresent,
+      getEmployeeAttendance, getAttendanceForDate, getEmployeeAttendanceHistory,
+      updateDealerFeatures, addDealerEmployee, updateDealerEmployee
     }}>
       {children}
     </CRMContext.Provider>

@@ -5,7 +5,7 @@ import {
   Menu, X, PanelLeftClose, PanelLeftOpen, 
   TrendingUp, Activity, AlertCircle, ArrowRight,
   UserPlus, CheckCircle2, Sun, Wallet, CheckCircle, PieChart,
-  CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard
+  CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import './AdminDashboard.css';
@@ -17,6 +17,7 @@ import { useUI } from './context/UIContext';
 import AdminEmployeesPage from './AdminEmployeesPage';
 import AdminDealersPage from './AdminDealersPage';
 import AdminAccessPage from './AdminAccessPage';
+import AdminAttendancePage from './AdminAttendancePage';
 import AccessRestricted from './components/AccessRestricted';
 import { canAccessRoute } from './utils/permissionCalculations';
 import LeadsPage from './LeadsPage';
@@ -243,6 +244,10 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
       icon: <Users size={20} />
     },
     { 
+      name: 'Attendance', 
+      icon: <UserCheck size={20} />
+    },
+    { 
       name: 'Dealers', 
       icon: <Briefcase size={20} />,
       children: ['Sri Solar Dealers', 'Green Energy', 'Sun Power', 'Aditya Solar', 'Bright Energy']
@@ -401,6 +406,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               setActiveTab('Access');
             }} 
           />
+        ) : activeTab === 'Attendance' ? (
+          <AdminAttendancePage />
         ) : activeTab === 'Dealers' ? (
           <AdminDealersPage onNavigateToLeads={() => setActiveTab('Leads')} />
         ) : activeTab === 'Leads' ? (

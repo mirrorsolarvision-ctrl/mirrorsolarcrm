@@ -6,6 +6,8 @@ import AccessRestricted from '../components/AccessRestricted';
 import DealerSidebar from './DealerSidebar';
 
 import DealerDashboard from './DealerDashboard';
+import DealerEmployeesPage from './DealerEmployeesPage';
+import DealerAttendancePage from './DealerAttendancePage';
 import DealerStockPage from './DealerStockPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
@@ -22,7 +24,7 @@ interface DealerAppProps {
 }
 
 export default function DealerApp({ onSignOut }: DealerAppProps) {
-  const { currentUser } = useCRM();
+  const { currentUser, dealers } = useCRM();
   const { getDealerPendingDispatchesCount } = useStock();
   const pendingCount = getDealerPendingDispatchesCount(currentUser?.name || '');
   
@@ -63,15 +65,17 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
     // Determine route name for permission check
     const routeName = currentPath === '/dealer/dashboard' ? 'Dashboard' :
                       currentPath === '/dealer/leads' ? 'Leads' :
-                      currentPath === '/dealer/payments' ? 'Dashboard' :
+                      currentPath === '/dealer/employees' ? 'My Employees' :
+                      currentPath === '/dealer/attendance' ? 'Attendance' :
+                      currentPath === '/dealer/payments' ? 'Payments' :
                       currentPath === '/dealer/followups' ? 'Leads' :
-                      currentPath === '/dealer/tasks' ? 'Dashboard' :
-                      currentPath === '/dealer/calendar' ? 'Dashboard' :
+                      currentPath === '/dealer/tasks' ? 'Tasks' :
+                      currentPath === '/dealer/calendar' ? 'Calendar' :
                       currentPath === '/dealer/stock' ? 'Stock' :
                       currentPath === '/dealer/reports' ? 'Reports' :
                       currentPath === '/dealer/profile' ? 'Profile' : 'Dashboard';
 
-    if (!canAccessRoute(currentUser, routeName)) {
+    if (!canAccessRoute(currentUser, routeName, dealers)) {
       return <AccessRestricted onReturnToDashboard={() => handleNavigate('/dealer/dashboard')} />;
     }
 
@@ -80,6 +84,10 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
         return <DealerDashboard onNavigate={handleNavigate} />;
       case '/dealer/leads':
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/dealer/employees':
+        return <DealerEmployeesPage />;
+      case '/dealer/attendance':
+        return <DealerAttendancePage />;
       case '/dealer/payments':
         return <PaymentsPage onNavigate={handleNavigate} />;
       case '/dealer/followups':

@@ -1,6 +1,7 @@
 import { 
   LayoutDashboard, 
   Users, 
+  UserCheck,
   Bell, 
   Package, 
   User as UserIcon, 
@@ -37,20 +38,22 @@ export default function DealerSidebar({
   onNavigate,
   onSignOut
 }: DealerSidebarProps) {
-  const { currentUser } = useCRM();
+  const { currentUser, dealers } = useCRM();
 
   const allNavItems = [
     { name: 'Dashboard', path: '/dealer/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'My Leads', path: '/dealer/leads', icon: Users, routeName: 'Leads' },
-    { name: 'Payments', path: '/dealer/payments', icon: CreditCard, routeName: 'Dashboard' },
-    { name: 'Tasks', path: '/dealer/tasks', icon: CheckSquare, routeName: 'Dashboard' },
-    { name: 'Calendar', path: '/dealer/calendar', icon: Calendar, routeName: 'Dashboard' },
+    { name: 'My Employees', path: '/dealer/employees', icon: Users, routeName: 'My Employees' },
+    { name: 'Team Attendance', path: '/dealer/attendance', icon: UserCheck, routeName: 'Attendance' },
+    { name: 'Payments', path: '/dealer/payments', icon: CreditCard, routeName: 'Payments' },
+    { name: 'Tasks', path: '/dealer/tasks', icon: CheckSquare, routeName: 'Tasks' },
+    { name: 'Calendar', path: '/dealer/calendar', icon: Calendar, routeName: 'Calendar' },
     { name: 'Follow-ups', path: '/dealer/followups', icon: Bell, routeName: 'Leads' },
     { name: 'Stock', path: '/dealer/stock', icon: Package, routeName: 'Stock' },
     { name: 'Reports', path: '/dealer/reports', icon: LayoutDashboard, routeName: 'Reports' },
   ];
 
-  const navItems = allNavItems.filter(item => canAccessRoute(currentUser, item.routeName));
+  const navItems = allNavItems.filter(item => canAccessRoute(currentUser, item.routeName, dealers));
 
   return (
     <>

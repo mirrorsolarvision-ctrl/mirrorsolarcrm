@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, X, Activity, UserPlus, 
-  MapPin, Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List
+  MapPin, Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List,
+  Sliders, Shield, CheckSquare
 } from 'lucide-react';
-import { useCRM } from './context/CRMContext';
+import { useCRM, defaultDealerFeatures } from './context/CRMContext';
 import { useStock } from './context/StockContext';
 import { useUI } from './context/UIContext';
-import type { Dealer } from './context/CRMContext';
+import type { Dealer, DealerFeatures } from './context/CRMContext';
 import { 
   getDealerPerformance, 
   getDealerStockRequests, 
@@ -22,7 +23,7 @@ interface AdminDealersPageProps {
 }
 
 export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPageProps) {
-  const { leads, dealers, employees, activities, addDealer, updateDealer, addActivity, currentUser } = useCRM();
+  const { leads, dealers, employees, activities, addDealer, updateDealer, updateDealerFeatures, addActivity, currentUser } = useCRM();
   const { stockRequests } = useStock();
   const { showToast, showConfirmModal } = useUI();
 
@@ -36,6 +37,9 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isFeaturesModalOpen, setIsFeaturesModalOpen] = useState(false);
+  const [featureTargetDealer, setFeatureTargetDealer] = useState<Dealer | null>(null);
+  const [featureForm, setFeatureForm] = useState<DealerFeatures>({ ...defaultDealerFeatures });
   
   // Note state
   const [newNote, setNewNote] = useState('');
@@ -163,6 +167,30 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
     addActivity({ type: 'Internal Note', message: newNote, user: currentUser?.name || 'Admin', dealer: selectedDealer.name });
     setNewNote('');
     showToast('Note added', 'success');
+  };
+
+  const handleOpenFeaturesModal = (dealer: Dealer) => {
+    setFeatureTargetDealer(dealer);
+    setFeatureForm({ ...(dealer.features || defaultDealerFeatures) });
+    setIsFeaturesModalOpen(true);
+  };
+
+  const handleSaveFeatures = async () => {
+    if (!featureTargetDealer) return;
+    try {
+      await updateDealerFeatures(featureTargetDealer.id, featureForm);
+      showToast(`Features updated for ${featureTargetDealer.name}!`, 'success');
+      setIsFeaturesModalOpen(false);
+      if (selectedDealer && selectedDealer.id === featureTargetDealer.id) {
+        setSelectedDealer({ ...selectedDealer, features: featureForm });
+      }
+    } catch (err) {
+      showToast('Failed to update dealer features', 'error');
+    }
+  };
+
+  const toggleFeatureKey = (key: keyof DealerFeatures) => {
+    setFeatureForm(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -510,11 +538,16 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
               {/* Actions */}
               <div className="detail-section">
                 <h4>Manage Dealer</h4>
-                <div className="detail-actions">
-                  <button className="btn-action" onClick={() => handleOpenEditModal(selectedDealer)}>Edit Details</button>
-                  <button className="btn-danger" onClick={() => toggleDealerStatus(selectedDealer)}>
-                    {selectedDealer.status === 'Active' ? 'Deactivate Dealer' : 'Reactivate Dealer'}
+                <div className="detail-actions" style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  <button className="btn-action" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#E0F2FE', color: '#0369A1', borderColor: '#BAE6FD'}} onClick={() => handleOpenFeaturesModal(selectedDealer)}>
+                    <Sliders size={16} /> Module Permissions
                   </button>
+                  <div style={{display: 'flex', gap: '8px'}}>
+                    <button className="btn-action" style={{flex: 1}} onClick={() => handleOpenEditModal(selectedDealer)}>Edit Details</button>
+                    <button className="btn-danger" style={{flex: 1}} onClick={() => toggleDealerStatus(selectedDealer)}>
+                      {selectedDealer.status === 'Active' ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </div>
                 </div>
               </div>
               
@@ -570,6 +603,83 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
         </div>
       )}
 
+      {/* Feature Permissions Modal */}
+      {isFeaturesModalOpen && featureTargetDealer && (
+        <div className="modal-overlay" onClick={() => setIsFeaturesModalOpen(false)}>
+          <div className="dealer-modal" style={{maxWidth: '560px'}} onClick={e => e.stopPropagation()}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <Sliders size={20} style={{color: '#0284C7'}} />
+                <h2 style={{margin: 0, fontSize: '1.25rem'}}>Module Permissions</h2>
+              </div>
+              <button onClick={() => setIsFeaturesModalOpen(false)} style={{background: 'none', border: 'none', cursor: 'pointer', color: '#64748B'}}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p style={{fontSize: '0.88rem', color: '#64748B', margin: '0 0 20px 0'}}>
+              Configure which CRM modules are enabled for <strong>{featureTargetDealer.name}</strong>. Disabled modules will be hidden and blocked.
+            </p>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px'}}>
+              {[
+                { key: 'myEmployees' as const, label: 'My Employees', desc: 'Add & manage dealer staff' },
+                { key: 'attendance' as const, label: 'Team Attendance', desc: 'Track daily staff presence' },
+                { key: 'leads' as const, label: 'My Leads', desc: 'Customer lead management' },
+                { key: 'stock' as const, label: 'Stock & Inventory', desc: 'Warehouse & material balance' },
+                { key: 'payments' as const, label: 'Payments', desc: 'Payouts & transaction records' },
+                { key: 'reports' as const, label: 'Reports', desc: 'Analytics & performance' },
+                { key: 'tasks' as const, label: 'Tasks', desc: 'Task checklist & assignment' },
+                { key: 'calendar' as const, label: 'Calendar', desc: 'Events & installation schedule' }
+              ].map(item => {
+                const isChecked = !!featureForm[item.key];
+                return (
+                  <div 
+                    key={item.key}
+                    onClick={() => toggleFeatureKey(item.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: `1.5px solid ${isChecked ? '#0284C7' : '#E2E8F0'}`,
+                      background: isChecked ? '#F0F9FF' : '#FAFAFA',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={isChecked}
+                      onChange={() => {}} // Handled by container onClick
+                      style={{marginTop: '3px', cursor: 'pointer', accentColor: '#0284C7'}}
+                    />
+                    <div>
+                      <span style={{display: 'block', fontWeight: 600, fontSize: '0.9rem', color: isChecked ? '#0369A1' : '#1E293B'}}>
+                        {item.label}
+                      </span>
+                      <span style={{fontSize: '0.75rem', color: '#64748B'}}>
+                        {item.desc}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-action" onClick={() => setIsFeaturesModalOpen(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleSaveFeatures}>
+                Save Permissions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+

@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   CheckSquare,
   Calendar,
+  UserCheck,
   X
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
@@ -40,6 +41,7 @@ export default function EmployeeSidebar({
 
   const allNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
+    { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
     { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Dashboard' },
     { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Dashboard' },
