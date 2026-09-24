@@ -86,10 +86,10 @@ export const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfig = {
   halfDayThresholdHours: 4.5,
   fullDayThresholdHours: 8,
   
-  // Mirror Solar Office HQ Geofence (Example coords with 500m radius)
+  // Mirror Solar Vision Office HQ Geofence (Eluru, Andhra Pradesh)
   requireLocation: true,
-  officeLatitude: 16.5062,
-  officeLongitude: 80.6480,
+  officeLatitude: 16.7107,
+  officeLongitude: 81.0952,
   geofenceRadiusMeters: 500,
   maxAccuracyLimitMeters: 150,
   allowFieldPunchWithFlag: true

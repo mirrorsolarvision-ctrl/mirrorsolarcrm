@@ -69,7 +69,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // QUOTATIONS COLLECTION (Strict Dealer Isolation & Versioning)
+    // QUOTATIONS COLLECTION (Strict Dealer Isolation & Versioning & Reassignment Control)
     match /quotations/{quotationId} {
       allow read: if isAdmin() ||
                   (isAuthenticated() && (
@@ -88,8 +88,8 @@ service cloud.firestore {
                       isAuthenticated() &&
                       resource.data.status != 'Cancelled' &&
                       (
-                        (getUserRole() == 'Dealer' && resource.data.dealerId == request.auth.uid && request.resource.data.dealerId == request.auth.uid) ||
-                        (getUserRole() == 'Employee' && resource.data.createdById == request.auth.uid && request.resource.data.createdById == request.auth.uid)
+                        (getUserRole() == 'Dealer' && resource.data.dealerId == request.auth.uid && request.resource.data.dealerId == request.auth.uid && request.resource.data.createdById == request.auth.uid) ||
+                        (getUserRole() == 'Employee' && resource.data.createdById == request.auth.uid && request.resource.data.createdById == request.auth.uid && request.resource.data.assignedEmployeeId == resource.data.assignedEmployeeId)
                       )
                     );
       allow delete: if isAdmin();
@@ -105,12 +105,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ATTENDANCE CORRECTION REQUESTS
+    // ATTENDANCE CORRECTION REQUESTS (Self-Approval Strictly Prohibited)
     match /attendance_corrections/{corrId} {
       allow read: if isAdmin() ||
                   (isAuthenticated() && resource.data.employeeId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.employeeId == request.auth.uid;
-      allow update: if isAdmin();
+      allow create: if isAuthenticated() && 
+                    request.resource.data.employeeId == request.auth.uid &&
+                    request.resource.data.status == 'PENDING';
+      allow update: if isAdmin(); // Only Admins can approve or reject!
       allow delete: if isAdmin();
     }
 
@@ -120,11 +122,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // AUDIT LOGS (Immutable append-only ledger with verified identity)
+    // AUDIT LOGS (Immutable append-only ledger with verified identity & role protection)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAuthenticated() && 
-                    (request.resource.data.userId == request.auth.uid || isAdmin());
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.userRole == getUserRole() &&
+                    (!request.resource.data.action.matches('.*ADMIN.*') || isAdmin());
       allow update, delete: if false; // Strict immutability
     }
 

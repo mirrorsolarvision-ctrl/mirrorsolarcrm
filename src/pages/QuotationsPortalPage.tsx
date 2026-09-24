@@ -8,11 +8,12 @@ import { useQuotations } from '../context/QuotationContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import type { Quotation, QuotationStatus } from '../types/quotation';
+import { compareQuotationVersions } from '../utils/quotationCalculations';
 import QuotationEditor from '../components/QuotationEditor';
 import './QuotationsPortalPage.css';
 
 export default function QuotationsPortalPage() {
-  const { myQuotations, amendQuotation, duplicateQuotation, cancelQuotation, finalizeQuotation, updateQuotationStatus } = useQuotations();
+  const { myQuotations, amendQuotation, duplicateQuotation, cancelQuotation, finalizeQuotation, updateQuotationStatus, getQuotationById } = useQuotations();
   const { currentUser } = useAuth();
   const { showToast, showConfirmModal } = useUI();
 
@@ -24,7 +25,7 @@ export default function QuotationsPortalPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [selectedLeadIdForNew, setSelectedLeadIdForNew] = useState<string | undefined>(undefined);
-  const [viewingQuotation, setViewingQuotation] = useState<Quotation | null>(null);
+  const [comparingVersions, setComparingVersions] = useState<{ v1: Quotation; v2: Quotation } | null>(null);
 
   // Filtered list
   const filteredQuotations = useMemo(() => {
@@ -101,6 +102,21 @@ export default function QuotationsPortalPage() {
     );
   };
 
+  const handleCompare = (q: Quotation) => {
+    let parent: Quotation | undefined;
+    if (q.parentQuotationId) {
+      parent = getQuotationById(q.parentQuotationId);
+    }
+    if (!parent && q.version > 1) {
+      parent = myQuotations.find(other => other.version === q.version - 1 && other.customer.mobileNumber === q.customer.mobileNumber);
+    }
+    if (!parent) {
+      showToast('Previous version record not found in active session', 'info');
+      return;
+    }
+    setComparingVersions({ v1: parent, v2: q });
+  };
+
   const handleShareWhatsApp = (q: Quotation) => {
     const text = `*SOLAR PROPOSAL — ${q.companySnapshot.name}*\n` +
       `Quotation No: ${q.quotationNumber}\n` +
@@ -112,6 +128,11 @@ export default function QuotationsPortalPage() {
       `Validity: ${q.validityDays} Days.\nContact: ${q.companySnapshot.phone}`;
     window.open(`https://api.whatsapp.com/send?phone=91${q.customer.mobileNumber}&text=${encodeURIComponent(text)}`, '_blank');
   };
+
+  const diffResult = useMemo(() => {
+    if (!comparingVersions) return null;
+    return compareQuotationVersions(comparingVersions.v1, comparingVersions.v2);
+  }, [comparingVersions]);
 
   return (
     <div className="quotations-portal-page">
@@ -246,13 +267,18 @@ export default function QuotationsPortalPage() {
                   </td>
                   <td>
                     <div className="qp-actions-row">
+                      {(q.version > 1 || q.parentQuotationId) && (
+                        <button className="qp-btn-act" title="Compare V1 vs V2 Differences" onClick={() => handleCompare(q)}>
+                          <Layers size={14} color="#2563EB" />
+                        </button>
+                      )}
                       {q.status === 'Draft' ? (
                         <button className="qp-btn-act" title="Edit Draft" onClick={() => handleEdit(q)}>
                           <Edit3 size={14} />
                         </button>
                       ) : (
                         <button className="qp-btn-act" title="Amend (Create V2)" onClick={() => handleAmend(q)}>
-                          <Layers size={14} />
+                          <Plus size={14} />
                         </button>
                       )}
                       <button className="qp-btn-act" title="Share via WhatsApp" onClick={() => handleShareWhatsApp(q)}>
@@ -296,6 +322,95 @@ export default function QuotationsPortalPage() {
           initialLeadId={selectedLeadIdForNew}
           onClose={() => setIsEditorOpen(false)}
         />
+      )}
+
+      {/* Version Comparison Modal (V1 vs V2 Diff Inspection) */}
+      {comparingVersions && diffResult && (
+        <div className="qp-compare-modal-backdrop" onClick={() => setComparingVersions(null)}>
+          <div className="qp-compare-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="qp-compare-modal-header">
+              <div>
+                <div className="qp-compare-badge">VERSION AMENDMENT AUDIT</div>
+                <h3>{comparingVersions.v1.quotationNumber} (V{comparingVersions.v1.version}) ➔ {comparingVersions.v2.quotationNumber} (V{comparingVersions.v2.version})</h3>
+                <p className="text-muted text-sm">{diffResult.summary}</p>
+              </div>
+              <button className="btn-secondary" onClick={() => setComparingVersions(null)}>Close</button>
+            </div>
+
+            <div className="qp-compare-modal-body">
+              {/* Financial Deltas Summary */}
+              <div className="qp-compare-summary-grid">
+                <div className="qp-compare-summary-box">
+                  <span className="label">Subtotal Diff</span>
+                  <span className={`val ${diffResult.financialDiff.subtotalDelta >= 0 ? 'pos' : 'neg'}`}>
+                    {diffResult.financialDiff.subtotalDelta >= 0 ? '+' : ''}₹{diffResult.financialDiff.subtotalDelta.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="qp-compare-summary-box">
+                  <span className="label">Discount Diff</span>
+                  <span className={`val ${diffResult.financialDiff.discountDelta >= 0 ? 'pos' : 'neg'}`}>
+                    {diffResult.financialDiff.discountDelta >= 0 ? '+' : ''}₹{diffResult.financialDiff.discountDelta.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="qp-compare-summary-box">
+                  <span className="label">GST Diff</span>
+                  <span className={`val ${diffResult.financialDiff.taxDelta >= 0 ? 'pos' : 'neg'}`}>
+                    {diffResult.financialDiff.taxDelta >= 0 ? '+' : ''}₹{diffResult.financialDiff.taxDelta.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="qp-compare-summary-box highlight">
+                  <span className="label">Net Payable Diff</span>
+                  <span className={`val ${diffResult.financialDiff.netPayableDelta >= 0 ? 'pos' : 'neg'}`}>
+                    {diffResult.financialDiff.netPayableDelta >= 0 ? '+' : ''}₹{diffResult.financialDiff.netPayableDelta.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Line Items Comparison Table */}
+              <h4 className="qp-compare-section-title">Line-by-Line Changes</h4>
+              <div className="qp-compare-table-wrap">
+                <table className="qp-compare-table">
+                  <thead>
+                    <tr>
+                      <th>ITEM</th>
+                      <th>V{comparingVersions.v1.version} SPEC</th>
+                      <th>V{comparingVersions.v2.version} SPEC</th>
+                      <th>CHANGE / DELTA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diffResult.lineItemChanges.map((change, idx) => (
+                      <tr key={idx} className={`diff-row-${change.type}`}>
+                        <td>
+                          <span className="font-bold">{change.itemName}</span>
+                          <span className={`diff-tag diff-${change.type}`}>{change.type.toUpperCase()}</span>
+                        </td>
+                        <td>
+                          {change.type === 'added' ? '-' : `${change.oldQty} × ₹${change.oldRate?.toLocaleString('en-IN')} = ₹${change.oldTotal?.toLocaleString('en-IN')}`}
+                        </td>
+                        <td>
+                          {change.type === 'removed' ? '-' : `${change.newQty} × ₹${change.newRate?.toLocaleString('en-IN')} = ₹${change.newTotal?.toLocaleString('en-IN')}`}
+                        </td>
+                        <td className="font-bold">
+                          {change.type === 'modified' && (
+                            <span>
+                              {change.newQty !== change.oldQty && `Qty: ${change.newQty! - change.oldQty! > 0 ? '+' : ''}${change.newQty! - change.oldQty!} `}
+                              {change.newRate !== change.oldRate && `Rate: ${change.newRate! - change.oldRate! > 0 ? '+' : ''}₹${change.newRate! - change.oldRate!} `}
+                              {`Total: ${change.newTotal! - change.oldTotal! > 0 ? '+' : ''}₹${(change.newTotal! - change.oldTotal!).toLocaleString('en-IN')}`}
+                            </span>
+                          )}
+                          {change.type === 'added' && <span className="text-success">+Added (₹{change.newTotal?.toLocaleString('en-IN')})</span>}
+                          {change.type === 'removed' && <span className="text-danger">-Removed (₹{change.oldTotal?.toLocaleString('en-IN')})</span>}
+                          {change.type === 'unchanged' && <span className="text-muted">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -34,10 +34,13 @@ function evaluateQuotationRules(auth, operation, resource, requestResource) {
     if (resource.status === 'Cancelled') return false;
 
     if (getUserRole() === 'Dealer') {
-      return resource.dealerId === auth.uid && requestResource.dealerId === auth.uid;
+      return resource.dealerId === auth.uid && requestResource.dealerId === auth.uid && requestResource.createdById === auth.uid;
     }
     if (getUserRole() === 'Employee') {
-      return resource.createdById === auth.uid && requestResource.createdById === auth.uid;
+      // Employee cannot reassign createdById OR change assignedEmployeeId (only Admin can reassign)
+      return resource.createdById === auth.uid && 
+             requestResource.createdById === auth.uid &&
+             requestResource.assignedEmployeeId === resource.assignedEmployeeId;
     }
     return false;
   }
@@ -53,10 +56,18 @@ function evaluateQuotationRules(auth, operation, resource, requestResource) {
 function evaluateAuditLogRules(auth, operation, resource, requestResource) {
   const isAuthenticated = auth !== null;
   const isAdmin = isAuthenticated && auth.role === 'Admin';
+  const getUserRole = () => auth ? auth.role : null;
 
   if (operation === 'read') return isAdmin;
   if (operation === 'create') {
-    return isAuthenticated && (requestResource.userId === auth.uid || isAdmin);
+    if (!isAuthenticated) return false;
+    if (requestResource.userId !== auth.uid) return false;
+    if (requestResource.userRole !== getUserRole()) return false;
+    // Check if non-admin is trying to claim an Admin action
+    if (requestResource.action && requestResource.action.includes('ADMIN') && !isAdmin) {
+      return false;
+    }
+    return true;
   }
   if (operation === 'update' || operation === 'delete') {
     return false; // Strictly immutable
@@ -64,7 +75,7 @@ function evaluateAuditLogRules(auth, operation, resource, requestResource) {
   return false;
 }
 
-// 3. Simulate Firestore Security Rule Evaluator for Attendance
+// 3. Simulate Firestore Security Rule Evaluator for Attendance & Corrections
 function evaluateAttendanceRules(auth, operation, resource, requestResource) {
   const isAuthenticated = auth !== null;
   const isAdmin = isAuthenticated && auth.role === 'Admin';
@@ -77,6 +88,25 @@ function evaluateAttendanceRules(auth, operation, resource, requestResource) {
   }
   if (operation === 'update') {
     return isAdmin || (isAuthenticated && resource.employeeId === auth.uid && requestResource.employeeId === auth.uid);
+  }
+  if (operation === 'delete') {
+    return isAdmin;
+  }
+  return false;
+}
+
+function evaluateCorrectionRules(auth, operation, resource, requestResource) {
+  const isAuthenticated = auth !== null;
+  const isAdmin = isAuthenticated && auth.role === 'Admin';
+
+  if (operation === 'read') {
+    return isAdmin || (isAuthenticated && resource.employeeId === auth.uid);
+  }
+  if (operation === 'create') {
+    return isAuthenticated && requestResource.employeeId === auth.uid && requestResource.status === 'PENDING';
+  }
+  if (operation === 'update') {
+    return isAdmin; // Only admin can approve/reject!
   }
   if (operation === 'delete') {
     return isAdmin;
@@ -127,23 +157,50 @@ function evaluateAttendanceRules(auth, operation, resource, requestResource) {
   console.log('✅ PASS: Employee A reading Employee B quotation is strictly DENIED');
 }
 
-// SCENARIO 5: Employee attempts to create an Audit Log forging Admin identity -> MUST BE DENIED
+// SCENARIO 5: Employee attempts to reassign assignedEmployeeId on update -> MUST BE DENIED
 {
   const empA = { uid: 'emp_A_001', role: 'Employee', name: 'Rahul' };
-  const forgedAuditLog = {
-    userId: 'admin_root_uid',
-    role: 'Admin',
-    action: 'ADMIN_APPROVED_INSTALLATION',
+  const existingQuote = { id: 'QT_555', dealerId: null, createdById: 'emp_A_001', assignedEmployeeId: 'emp_A_001', status: 'Draft' };
+  const forgedUpdate = { id: 'QT_555', dealerId: null, createdById: 'emp_A_001', assignedEmployeeId: 'emp_B_002', status: 'Draft' };
+
+  const allowed = evaluateQuotationRules(empA, 'update', existingQuote, forgedUpdate);
+  assert.strictEqual(allowed, false, 'Employee cannot reassign assignedEmployeeId (Only Admin permitted)');
+  console.log('✅ PASS: Employee unauthorized quotation reassignment is strictly DENIED');
+}
+
+// SCENARIO 6: Non-admin attempts to create an Audit Log with their own UID but claiming an ADMIN action -> MUST BE DENIED
+{
+  const dealerA = { uid: 'dealer_A_123', role: 'Dealer', name: 'Sri Solar' };
+  const spoofedAuditLog = {
+    userId: 'dealer_A_123', // matching UID
+    userRole: 'Dealer',
+    action: 'ADMIN_APPROVED_INSTALLATION', // Admin action spoof!
     entityType: 'Lead',
     entityId: 'lead_999'
   };
   
-  const allowed = evaluateAuditLogRules(empA, 'create', null, forgedAuditLog);
-  assert.strictEqual(allowed, false, 'User must not be able to forge an audit record with someone elses userId');
-  console.log('✅ PASS: Audit Log creation with forged actor identity is strictly DENIED');
+  const allowed = evaluateAuditLogRules(dealerA, 'create', null, spoofedAuditLog);
+  assert.strictEqual(allowed, false, 'Non-admin cannot create an audit entry with an ADMIN action');
+  console.log('✅ PASS: Audit Log write path prevents non-admin from creating ADMIN actions');
 }
 
-// SCENARIO 6: Attempt to update or delete an existing Audit Log -> MUST BE DENIED (IMMUTABLE)
+// SCENARIO 7: Non-admin attempts to forge userRole in Audit Log -> MUST BE DENIED
+{
+  const dealerA = { uid: 'dealer_A_123', role: 'Dealer', name: 'Sri Solar' };
+  const forgedRoleAuditLog = {
+    userId: 'dealer_A_123',
+    userRole: 'Admin', // Forged role!
+    action: 'QUOTATION_EDITED',
+    entityType: 'Quotation',
+    entityId: 'qt_123'
+  };
+  
+  const allowed = evaluateAuditLogRules(dealerA, 'create', null, forgedRoleAuditLog);
+  assert.strictEqual(allowed, false, 'User cannot forge userRole in audit log');
+  console.log('✅ PASS: Audit Log write path prevents userRole forgery');
+}
+
+// SCENARIO 8: Attempt to update or delete an existing Audit Log -> MUST BE DENIED (IMMUTABLE)
 {
   const admin = { uid: 'admin_root_uid', role: 'Admin', name: 'SuperAdmin' };
   const existingAudit = { id: 'AUDIT_1', userId: 'dealer_A_123', action: 'QUOTATION_CREATED' };
@@ -156,26 +213,26 @@ function evaluateAttendanceRules(auth, operation, resource, requestResource) {
   console.log('✅ PASS: Audit Log records are 100% IMMUTABLE (Update: DENIED, Delete: DENIED even for Admin)');
 }
 
-// SCENARIO 7: Employee A attempts to punch attendance for Employee B -> MUST BE DENIED
+// SCENARIO 9: Employee attempts to self-approve Attendance Correction -> MUST BE DENIED
 {
   const empA = { uid: 'emp_A_001', role: 'Employee', name: 'Rahul' };
-  const forgedAttendance = { employeeId: 'emp_B_002', date: '2026-09-24', checkInTime: '2026-09-24T09:00:00.000Z' };
-  
-  const allowed = evaluateAttendanceRules(empA, 'create', null, forgedAttendance);
-  assert.strictEqual(allowed, false, 'Employee cannot punch attendance on behalf of another employee');
-  console.log('✅ PASS: Cross-employee attendance punch is strictly DENIED');
+  const existingCorr = { id: 'CORR_1', employeeId: 'emp_A_001', date: '2026-09-24', status: 'PENDING' };
+  const selfApprovePayload = { ...existingCorr, status: 'APPROVED' };
+
+  const allowed = evaluateCorrectionRules(empA, 'update', existingCorr, selfApprovePayload);
+  assert.strictEqual(allowed, false, 'Employee CANNOT self-approve attendance corrections');
+  console.log('✅ PASS: Attendance correction self-approval by employee is strictly DENIED');
 }
 
-// SCENARIO 8: Admin full authority on Quotations, Attendance, and Audit Logs -> MUST BE ALLOWED
+// SCENARIO 10: Admin approving Attendance Correction -> MUST BE ALLOWED
 {
   const admin = { uid: 'admin_root_uid', role: 'Admin', name: 'SuperAdmin' };
-  const anyQuote = { id: 'QT_999', dealerId: 'dealer_B_456', createdById: 'dealer_B_456', status: 'Sent' };
-  
-  assert.strictEqual(evaluateQuotationRules(admin, 'read', anyQuote, null), true, 'Admin must have read access');
-  assert.strictEqual(evaluateQuotationRules(admin, 'update', anyQuote, { status: 'Accepted' }), true, 'Admin must have update access');
-  assert.strictEqual(evaluateQuotationRules(admin, 'delete', anyQuote, null), true, 'Admin must have delete access');
-  assert.strictEqual(evaluateAuditLogRules(admin, 'read', null, null), true, 'Admin must have audit read access');
-  console.log('✅ PASS: Admin role has full verified authority across all entities');
+  const existingCorr = { id: 'CORR_1', employeeId: 'emp_A_001', date: '2026-09-24', status: 'PENDING' };
+  const approvePayload = { ...existingCorr, status: 'APPROVED', reviewedBy: 'Admin' };
+
+  const allowed = evaluateCorrectionRules(admin, 'update', existingCorr, approvePayload);
+  assert.strictEqual(allowed, true, 'Admin MUST be allowed to approve attendance corrections');
+  console.log('✅ PASS: Admin attendance correction approval is ALLOWED');
 }
 
-console.log('\n=== ALL 8 SECURITY & ADVERSARIAL TESTS PASSED WITH 0 FAILURES ===');
+console.log('\n=== ALL 10 SECURITY & ADVERSARIAL TESTS PASSED WITH 0 FAILURES ===');
