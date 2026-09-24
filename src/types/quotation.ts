@@ -62,6 +62,7 @@ export interface QuotationItem {
     | 'Net Metering & DISCOM Liasoning'
     | 'Accessories'
     | 'Custom Item';
+  itemType?: 'INVENTORY_ITEM' | 'SERVICE' | 'CUSTOM_NON_STOCK';
   name: string;
   brand?: string;
   model?: string;
@@ -122,12 +123,15 @@ export interface Quotation {
   version: number;
   parentQuotationId?: string; // Links to V1 when amended
   
-  // Relations
+  // Relations & 4-Tier Ownership Model
   leadId?: string;
   customerId?: string;
   dealerId?: string;
   dealerName?: string;
   assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
+  salesOwnerId?: string;
+  salesOwnerName?: string;
   
   // Author & Permissions
   createdBy: string;
@@ -150,6 +154,20 @@ export interface Quotation {
   
   // Locked Snapshots (Preserved for historical authenticity)
   companySnapshot: CompanyDetails;
+  subsidySnapshot?: {
+    ruleVersion: string;
+    schemeName: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+    customerType: CustomerType | string;
+    capacityKw: number;
+    isEligible: boolean;
+    calculationBreakdown: string;
+    subsidyAmount: number;
+    isManualOverride: boolean;
+    overrideReason?: string;
+    approvedBy?: string;
+  };
   
   // Amendment tracking
   amendmentReason?: string;

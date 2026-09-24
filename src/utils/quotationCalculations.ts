@@ -374,5 +374,52 @@ export function generateRecommendedBOM(
   }
 
   // Recalculate each item totals
-  return items.map(recalculateLineItem);
+  return items.map((item) => ({
+    ...recalculateLineItem(item),
+    itemType: getItemTypeForCategory(item.category)
+  }));
 }
+
+/**
+ * Derives intra-state vs inter-state tax structure based on company state vs customer state
+ */
+export function determineTaxStructure(
+  companyState: string = 'Andhra Pradesh',
+  customerState: string = 'Andhra Pradesh'
+): { isInterState: boolean; taxType: 'CGST_SGST' | 'IGST'; label: string } {
+  const normComp = (companyState || 'Andhra Pradesh').trim().toLowerCase();
+  const normCust = (customerState || 'Andhra Pradesh').trim().toLowerCase();
+  const isInterState = normComp !== normCust && normCust !== '';
+  return {
+    isInterState,
+    taxType: isInterState ? 'IGST' : 'CGST_SGST',
+    label: isInterState ? 'Inter-State (IGST 100%)' : 'Intra-State (CGST 50% + SGST 50%)'
+  };
+}
+
+/**
+ * Classifies quotation items for inventory vs service billing
+ */
+export function getItemTypeForCategory(category: string): 'INVENTORY_ITEM' | 'SERVICE' | 'CUSTOM_NON_STOCK' {
+  switch (category) {
+    case 'Solar Panel':
+    case 'Inverter':
+    case 'Structure':
+    case 'DC Cable':
+    case 'AC Cable':
+    case 'MC4 Connectors':
+    case 'Earthing & Lightning':
+    case 'ACDB & DCDB':
+    case 'Battery Storage':
+    case 'Accessories':
+      return 'INVENTORY_ITEM';
+    case 'Installation & Commissioning':
+    case 'Transportation & Logistics':
+    case 'Civil Works & Foundation':
+    case 'Net Metering & DISCOM Liasoning':
+      return 'SERVICE';
+    default:
+      return 'CUSTOM_NON_STOCK';
+  }
+}
+

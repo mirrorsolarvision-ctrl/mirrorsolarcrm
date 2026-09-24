@@ -69,13 +69,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // QUOTATIONS COLLECTION (Strict Dealer Isolation & Versioning & Reassignment Control)
+    // QUOTATIONS COLLECTION (Strict Dealer Isolation, Ownership, Finalized Immutability)
     match /quotations/{quotationId} {
       allow read: if isAdmin() ||
                   (isAuthenticated() && (
                     resource.data.dealerId == request.auth.uid || 
                     resource.data.createdById == request.auth.uid || 
-                    resource.data.assignedEmployeeId == request.auth.uid
+                    resource.data.assignedEmployeeId == request.auth.uid ||
+                    resource.data.salesOwnerId == request.auth.uid
                   ));
       allow create: if isAuthenticated() &&
                     (
@@ -83,16 +84,20 @@ service cloud.firestore {
                       (getUserRole() == 'Dealer' && request.resource.data.dealerId == request.auth.uid && request.resource.data.createdById == request.auth.uid) ||
                       (getUserRole() == 'Employee' && request.resource.data.createdById == request.auth.uid)
                     );
-      allow update: if isAdmin() ||
+      // Immutability: Once a quotation is 'Accepted', 'Converted', or 'Amended', direct edits are blocked
+      allow update: if isAuthenticated() &&
                     (
-                      isAuthenticated() &&
-                      resource.data.status != 'Cancelled' &&
+                      (isAdmin() && (resource.data.status in ['Draft', 'Sent'] || request.resource.data.status != resource.data.status)) ||
                       (
-                        (getUserRole() == 'Dealer' && resource.data.dealerId == request.auth.uid && request.resource.data.dealerId == request.auth.uid && request.resource.data.createdById == request.auth.uid) ||
-                        (getUserRole() == 'Employee' && resource.data.createdById == request.auth.uid && request.resource.data.createdById == request.auth.uid && request.resource.data.assignedEmployeeId == resource.data.assignedEmployeeId)
+                        resource.data.status in ['Draft', 'Sent'] &&
+                        request.resource.data.status in ['Draft', 'Sent', 'Cancelled'] &&
+                        (
+                          (getUserRole() == 'Dealer' && resource.data.dealerId == request.auth.uid && request.resource.data.dealerId == request.auth.uid && request.resource.data.createdById == request.auth.uid) ||
+                          (getUserRole() == 'Employee' && resource.data.createdById == request.auth.uid && request.resource.data.createdById == request.auth.uid && request.resource.data.assignedEmployeeId == resource.data.assignedEmployeeId)
+                        )
                       )
                     );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() && resource.data.status == 'Draft';
     }
 
     // ATTENDANCE COLLECTION
@@ -122,13 +127,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // AUDIT LOGS (Immutable append-only ledger with verified identity & role protection)
+    // AUDIT LOGS (Immutable append-only ledger with verified identity & role-based action whitelist)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAuthenticated() && 
                     request.resource.data.userId == request.auth.uid &&
                     request.resource.data.userRole == getUserRole() &&
-                    (!request.resource.data.action.matches('.*ADMIN.*') || isAdmin());
+                    (
+                      isAdmin() || 
+                      request.resource.data.action in [
+                        'ATTENDANCE_CHECK_IN',
+                        'ATTENDANCE_CHECK_OUT',
+                        'ATTENDANCE_CORRECTION_REQUEST',
+                        'QUOTATION_CREATE_DRAFT',
+                        'QUOTATION_UPDATE_DRAFT',
+                        'QUOTATION_AMEND_REQUEST',
+                        'LEAD_ACTIVITY_LOG',
+                        'MARKETING_LEAD_CREATE',
+                        'TASK_UPDATE'
+                      ]
+                    );
       allow update, delete: if false; // Strict immutability
     }
 
