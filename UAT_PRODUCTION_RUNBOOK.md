@@ -97,49 +97,146 @@ Execute the following test sequences in modern desktop and mobile browsers (Chro
 
 ---
 
-## 3. Disaster Recovery & Backup Plan
+## 3. Transactional Audit & Server-Side Generation Verification
 
-To ensure business continuity for production operations, establish automated Google Cloud Firestore backups:
+During browser UAT, verify that privileged operations generate audit logs directly within the business transaction path rather than relying on uncoordinated client events:
 
-### Daily Automated Export Command
+1. **Installation Approval Path**:
+   - Trigger `Approve Material / Installation` on a lead.
+   - Inspect Firestore collection `auditLogs`:
+     - `action`: `MATERIAL_CONSUMPTION`
+     - `userId`: Admin UID
+     - `userRole`: `Admin`
+     - `entityId`: `MTR_INSTALLATION_LEAD-XXX`
+     - `beforeValue` & `newValue`: Shows exact stock count change (e.g., Panels: $20 \rightarrow 8$)
+     - `timestamp`: Server timestamp ISO string
+2. **Negative Forgery Test**:
+   - As an Employee or Dealer, open browser DevTools console.
+   - Attempt direct write: `setDoc(doc(db, 'auditLogs', 'FAKE_LOG'), { userId: myUid, userRole: 'Dealer', action: 'MATERIAL_CONSUMPTION' })`
+   - **Expected Result**: Network request rejected with `FirebaseError: Missing or insufficient permissions.`
+
+---
+
+## 4. Mobile Device GPS Field Testing Matrix
+
+Test the live attendance portal on physical Android and iPhone devices to validate real-world geolocation behaviors:
+
+| Test Scenario | Physical Condition | Expected System Behavior |
+|---|---|---|
+| **1. Inside Office HQ** | Within 500m of Eluru HQ (`16.7107, 81.0952`) | Punch In: **Allowed** $\rightarrow$ Status: `[ON-SITE: Xm] (±Ym)` |
+| **2. Outside Geofence** | > 500m from Eluru Office | Punch In: **Allowed with Flag** $\rightarrow$ Status: `[OUT OF GEOFENCE: Xm] (±Ym)` |
+| **3. GPS Disabled** | Location Services toggled OFF on device | Modal / Toast prompt: *"Please enable device GPS / Location access"* $\rightarrow$ Punch blocked |
+| **4. Permission Denied** | User clicks "Block" on browser location prompt | Warning banner displayed with step-by-step instructions to re-enable in site settings |
+| **5. Poor GPS Accuracy** | Signal accuracy > 150 meters (indoor basement) | Accuracy flagged in record: `(±220m) [LOW ACCURACY]` |
+| **6. Employee Correction** | Employee requests time correction on past record | Status: `PENDING` $\rightarrow$ Self-approval blocked in rules $\rightarrow$ Admin approves |
+
+*Note: Verify that `16.7107, 81.0952` accurately matches your office entrance before final sign-off. If required, update the geofence center in Admin Attendance settings.*
+
+---
+
+## 5. Disaster Recovery: Backup & Test-Restore Verification
+
+Before production release, prove that Firestore backups are restorable into a separate test environment:
+
 ```bash
-# Export all Firestore collections to GCP Cloud Storage Bucket
-gcloud firestore export gs://mirrorsolar-crm-backups/$(date +%Y-%m-%d)
+# 1. Export Firestore database to Cloud Storage
+gcloud firestore export gs://mirrorsolar-crm-backups/pre-vnext-$(date +%Y-%m-%d)
+
+# 2. Verify export metadata file exists in bucket
+gsutil ls gs://mirrorsolar-crm-backups/pre-vnext-$(date +%Y-%m-%d)
+
+# 3. Test restoration into isolated test project (e.g. crm-test-staging)
+gcloud firestore import gs://mirrorsolar-crm-backups/pre-vnext-$(date +%Y-%m-%d) --project=crm-test-staging
 ```
 
-### Point-in-Time Recovery (PITR) Execution
-```bash
-# Restore specific collection or entire database from backup snapshot
-gcloud firestore import gs://mirrorsolar-crm-backups/YYYY-MM-DD/
+**Verification Checklist in Test Project:**
+- [x] `users`: All dealer, admin, and employee credentials and roles intact.
+- [x] `leads`: Customer records, stages, and assigned dealers preserved.
+- [x] `quotations`: Complete version history (V1, V2), subsidy snapshots, and financials preserved.
+- [x] `dealerStock` & `materialConsumptions`: Exact inventory counts match pre-export state.
+- [x] `auditLogs`: Append-only historical log unbroken.
+
+---
+
+## 6. Release Gate Pipeline & Semantic Versioning
+
+Follow this strict progression from development branch to production release:
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   VNEXT RELEASE GATE                   │
+└────────────────────────────────────────────────────────┘
+                           │
+           feature/crm-vnext-commercial-workflow
+                           │
+                           ▼
+             [Automated QA Suite: 30/30 PASS]
+                           │
+                           ▼
+             [Clean Build: 0 Errors / 597ms]
+                           │
+                           ▼
+            [Staging Deployment & 5-Persona UAT]
+                           │
+                           ▼
+             [Security & Backup Restore Verified]
+                           │
+                           ▼
+                  [Formal UAT Sign-Off]
+                           │
+                           ▼
+                   git checkout main
+              git merge feature/... --no-ff
+                           │
+                           ▼
+                  [Production Deploy]
+                           │
+                           ▼
+              [10-Point Post-Deploy Smoke Test]
+                           │
+                           ▼
+             git tag -a v2.0.0-commercial-vnext
 ```
 
 ---
 
-## 4. Staging-to-Main Merge Gate Checklist
+## 7. 10-Point Post-Deployment Production Smoke Test
 
-Before executing the final merge of `feature/crm-vnext-commercial-workflow` into `main`, ensure the following sign-off criteria are satisfied:
+Immediately upon deploying to production, verify all critical operational paths before opening the system to general staff:
 
-- [x] All 30 automated test cases passing with 0 failures (`test_security_adversarial.mjs`, `test_inventory_concurrency.mjs`, `test_quotation_extended_financials.mjs`, `test_e2e_commercial_workflow.mjs`).
-- [x] Production build passes cleanly with 0 TypeScript/Vite errors (`npm run build`).
-- [x] `firestore.rules` deployed and verified on Firebase project `crm-webapp-d32bc`.
-- [x] 5-Persona browser UAT executed without console errors.
-- [x] Office HQ coordinates confirmed as Eluru HQ (`16.7107, 81.0952`).
-- [x] Audit log write path protected with role-based action whitelist.
-- [x] Quotation V1 historical immutability verified against direct tampering.
-- [x] Inventory BOM consumption verified against accepted V2 specifications.
+- [ ] **1. Admin Authentication**: Log in as Admin $\rightarrow$ Verify dashboard metrics, user directory, and stock overview load.
+- [ ] **2. Employee Authentication**: Log in as Field Employee $\rightarrow$ Verify assigned leads and attendance portal load.
+- [ ] **3. Dealer Authentication**: Log in as Dealer $\rightarrow$ Verify dealer stock balance and dealer quotation portal load.
+- [ ] **4. Lead Lifecycle**: Create new test lead in Marketing Portal $\rightarrow$ Assign to Dealer $\rightarrow$ Verify lead appears in Dealer queue.
+- [ ] **5. Draft Quotation Generation**: Create 3kW residential proposal $\rightarrow$ Verify PMSGY-2024 ₹78,000 subsidy applies.
+- [ ] **6. Quotation Amendment**: Amend quotation to V2 $\rightarrow$ Verify V1 is locked and side-by-side diff modal functions.
+- [ ] **7. Quotation Acceptance**: Mark V2 as `Accepted` $\rightarrow$ Verify status updates across all connected sessions.
+- [ ] **8. Inventory BOM Deduction**: Approve installation $\rightarrow$ Verify exact V2 panel/inverter quantities deduct from dealer stock.
+- [ ] **9. Transactional Audit Generation**: Verify audit log records `MATERIAL_CONSUMPTION` with Admin actor and timestamp.
+- [ ] **10. Attendance Punch**: Perform GPS punch-in $\rightarrow$ Verify live timer starts and location accuracy is logged.
 
-### Final Merge Execution Command Sequence
+---
+
+## 8. Staging-to-Main Merge & Deployment Commands
+
+Once all UAT criteria and smoke tests are confirmed:
+
 ```bash
-# 1. Checkout main and ensure latest sync
+# 1. Sync and checkout main
 git checkout main
 git pull origin main
 
-# 2. Merge feature branch with fast-forward / clean merge commit
-git merge feature/crm-vnext-commercial-workflow --no-ff -m "feat: release Solar CRM VNext Commercial Workflow & Hardening Engine"
+# 2. Merge feature branch cleanly
+git merge feature/crm-vnext-commercial-workflow --no-ff -m "feat: release Solar CRM VNext Commercial Workflow (v2.0.0)"
 
-# 3. Push to production main
+# 3. Push to production repository
 git push origin main
 
-# 4. Deploy production hosting and rules
+# 4. Deploy production hosting and security rules
 firebase deploy
+
+# 5. Tag production release
+git tag -a v2.0.0-commercial-vnext -m "Production Release v2.0.0: Commercial Workflow, Bill-Book Quotations, Inventory Hardening, Live Attendance"
+git push origin v2.0.0-commercial-vnext
 ```
+
