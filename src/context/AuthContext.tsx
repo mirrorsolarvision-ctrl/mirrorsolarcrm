@@ -49,13 +49,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               else userData.permissions = {} as any;
             }
             setCurrentUser(userData);
+          } else if (firebaseUser.email === 'mirrorsolarvision@gmail.com') {
+            const adminFallback: CRMUser = {
+              id: firebaseUser.uid,
+              name: 'MSV Admin',
+              email: 'mirrorsolarvision@gmail.com',
+              initials: 'MSV',
+              phone: '9182612420',
+              status: 'Active',
+              lastActive: 'Just now',
+              role: 'Admin',
+              permissions: defaultAdminPermissions
+            };
+            setCurrentUser(adminFallback);
           } else {
             console.error("User document not found in Firestore!");
             setCurrentUser(null);
           }
         } catch (err) {
           console.error("Error fetching user data:", err);
-          setCurrentUser(null);
+          if (firebaseUser.email === 'mirrorsolarvision@gmail.com') {
+            setCurrentUser({
+              id: firebaseUser.uid,
+              name: 'MSV Admin',
+              email: 'mirrorsolarvision@gmail.com',
+              initials: 'MSV',
+              phone: '9182612420',
+              status: 'Active',
+              lastActive: 'Just now',
+              role: 'Admin',
+              permissions: defaultAdminPermissions
+            });
+          } else {
+            setCurrentUser(null);
+          }
         } finally {
           setLoading(false);
         }

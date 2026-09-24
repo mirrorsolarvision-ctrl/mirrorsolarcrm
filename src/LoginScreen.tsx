@@ -50,6 +50,8 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       if (!formattedEmail.includes('@')) {
         if (role === 'Dealer') {
           formattedEmail = `${formattedEmail}@dealer.in`;
+        } else if (role === 'Admin' || formattedEmail === 'msvadmin' || formattedEmail === 'admin') {
+          formattedEmail = 'mirrorsolarvision@gmail.com';
         } else {
           formattedEmail = `${formattedEmail}@mirrorsolar.in`;
         }
