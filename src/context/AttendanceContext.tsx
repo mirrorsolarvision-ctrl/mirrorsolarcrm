@@ -1,0 +1,255 @@
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, GeoLocationPoint } from '../types/attendance';
+import { DEFAULT_ATTENDANCE_CONFIG } from '../types/attendance';
+import { useAuth } from './AuthContext';
+import { useAudit } from './AuditLogContext';
+
+interface AttendanceContextType {
+  records: AttendanceRecord[];
+  todayRecord: AttendanceRecord | null;
+  config: AttendanceConfig;
+  loading: boolean;
+  checkIn: (options?: { notes?: string }) => Promise<AttendanceRecord>;
+  checkOut: (options?: { notes?: string }) => Promise<AttendanceRecord>;
+  adminUpdateRecord: (id: string, updates: Partial<AttendanceRecord>, reason?: string) => Promise<void>;
+  updateConfig: (newConfig: Partial<AttendanceConfig>) => void;
+  getRecordsByEmployee: (employeeId: string) => AttendanceRecord[];
+  getRecordsByDateRange: (startDate: string, endDate: string) => AttendanceRecord[];
+}
+
+const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined);
+
+export const useAttendance = () => {
+  const ctx = useContext(AttendanceContext);
+  if (!ctx) throw new Error('useAttendance must be used within an AttendanceProvider');
+  return ctx;
+};
+
+export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [config, setConfig] = useState<AttendanceConfig>(DEFAULT_ATTENDANCE_CONFIG);
+  const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
+  const { logAction } = useAudit();
+
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'attendance'), orderBy('date', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetched: AttendanceRecord[] = [];
+        snapshot.forEach((d) => {
+          fetched.push({ id: d.id, ...d.data() } as AttendanceRecord);
+        });
+        setRecords(fetched);
+        setLoading(false);
+      }, (err) => {
+        console.warn('Attendance snapshot fallback:', err.message);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('Attendance init fallback:', err);
+      setLoading(false);
+    }
+  }, []);
+
+  const todayRecord = records.find(
+    (r) => r.employeeId === currentUser?.id && r.date === getTodayString()
+  ) || null;
+
+  const getCurrentGeoLocation = (): Promise<GeoLocationPoint | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracyMeters: Math.round(pos.coords.accuracy),
+            timestamp: new Date().toISOString()
+          });
+        },
+        (err) => {
+          console.warn('Geolocation denied/unavailable:', err.message);
+          resolve(null);
+        },
+        { timeout: 8000, enableHighAccuracy: true }
+      );
+    });
+  };
+
+  const calculateLateMinutes = (checkInDate: Date): number => {
+    const [startHour, startMin] = config.officeStartTime.split(':').map(Number);
+    const expectedTime = new Date(checkInDate);
+    expectedTime.setHours(startHour, startMin, 0, 0);
+
+    const diffMs = checkInDate.getTime() - expectedTime.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    return diffMinutes > config.gracePeriodMinutes ? diffMinutes : 0;
+  };
+
+  const checkIn = async (options?: { notes?: string }): Promise<AttendanceRecord> => {
+    if (!currentUser) throw new Error('User must be logged in to check in');
+    
+    const today = getTodayString();
+    const existing = records.find((r) => r.employeeId === currentUser.id && r.date === today);
+    if (existing && existing.checkInTime) {
+      throw new Error('Already checked in for today');
+    }
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const location = await getCurrentGeoLocation();
+    const lateMinutes = calculateLateMinutes(now);
+    const status: AttendanceStatus = lateMinutes > 0 ? 'LATE' : 'PRESENT';
+
+    const recordId = `ATT_${currentUser.id}_${today}`;
+    const newRecord: AttendanceRecord = {
+      id: recordId,
+      employeeId: currentUser.id,
+      employeeName: currentUser.name,
+      employeeRole: (currentUser.role as any) || 'Employee',
+      dealerId: (currentUser as any)?.dealerId,
+      dealerName: (currentUser as any)?.dealerName,
+      date: today,
+      checkInTime: nowIso,
+      checkOutTime: null,
+      totalWorkingMinutes: 0,
+      lateMinutes,
+      overtimeMinutes: 0,
+      checkInLocation: location,
+      checkOutLocation: null,
+      status,
+      deviceInfo: navigator.userAgent.substring(0, 100),
+      notes: options?.notes,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+
+    try {
+      await setDoc(doc(db, 'attendance', recordId), newRecord);
+    } catch (err) {
+      console.error('Attendance Firestore error:', err);
+      setRecords((prev) => [newRecord, ...prev]);
+    }
+
+    await logAction({
+      action: 'ATTENDANCE_CHECK_IN',
+      entityType: 'Attendance',
+      entityId: recordId,
+      entityLabel: `${currentUser.name} Checked In (${status})`,
+      newValue: newRecord,
+      reason: lateMinutes > 0 ? `Late by ${lateMinutes} minutes` : 'On-time check-in'
+    });
+
+    return newRecord;
+  };
+
+  const checkOut = async (options?: { notes?: string }): Promise<AttendanceRecord> => {
+    if (!currentUser) throw new Error('User must be logged in');
+    if (!todayRecord || !todayRecord.checkInTime) {
+      throw new Error('You must check in first before checking out');
+    }
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const checkInDate = new Date(todayRecord.checkInTime);
+    const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - checkInDate.getTime()) / 60000));
+    const location = await getCurrentGeoLocation();
+
+    // Determine if worked enough for full day or half day
+    let finalStatus: AttendanceStatus = todayRecord.status;
+    const workedHours = elapsedMinutes / 60;
+    if (workedHours < config.halfDayThresholdHours) {
+      finalStatus = 'HALF_DAY';
+    }
+
+    const updates: Partial<AttendanceRecord> = {
+      checkOutTime: nowIso,
+      checkOutLocation: location,
+      totalWorkingMinutes: elapsedMinutes,
+      status: finalStatus,
+      notes: options?.notes ? `${todayRecord.notes ? todayRecord.notes + ' | ' : ''}${options.notes}` : todayRecord.notes,
+      updatedAt: nowIso
+    };
+
+    try {
+      await updateDoc(doc(db, 'attendance', todayRecord.id), updates);
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setRecords((prev) => prev.map((r) => (r.id === todayRecord.id ? { ...r, ...updates } : r)));
+    }
+
+    const updatedRecord = { ...todayRecord, ...updates };
+
+    await logAction({
+      action: 'ATTENDANCE_CHECK_OUT',
+      entityType: 'Attendance',
+      entityId: todayRecord.id,
+      entityLabel: `${currentUser.name} Checked Out (${elapsedMinutes} mins)`,
+      newValue: updatedRecord
+    });
+
+    return updatedRecord;
+  };
+
+  const adminUpdateRecord = async (id: string, updates: Partial<AttendanceRecord>, reason?: string) => {
+    const existing = records.find((r) => r.id === id);
+    if (!existing) return;
+
+    const payload = {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      await updateDoc(doc(db, 'attendance', id), payload);
+    } catch (err) {
+      setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, ...payload } : r)));
+    }
+
+    await logAction({
+      action: 'ATTENDANCE_CORRECTED',
+      entityType: 'Attendance',
+      entityId: id,
+      entityLabel: `Admin adjusted attendance for ${existing.employeeName}`,
+      previousValue: existing,
+      newValue: { ...existing, ...payload },
+      reason: reason || 'Admin manual correction'
+    });
+  };
+
+  const updateConfig = (newConfig: Partial<AttendanceConfig>) => {
+    setConfig((prev) => ({ ...prev, ...newConfig }));
+  };
+
+  const getRecordsByEmployee = (employeeId: string) => records.filter((r) => r.employeeId === employeeId);
+  const getRecordsByDateRange = (startDate: string, endDate: string) =>
+    records.filter((r) => r.date >= startDate && r.date <= endDate);
+
+  return (
+    <AttendanceContext.Provider
+      value={{
+        records,
+        todayRecord,
+        config,
+        loading,
+        checkIn,
+        checkOut,
+        adminUpdateRecord,
+        updateConfig,
+        getRecordsByEmployee,
+        getRecordsByDateRange
+      }}
+    >
+      {children}
+    </AttendanceContext.Provider>
+  );
+};

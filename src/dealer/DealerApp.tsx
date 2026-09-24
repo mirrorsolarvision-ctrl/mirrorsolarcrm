@@ -8,7 +8,7 @@ import DealerSidebar from './DealerSidebar';
 import DealerDashboard from './DealerDashboard';
 import DealerEmployeesPage from './DealerEmployeesPage';
 import DealerAttendancePage from './DealerAttendancePage';
-import DealerQuotationsPage from './DealerQuotationsPage';
+import QuotationsPortalPage from '../pages/QuotationsPortalPage';
 import DealerStockPage from './DealerStockPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
@@ -87,7 +87,7 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
       case '/dealer/leads':
         return <LeadsPage {...(routeFilters || {})} />;
       case '/dealer/quotations':
-        return <DealerQuotationsPage />;
+        return <QuotationsPortalPage />;
       case '/dealer/employees':
         return <DealerEmployeesPage />;
       case '/dealer/attendance':

@@ -1,0 +1,199 @@
+/* ==========================================================================
+   Admin Audit Logs Page Styles
+   ========================================================================== */
+
+.admin-audit-page {
+  padding: 1.75rem 2rem;
+  width: 100%;
+  max-width: 1600px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  color: var(--color-navy);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.aap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.aap-breadcrumb {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.aap-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.aap-title-row h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0;
+}
+
+.aap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.aap-sub {
+  color: #64748B;
+  font-size: 0.92rem;
+  margin: 0.25rem 0 0 0;
+}
+
+/* Main Card */
+.aap-main-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.aap-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .aap-toolbar { flex-direction: column; align-items: stretch; }
+}
+
+.aap-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  flex: 1;
+}
+
+.aap-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.9rem;
+  color: #0B1F3A;
+  width: 100%;
+}
+
+.aap-select {
+  padding: 0.65rem 2.2rem 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0B1F3A;
+  outline: none;
+  cursor: pointer;
+}
+
+.aap-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+}
+
+.aap-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.aap-table thead th {
+  background: #F8FAFC;
+  padding: 0.85rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #E2E8F0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.aap-table tbody td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.aap-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+.aap-time-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.aap-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.aap-role-pill {
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.aap-action-tag {
+  display: inline-block;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #0B1F3A;
+  background: #FEF9C3;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.aap-entity-badge {
+  display: inline-block;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.aap-detail-cell {
+  display: flex;
+  flex-direction: column;
+}

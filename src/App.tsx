@@ -12,6 +12,10 @@ import { StockProvider } from './context/StockContext';
 import { CRMProvider } from './context/CRMContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UIProvider } from './context/UIContext';
+import { AuditLogProvider } from './context/AuditLogContext';
+import { QuotationProvider } from './context/QuotationContext';
+import { AttendanceProvider } from './context/AttendanceContext';
+import { MarketingProvider } from './context/MarketingContext';
 import { useCRM } from './context/CRMContext';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
@@ -211,13 +215,21 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CRMProvider>
-          <StockProvider>
-            <UIProvider>
-              <AppContent />
-            </UIProvider>
-          </StockProvider>
-        </CRMProvider>
+        <AuditLogProvider>
+          <CRMProvider>
+            <StockProvider>
+              <QuotationProvider>
+                <AttendanceProvider>
+                  <MarketingProvider>
+                    <UIProvider>
+                      <AppContent />
+                    </UIProvider>
+                  </MarketingProvider>
+                </AttendanceProvider>
+              </QuotationProvider>
+            </StockProvider>
+          </CRMProvider>
+        </AuditLogProvider>
       </AuthProvider>
     </BrowserRouter>
   );

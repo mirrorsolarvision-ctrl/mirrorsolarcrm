@@ -1,0 +1,448 @@
+/* ==========================================================================
+   Marketing Portal Page Styles
+   ========================================================================== */
+
+.marketing-portal-page {
+  padding: 1.75rem 2rem;
+  width: 100%;
+  max-width: 1600px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  color: var(--color-navy);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.mp-breadcrumb {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.mp-title-row h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0;
+}
+
+.mp-sub {
+  color: #64748B;
+  font-size: 0.95rem;
+  margin: 0.25rem 0 0 0;
+}
+
+/* Funnel Grid */
+.mp-funnel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .mp-funnel-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.mp-funnel-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.mp-card-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mp-card-val {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  line-height: 1.1;
+}
+
+.text-blue { color: #2563EB !important; }
+.text-amber { color: #D97706 !important; }
+.text-green { color: #16A34A !important; }
+
+.mp-card-foot {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Campaign Sources Chips */
+.mp-source-chips-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1rem 1.35rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mp-source-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mp-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mp-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid #CBD5E1;
+  background: #F8FAFC;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mp-source-chip:hover {
+  background: #E2E8F0;
+  color: #0B1F3A;
+}
+
+.mp-source-chip.active {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border-color: #0B1F3A;
+}
+
+.mp-chip-count {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mp-source-chip.active .mp-chip-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+/* Table Panel */
+.mp-main-panel {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.mp-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .mp-toolbar { flex-direction: column; align-items: stretch; }
+}
+
+.mp-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  flex: 1;
+}
+
+.mp-search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.9rem;
+  color: #0B1F3A;
+  width: 100%;
+}
+
+.mp-select {
+  padding: 0.65rem 2.2rem 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0B1F3A;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Table */
+.mp-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.mp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mp-table thead th {
+  background: #F8FAFC;
+  padding: 0.85rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #E2E8F0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mp-table tbody td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.mp-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+.mp-cust-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.mp-cust-name {
+  font-weight: 700;
+  color: #0B1F3A;
+}
+
+.mp-cust-sub {
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.mp-source-badge {
+  display: inline-block;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mp-stage-dropdown {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 1px solid #CBD5E1;
+  outline: none;
+  cursor: pointer;
+}
+
+.stage-new_lead { background: #FEF9C3; color: #854D0E; }
+.stage-contacted { background: #EFF6FF; color: #1D4ED8; }
+.stage-qualified { background: #F3E8FF; color: #7E22CE; }
+.stage-site_survey_booked { background: #E0E7FF; color: #4338CA; }
+.stage-quotation_sent { background: #FEF3C7; color: #B45309; }
+.stage-follow_up { background: #FFF7ED; color: #C2410C; }
+.stage-won { background: #DCFCE7; color: #15803D; font-weight: 800; }
+.stage-lost { background: #FEE2E2; color: #DC2626; }
+
+.mp-calls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #F1F5F9;
+  color: #475569;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mp-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.mp-btn-sm {
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.78rem !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+}
+
+.mp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: #64748B;
+}
+
+.mp-empty svg {
+  color: #94A3B8;
+  margin-bottom: 0.75rem;
+}
+
+.mp-empty h4 {
+  color: #0B1F3A;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem 0;
+}
+
+/* Slide-over Drawer for Notes */
+.mp-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 450px;
+  max-width: 100vw;
+  background: #FFFFFF;
+  box-shadow: -8px 0 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 1300;
+}
+
+.mp-drawer-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F8FAFC;
+}
+
+.mp-drawer-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0B1F3A;
+}
+
+.mp-drawer-sub {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.mp-drawer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748B;
+}
+
+.mp-drawer-body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mp-add-note-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mp-add-note-box label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.mp-add-note-box textarea {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.mp-notes-history h4 {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0 0 0.75rem 0;
+}
+
+.mp-note-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+
+.mp-note-card p {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.88rem;
+  color: #1E293B;
+}
+
+.mp-note-meta {
+  font-size: 0.75rem;
+  color: #94A3B8;
+  display: flex;
+  gap: 0.4rem;
+}

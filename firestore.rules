@@ -69,6 +69,55 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // QUOTATIONS COLLECTION (Strict Dealer Isolation & Versioning)
+    match /quotations/{quotationId} {
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && (resource.data.dealerId == request.auth.uid || resource.data.createdBy == request.auth.uid));
+      allow create: if isAuthenticated() &&
+                    (isAdmin() || request.resource.data.createdBy == request.auth.uid || request.resource.data.dealerId == request.auth.uid);
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && (resource.data.dealerId == request.auth.uid || resource.data.createdBy == request.auth.uid));
+      allow delete: if isAdmin();
+    }
+
+    // ATTENDANCE COLLECTION
+    match /attendance/{attendanceId} {
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && resource.data.employeeId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.employeeId == request.auth.uid;
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && resource.data.employeeId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // MARKETING LEADS COLLECTION
+    match /marketing_leads/{leadId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // AUDIT LOGS (Immutable append-only ledger)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // STOCK & INVENTORY
+    match /stock/{stockId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /stock_dispatches/{dispatchId} {
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && resource.data.dealerId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && resource.data.dealerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
     // TASKS COLLECTION
     match /tasks/{taskId} {
       // Read access if you are assigned or created it, or if Admin
