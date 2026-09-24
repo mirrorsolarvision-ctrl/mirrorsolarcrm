@@ -4,7 +4,7 @@ import './UIContext.css';
 interface Toast {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
   isExiting?: boolean;
 }
 
@@ -19,7 +19,7 @@ interface ConfirmModalConfig {
 }
 
 interface UIContextType {
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   showConfirmModal: (
     title: string,
     message: string,
@@ -39,7 +39,7 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     onConfirm: () => {},
   });
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type, isExiting: false }]);
 
