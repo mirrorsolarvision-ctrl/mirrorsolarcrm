@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import type { Quotation, QuotationItem, QuotationStatus, QuotationCustomerDetails, QuotationProjectDetails } from '../types/quotation';
 import { LOCKED_COMPANY_DETAILS } from '../config/companyDetails';
-import { calculateQuotationFinancials, recalculateLineItem } from '../utils/quotationCalculations';
+import { calculateQuotationFinancials, recalculateLineItem, compareQuotationVersions } from '../utils/quotationCalculations';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
 
@@ -282,7 +282,8 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
       createdBy: parent.createdBy,
       grandTotal: parent.financials.grandTotal,
       status: 'Amended' as QuotationStatus,
-      notes: amendmentNotes || 'Superseeded by new version'
+      notes: amendmentNotes || 'Superseeded by new version',
+      amendmentReason: amendmentNotes || 'Amended to next version'
     };
 
     const newQuotation: Quotation = {
@@ -292,6 +293,9 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
       version: nextVersion,
       parentQuotationId: parent.id,
       status: 'Draft',
+      amendmentReason: amendmentNotes || `Amended from ${parent.quotationNumber}`,
+      amendedBy: currentUser?.name || 'Authorized User',
+      amendedAt: now,
       notes: amendmentNotes ? `[Amendment V${nextVersion}]: ${amendmentNotes}\n${parent.notes}` : parent.notes,
       createdAt: now,
       updatedAt: now,
@@ -312,6 +316,16 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
       entityType: 'Quotation',
       entityId: newQuotationId,
       entityLabel: `${newQuotationNumber} amended from ${parent.quotationNumber}`,
+      previousValue: {
+        quotationId: parent.id,
+        version: parent.version,
+        grandTotal: parent.financials.grandTotal
+      },
+      newValue: {
+        quotationId: newQuotationId,
+        version: nextVersion,
+        grandTotal: newQuotation.financials.grandTotal
+      },
       reason: amendmentNotes || `Amended to version ${nextVersion}`
     });
 

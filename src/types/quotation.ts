@@ -88,7 +88,16 @@ export interface QuotationFinancials {
   sgst: number;
   igst: number;
   subsidyEligible: boolean;
+  subsidyScheme?: string;
+  subsidyRuleVersion?: string;
+  subsidyBreakdown?: string;
   subsidyAmount: number; // PM Surya Ghar Subsidy (e.g. ₹78,000 for 3kW)
+  manualSubsidyOverride?: {
+    isOverridden: boolean;
+    overrideAmount: number;
+    reason: string;
+    approvedBy?: string;
+  };
   stateSubsidyAmount?: number;
   roundOff: number;
   grandTotal: number;
@@ -103,6 +112,8 @@ export interface QuotationVersionRecord {
   grandTotal: number;
   status: QuotationStatus;
   notes?: string;
+  amendmentReason?: string;
+  diffSummary?: string;
 }
 
 export interface Quotation {
@@ -116,6 +127,7 @@ export interface Quotation {
   customerId?: string;
   dealerId?: string;
   dealerName?: string;
+  assignedEmployeeId?: string;
   
   // Author & Permissions
   createdBy: string;
@@ -138,6 +150,12 @@ export interface Quotation {
   
   // Locked Snapshots (Preserved for historical authenticity)
   companySnapshot: CompanyDetails;
+  
+  // Amendment tracking
+  amendmentReason?: string;
+  amendedBy?: string;
+  amendedAt?: string;
+  amendmentDiffSummary?: string;
   
   // Dates
   createdAt: string;

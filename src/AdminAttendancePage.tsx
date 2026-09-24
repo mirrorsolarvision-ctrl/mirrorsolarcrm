@@ -11,15 +11,22 @@ import {
   Shield,
   Filter,
   Plus,
-  Trash2
+  Trash2,
+  Check,
+  X,
+  FileCheck
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
+import { useAttendance } from './context/AttendanceContext';
 import { useUI } from './context/UIContext';
 import './AdminAttendancePage.css';
 
 export default function AdminAttendancePage() {
   const { employees, attendances, markAttendance, removeAttendance } = useCRM();
+  const { correctionRequests, reviewCorrection } = useAttendance();
   const { showToast } = useUI();
+
+  const [activeSubTab, setActiveSubTab] = useState<'roster' | 'corrections'>('roster');
 
   // Date selection state (defaults to Today)
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -109,33 +116,143 @@ export default function AdminAttendancePage() {
     }
   };
 
+  const pendingCorrections = useMemo(() => {
+    return (correctionRequests || []).filter(c => c.status === 'PENDING');
+  }, [correctionRequests]);
+
+  const handleReviewCorrection = async (id: string, approve: boolean) => {
+    try {
+      await reviewCorrection(id, approve);
+      showToast(approve ? 'Correction request approved and attendance updated!' : 'Correction request rejected.', approve ? 'success' : 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to review request', 'error');
+    }
+  };
+
   return (
     <div className="admin-attendance-container">
       {/* Header */}
       <div className="admin-attendance-header">
         <div>
           <h1 className="page-title">Company Staff Attendance</h1>
-          <p className="page-subtitle">Manage, view, and adjust daily attendance logs for internal company employees</p>
+          <p className="page-subtitle">Manage, view, and adjust daily attendance logs and review correction requests</p>
         </div>
 
-        {/* Date Selector */}
-        <div className="admin-date-picker-wrap">
-          <CalendarIcon size={18} className="text-blue" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            max={todayIso} // No future records
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-          {isTodaySelected ? (
-            <span className="today-badge">Today</span>
-          ) : (
-            <button className="reset-today-btn" onClick={() => setSelectedDate(todayIso)}>
-              Back to Today
-            </button>
-          )}
+        {/* Subtab Toggle Buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className={`btn-filter ${activeSubTab === 'roster' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('roster')}
+            style={{ padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', background: activeSubTab === 'roster' ? '#0F172A' : '#F1F5F9', color: activeSubTab === 'roster' ? '#fff' : '#475569', border: 'none' }}
+          >
+            Staff Daily Roster
+          </button>
+          <button 
+            className={`btn-filter ${activeSubTab === 'corrections' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('corrections')}
+            style={{ padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', background: activeSubTab === 'corrections' ? '#0F172A' : '#F1F5F9', color: activeSubTab === 'corrections' ? '#fff' : '#475569', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FileCheck size={16} />
+            Correction Requests
+            {pendingCorrections.length > 0 && (
+              <span style={{ background: '#EF4444', color: '#fff', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
+                {pendingCorrections.length}
+              </span>
+            )}
+          </button>
         </div>
       </div>
+
+      {activeSubTab === 'corrections' ? (
+        /* Correction Requests Tab */
+        <div className="admin-roster-card" style={{ marginTop: '1rem' }}>
+          <div className="roster-toolbar">
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0F172A' }}>Employee Attendance Correction Requests</h3>
+          </div>
+
+          {(correctionRequests || []).length === 0 ? (
+            <div className="empty-state-wrap">
+              <CheckCircle2 size={40} className="empty-icon text-emerald" />
+              <h3>No Correction Requests</h3>
+              <p>All employee punch logs are in sync with zero pending adjustments.</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="admin-roster-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th>Requested Times</th>
+                    <th>Reason / Justification</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'center' }}>Admin Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(correctionRequests || []).map((req) => (
+                    <tr key={req.id}>
+                      <td className="font-bold text-navy">{req.employeeName}</td>
+                      <td>{req.date}</td>
+                      <td>
+                        <span className="time-display">
+                          <Clock size={12} /> {req.requestedCheckIn.split('T')[1]?.substring(0, 5) || 'In'} → {req.requestedCheckOut ? req.requestedCheckOut.split('T')[1]?.substring(0, 5) : 'Out'}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '280px', fontSize: '13px' }}>{req.reason}</td>
+                      <td>
+                        <span className={`badge-${req.status === 'APPROVED' ? 'present' : req.status === 'REJECTED' ? 'unmarked' : 'present'}`} style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {req.status === 'PENDING' ? (
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                            <button 
+                              className="btn-admin-mark" 
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                              onClick={() => handleReviewCorrection(req.id, true)}
+                            >
+                              <Check size={14} /> Approve
+                            </button>
+                            <button 
+                              className="btn-admin-unmark" 
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                              onClick={() => handleReviewCorrection(req.id, false)}
+                            >
+                              <X size={14} /> Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-muted text-xs">Reviewed by {req.reviewedBy || 'Admin'}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Date Selector */}
+          <div className="admin-date-picker-wrap">
+            <CalendarIcon size={18} className="text-blue" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              max={todayIso} // No future records
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+            {isTodaySelected ? (
+              <span className="today-badge">Today</span>
+            ) : (
+              <button className="reset-today-btn" onClick={() => setSelectedDate(todayIso)}>
+                Back to Today
+              </button>
+            )}
+          </div>
 
       {/* Date Banner */}
       <div className="admin-date-summary-banner">
@@ -302,6 +419,8 @@ export default function AdminAttendancePage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

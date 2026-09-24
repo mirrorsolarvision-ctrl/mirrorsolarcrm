@@ -77,6 +77,19 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
   const [isSubsidyEligible, setIsSubsidyEligible] = useState<boolean>(
     initialQuotation?.financials.subsidyEligible !== undefined ? initialQuotation.financials.subsidyEligible : true
   );
+  const [isInterState, setIsInterState] = useState<boolean>(
+    (initialQuotation?.financials.igst || 0) > 0
+  );
+  const [manualSubsidyOverride, setManualSubsidyOverride] = useState<{
+    isOverridden: boolean;
+    overrideAmount: number;
+    reason: string;
+  }>({
+    isOverridden: initialQuotation?.financials.manualSubsidyOverride?.isOverridden || false,
+    overrideAmount: initialQuotation?.financials.manualSubsidyOverride?.overrideAmount || 0,
+    reason: initialQuotation?.financials.manualSubsidyOverride?.reason || ''
+  });
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [notes, setNotes] = useState<string>(initialQuotation?.notes || 'Comprehensive 5-Year Maintenance and 25-Year Panel Performance Warranty Included.');
   const [validityDays, setValidityDays] = useState<number>(initialQuotation?.validityDays || 15);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,8 +111,16 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
     }
   }, [selectedLeadId, mode, leads]);
 
-  // Dynamic Live Financial Calculation
-  const financials = calculateQuotationFinancials(items, extraDiscount, isSubsidyEligible, project.systemCapacityKw);
+  // Dynamic Live Financial Calculation with Versioned Subsidy and Tax Region
+  const financials = calculateQuotationFinancials(
+    items,
+    extraDiscount,
+    isSubsidyEligible,
+    project.systemCapacityKw,
+    customer.customerType,
+    isInterState,
+    manualSubsidyOverride.isOverridden ? manualSubsidyOverride : undefined
+  );
 
   // Line Item Handlers
   const handleItemChange = (index: number, field: keyof QuotationItem, value: any) => {

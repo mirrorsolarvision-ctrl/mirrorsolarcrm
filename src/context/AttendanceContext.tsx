@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
-import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, GeoLocationPoint } from '../types/attendance';
-import { DEFAULT_ATTENDANCE_CONFIG } from '../types/attendance';
+import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, query, orderBy } from 'firebase/firestore';
+import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, GeoLocationPoint, AttendanceCorrectionRequest } from '../types/attendance';
+import { DEFAULT_ATTENDANCE_CONFIG, calculateGeofenceDistance } from '../types/attendance';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
 
@@ -11,9 +11,12 @@ interface AttendanceContextType {
   todayRecord: AttendanceRecord | null;
   config: AttendanceConfig;
   loading: boolean;
+  correctionRequests: AttendanceCorrectionRequest[];
   checkIn: (options?: { notes?: string }) => Promise<AttendanceRecord>;
   checkOut: (options?: { notes?: string }) => Promise<AttendanceRecord>;
   adminUpdateRecord: (id: string, updates: Partial<AttendanceRecord>, reason?: string) => Promise<void>;
+  requestCorrection: (attendanceId: string, date: string, requestedCheckIn: string, requestedCheckOut: string, reason: string) => Promise<void>;
+  reviewCorrection: (requestId: string, approved: boolean, reviewNotes?: string) => Promise<void>;
   updateConfig: (newConfig: Partial<AttendanceConfig>) => void;
   getRecordsByEmployee: (employeeId: string) => AttendanceRecord[];
   getRecordsByDateRange: (startDate: string, endDate: string) => AttendanceRecord[];
@@ -29,6 +32,7 @@ export const useAttendance = () => {
 
 export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [correctionRequests, setCorrectionRequests] = useState<AttendanceCorrectionRequest[]>([]);
   const [config, setConfig] = useState<AttendanceConfig>(DEFAULT_ATTENDANCE_CONFIG);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
@@ -50,7 +54,22 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
         console.warn('Attendance snapshot fallback:', err.message);
         setLoading(false);
       });
-      return () => unsubscribe();
+
+      const corrQ = query(collection(db, 'attendance_corrections'), orderBy('createdAt', 'desc'));
+      const unsubCorr = onSnapshot(corrQ, (snapshot) => {
+        const fetchedCorr: AttendanceCorrectionRequest[] = [];
+        snapshot.forEach((d) => {
+          fetchedCorr.push({ id: d.id, ...d.data() } as AttendanceCorrectionRequest);
+        });
+        setCorrectionRequests(fetchedCorr);
+      }, (err) => {
+        console.warn('Correction requests fallback:', err.message);
+      });
+
+      return () => {
+        unsubscribe();
+        unsubCorr();
+      };
     } catch (err) {
       console.warn('Attendance init fallback:', err);
       setLoading(false);
@@ -110,6 +129,21 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
     const lateMinutes = calculateLateMinutes(now);
     const status: AttendanceStatus = lateMinutes > 0 ? 'LATE' : 'PRESENT';
 
+    let geofenceNote = '';
+    if (location && config.officeLatitude && config.officeLongitude) {
+      const distance = calculateGeofenceDistance(
+        location.latitude,
+        location.longitude,
+        config.officeLatitude,
+        config.officeLongitude
+      );
+      if (distance > config.geofenceRadiusMeters) {
+        geofenceNote = `[OUT OF GEOFENCE: ${distance}m from Office]`;
+      } else {
+        geofenceNote = `[ON-SITE: ${distance}m from Office]`;
+      }
+    }
+
     const recordId = `ATT_${currentUser.id}_${today}`;
     const newRecord: AttendanceRecord = {
       id: recordId,
@@ -128,7 +162,7 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
       checkOutLocation: null,
       status,
       deviceInfo: navigator.userAgent.substring(0, 100),
-      notes: options?.notes,
+      notes: [options?.notes, geofenceNote].filter(Boolean).join(' | '),
       createdAt: nowIso,
       updatedAt: nowIso
     };
@@ -226,6 +260,82 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
     });
   };
 
+  const requestCorrection = async (
+    attendanceId: string,
+    date: string,
+    requestedCheckIn: string,
+    requestedCheckOut: string,
+    reason: string
+  ) => {
+    if (!currentUser) throw new Error('User must be logged in');
+    const correctionReq: AttendanceCorrectionRequest = {
+      id: `CORR_${currentUser.id}_${Date.now()}`,
+      attendanceId,
+      employeeId: currentUser.id,
+      employeeName: currentUser.name,
+      date,
+      requestedCheckIn,
+      requestedCheckOut,
+      reason,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await addDoc(collection(db, 'attendance_corrections'), correctionReq);
+    } catch (err) {
+      console.warn('Correction request local fallback:', err);
+      setCorrectionRequests((prev) => [correctionReq, ...prev]);
+    }
+
+    await logAction({
+      action: 'ATTENDANCE_CORRECTED',
+      entityType: 'Attendance',
+      entityId: attendanceId,
+      entityLabel: `${currentUser.name} requested correction for ${date}`,
+      reason
+    });
+  };
+
+  const reviewCorrection = async (
+    requestId: string,
+    approved: boolean,
+    reviewNotes?: string
+  ) => {
+    if (currentUser?.role !== 'Admin') throw new Error('Only admins can approve attendance corrections');
+    const req = correctionRequests.find((c) => c.id === requestId);
+    if (!req) return;
+
+    const status = approved ? 'APPROVED' : 'REJECTED';
+    const payload = {
+      status,
+      reviewedBy: currentUser.name,
+      reviewedAt: new Date().toISOString(),
+      reviewNotes: reviewNotes || (approved ? 'Approved by Admin' : 'Rejected by Admin')
+    };
+
+    try {
+      await updateDoc(doc(db, 'attendance_corrections', requestId), payload);
+    } catch (err) {
+      setCorrectionRequests((prev) =>
+        prev.map((c) => (c.id === requestId ? { ...c, ...payload } as any : c))
+      );
+    }
+
+    if (approved) {
+      await adminUpdateRecord(
+        req.attendanceId,
+        {
+          checkInTime: req.requestedCheckIn,
+          checkOutTime: req.requestedCheckOut || null,
+          correctionRequested: false,
+          verifiedByAdmin: true
+        },
+        `Approved Correction: ${req.reason}`
+      );
+    }
+  };
+
   const updateConfig = (newConfig: Partial<AttendanceConfig>) => {
     setConfig((prev) => ({ ...prev, ...newConfig }));
   };
@@ -241,9 +351,12 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
         todayRecord,
         config,
         loading,
+        correctionRequests,
         checkIn,
         checkOut,
         adminUpdateRecord,
+        requestCorrection,
+        reviewCorrection,
         updateConfig,
         getRecordsByEmployee,
         getRecordsByDateRange

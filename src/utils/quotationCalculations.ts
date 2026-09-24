@@ -1,4 +1,5 @@
-import type { QuotationItem, QuotationFinancials, QuotationProjectDetails } from '../types/quotation';
+import type { QuotationItem, QuotationFinancials, Quotation, CustomerType } from '../types/quotation';
+import { evaluateSubsidy } from '../config/subsidyRules';
 
 /**
  * Recalculates line item values strictly:
@@ -29,29 +30,16 @@ export function recalculateLineItem(item: QuotationItem): QuotationItem {
 }
 
 /**
- * Calculates national PM Surya Ghar subsidy based on plant capacity (kW)
- */
-export function calculateSuryaGharSubsidy(capacityKw: number, isEligible: boolean = true): number {
-  if (!isEligible || capacityKw <= 0) return 0;
-  
-  if (capacityKw >= 3) {
-    return 78000; // Ceiling subsidy for 3kW and above
-  } else if (capacityKw >= 2) {
-    return 60000; // 2kW subsidy
-  } else if (capacityKw >= 1) {
-    return 30000; // 1kW subsidy
-  }
-  return 0;
-}
-
-/**
- * Recalculates all quotation financials from line items
+ * Recalculates all quotation financials from line items with versioned subsidy rule
  */
 export function calculateQuotationFinancials(
   items: QuotationItem[],
   extraDiscount: number = 0,
   isSubsidyEligible: boolean = true,
-  capacityKw: number = 3
+  capacityKw: number = 3,
+  customerType: CustomerType | string = 'Residential',
+  isInterState: boolean = false,
+  manualSubsidyOverride?: { overrideAmount: number; reason: string; approvedBy?: string }
 ): QuotationFinancials {
   let subtotal = 0;
   let totalItemDiscount = 0;
@@ -69,19 +57,34 @@ export function calculateQuotationFinancials(
   const totalDiscounts = totalItemDiscount + cleanExtraDiscount;
   const taxableAmount = Math.max(0, subtotal - totalDiscounts);
 
-  // Equal split CGST and SGST for intra-state
-  const cgst = Math.round((gstTotal / 2) * 100) / 100;
-  const sgst = Math.round((gstTotal / 2) * 100) / 100;
-  const igst = 0;
+  // Intra-State: CGST (50%) + SGST (50%), Inter-State: IGST (100%)
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
 
-  const subsidyAmount = calculateSuryaGharSubsidy(capacityKw, isSubsidyEligible);
+  if (isInterState) {
+    igst = Math.round(gstTotal * 100) / 100;
+  } else {
+    cgst = Math.round((gstTotal / 2) * 100) / 100;
+    sgst = Math.round((gstTotal / 2) * 100) / 100;
+  }
+
+  // Evaluate subsidy using versioned rule scheme
+  const subsidyResult = evaluateSubsidy(
+    capacityKw,
+    customerType,
+    isSubsidyEligible,
+    'PMSGY_2024',
+    manualSubsidyOverride ? { amount: manualSubsidyOverride.overrideAmount, reason: manualSubsidyOverride.reason } : undefined
+  );
+
   const rawGrandTotal = taxableAmount + gstTotal;
   
   // Exact round off
   const roundedGrandTotal = Math.round(rawGrandTotal);
   const roundOff = Math.round((roundedGrandTotal - rawGrandTotal) * 100) / 100;
 
-  const netPayableByCustomer = Math.max(0, roundedGrandTotal - subsidyAmount);
+  const netPayableByCustomer = Math.max(0, roundedGrandTotal - subsidyResult.amount);
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,
@@ -92,11 +95,122 @@ export function calculateQuotationFinancials(
     cgst,
     sgst,
     igst,
-    subsidyEligible: isSubsidyEligible,
-    subsidyAmount,
+    subsidyEligible: subsidyResult.eligible,
+    subsidyScheme: subsidyResult.schemeName,
+    subsidyRuleVersion: subsidyResult.ruleVersion,
+    subsidyBreakdown: subsidyResult.calculationBreakdown,
+    subsidyAmount: subsidyResult.amount,
+    manualSubsidyOverride: manualSubsidyOverride ? {
+      isOverridden: subsidyResult.isOverridden,
+      overrideAmount: manualSubsidyOverride.overrideAmount,
+      reason: manualSubsidyOverride.reason,
+      approvedBy: manualSubsidyOverride.approvedBy
+    } : undefined,
     roundOff,
     grandTotal: roundedGrandTotal,
     netPayableByCustomer
+  };
+}
+
+export interface QuotationDiff {
+  v1Number: string;
+  v2Number: string;
+  v1Version: number;
+  v2Version: number;
+  financialDiff: {
+    subtotalDelta: number;
+    discountDelta: number;
+    taxDelta: number;
+    grandTotalDelta: number;
+    netPayableDelta: number;
+  };
+  lineItemChanges: {
+    type: 'added' | 'removed' | 'modified' | 'unchanged';
+    itemName: string;
+    oldQty?: number;
+    newQty?: number;
+    oldRate?: number;
+    newRate?: number;
+    oldTotal?: number;
+    newTotal?: number;
+  }[];
+  summary: string;
+}
+
+/**
+ * Generates an audit diff between original Quotation (V1) and amended Quotation (V2)
+ */
+export function compareQuotationVersions(v1: Quotation, v2: Quotation): QuotationDiff {
+  const subtotalDelta = v2.financials.subtotal - v1.financials.subtotal;
+  const discountDelta = (v2.financials.totalItemDiscount + v2.financials.extraDiscount) - (v1.financials.totalItemDiscount + v1.financials.extraDiscount);
+  const taxDelta = v2.financials.gstTotal - v1.financials.gstTotal;
+  const grandTotalDelta = v2.financials.grandTotal - v1.financials.grandTotal;
+  const netPayableDelta = v2.financials.netPayableByCustomer - v1.financials.netPayableByCustomer;
+
+  const lineItemChanges: QuotationDiff['lineItemChanges'] = [];
+  const v1Map = new Map(v1.items.map(item => [item.id, item]));
+  const v2Map = new Map(v2.items.map(item => [item.id, item]));
+
+  // Check items in v2 against v1
+  v2.items.forEach(newItem => {
+    const oldItem = v1Map.get(newItem.id);
+    if (!oldItem) {
+      lineItemChanges.push({
+        type: 'added',
+        itemName: newItem.name,
+        newQty: newItem.quantity,
+        newRate: newItem.unitRate,
+        newTotal: newItem.total
+      });
+    } else if (
+      oldItem.quantity !== newItem.quantity ||
+      oldItem.unitRate !== newItem.unitRate ||
+      oldItem.discount !== newItem.discount
+    ) {
+      lineItemChanges.push({
+        type: 'modified',
+        itemName: newItem.name,
+        oldQty: oldItem.quantity,
+        newQty: newItem.quantity,
+        oldRate: oldItem.unitRate,
+        newRate: newItem.unitRate,
+        oldTotal: oldItem.total,
+        newTotal: newItem.total
+      });
+    }
+  });
+
+  // Check removed items
+  v1.items.forEach(oldItem => {
+    if (!v2Map.has(oldItem.id)) {
+      lineItemChanges.push({
+        type: 'removed',
+        itemName: oldItem.name,
+        oldQty: oldItem.quantity,
+        oldRate: oldItem.unitRate,
+        oldTotal: oldItem.total
+      });
+    }
+  });
+
+  const changedCount = lineItemChanges.filter(c => c.type !== 'unchanged').length;
+  const grandDiffFormatted = grandTotalDelta >= 0 ? `+₹${grandTotalDelta.toLocaleString('en-IN')}` : `-₹${Math.abs(grandTotalDelta).toLocaleString('en-IN')}`;
+  const summary = `Amended V${v1.version} → V${v2.version}: ${changedCount} line item changes, Grand Total changed by ${grandDiffFormatted}.`;
+
+  return {
+    v1Number: v1.quotationNumber,
+    v2Number: v2.quotationNumber,
+    v1Version: v1.version,
+    v2Version: v2.version,
+    financialDiff: {
+      subtotalDelta,
+      discountDelta,
+      taxDelta,
+      grandTotalDelta,
+      netPayableDelta
+    },
+    lineItemChanges,
+    summary
   };
 }
 

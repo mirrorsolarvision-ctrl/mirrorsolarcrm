@@ -9,13 +9,19 @@ import { useUI } from '../context/UIContext';
 import './EmployeeAttendancePage.css';
 
 export default function EmployeeAttendancePage() {
-  const { todayRecord, config, checkIn, checkOut, getRecordsByEmployee } = useAttendance();
+  const { todayRecord, config, checkIn, checkOut, getRecordsByEmployee, requestCorrection } = useAttendance();
   const { currentUser } = useAuth();
   const { showToast } = useUI();
 
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Correction Request Modal State
+  const [selectedRecordForCorrection, setSelectedRecordForCorrection] = useState<any>(null);
+  const [reqIn, setReqIn] = useState('09:00');
+  const [reqOut, setReqOut] = useState('18:00');
+  const [reqReason, setReqReason] = useState('');
 
   // Live Timer when Checked In
   useEffect(() => {
@@ -68,6 +74,26 @@ export default function EmployeeAttendancePage() {
     }
   };
 
+  const handleSubmitCorrection = async () => {
+    if (!selectedRecordForCorrection) return;
+    if (!reqReason.trim()) {
+      showToast('Please provide a valid reason for the correction request', 'error');
+      return;
+    }
+
+    try {
+      const targetDate = selectedRecordForCorrection.date;
+      const fullReqIn = `${targetDate}T${reqIn}:00.000Z`;
+      const fullReqOut = reqOut ? `${targetDate}T${reqOut}:00.000Z` : '';
+      await requestCorrection(selectedRecordForCorrection.id, targetDate, fullReqIn, fullReqOut, reqReason);
+      showToast('Correction request submitted to Administrator for review!', 'success');
+      setSelectedRecordForCorrection(null);
+      setReqReason('');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to submit correction request', 'error');
+    }
+  };
+
   const myHistory = currentUser ? getRecordsByEmployee(currentUser.id) : [];
 
   const isCheckedIn = !!todayRecord && !!todayRecord.checkInTime && !todayRecord.checkOutTime;
@@ -80,7 +106,9 @@ export default function EmployeeAttendancePage() {
         <div>
           <div className="ea-breadcrumb">Staff Portal / Attendance</div>
           <h1>Live Attendance & Geolocation Check-In</h1>
-          <p className="ea-sub">Office Hours: {config.officeStartTime} - {config.officeEndTime} (Grace: {config.gracePeriodMinutes} mins)</p>
+          <p className="ea-sub">
+            Office Hours: {config.officeStartTime} - {config.officeEndTime} (Grace: {config.gracePeriodMinutes} mins) • Geofence Radius: {config.geofenceRadiusMeters}m
+          </p>
         </div>
       </div>
 
@@ -206,6 +234,7 @@ export default function EmployeeAttendancePage() {
                 <th>LATE</th>
                 <th>STATUS</th>
                 <th>LOCATION</th>
+                <th style={{ textAlign: 'center' }}>ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -234,13 +263,26 @@ export default function EmployeeAttendancePage() {
                     </span>
                   </td>
                   <td className="text-muted text-xs">
-                    {rec.checkInLocation ? '✓ GPS Verified' : '--'}
+                    {rec.notes?.includes('OUT OF GEOFENCE') ? (
+                      <span className="text-warning font-semibold">⚠️ Field Punch</span>
+                    ) : rec.checkInLocation ? (
+                      <span className="text-success font-semibold">✓ On-Site Verified</span>
+                    ) : '--'}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button 
+                      className="btn-outline" 
+                      style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '4px' }}
+                      onClick={() => setSelectedRecordForCorrection(rec)}
+                    >
+                      Correction
+                    </button>
                   </td>
                 </tr>
               ))}
               {myHistory.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
                     No attendance records logged yet.
                   </td>
                 </tr>
@@ -249,6 +291,55 @@ export default function EmployeeAttendancePage() {
           </table>
         </div>
       </div>
+
+      {/* Correction Request Modal */}
+      {selectedRecordForCorrection && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '460px', padding: '1.5rem', background: '#fff', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#0F172A', fontSize: '1.15rem' }}>Request Attendance Correction</h3>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '1rem' }}>
+              Date: <strong>{selectedRecordForCorrection.date}</strong>
+            </p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Requested In Time</label>
+                <input 
+                  type="time" 
+                  value={reqIn} 
+                  onChange={(e) => setReqIn(e.target.value)} 
+                  style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Requested Out Time</label>
+                <input 
+                  type="time" 
+                  value={reqOut} 
+                  onChange={(e) => setReqOut(e.target.value)} 
+                  style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Reason for Correction</label>
+              <textarea 
+                rows={3} 
+                value={reqReason} 
+                onChange={(e) => setReqReason(e.target.value)} 
+                placeholder="Explain missed punch / field survey / network interruption..."
+                style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="btn-outline" onClick={() => setSelectedRecordForCorrection(null)}>Cancel</button>
+              <button className="btn-primary" onClick={handleSubmitCorrection}>Submit for Admin Approval</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
