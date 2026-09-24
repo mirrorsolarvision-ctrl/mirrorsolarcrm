@@ -5,7 +5,7 @@ import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
-import EmployeeAttendancePage from './EmployeeAttendancePage';
+import EmployeeAttendancePage from '../pages/EmployeeAttendancePage';
 import QuotationsPortalPage from '../pages/QuotationsPortalPage';
 import MarketingPortalPage from '../pages/MarketingPortalPage';
 import ProfilePage from '../ProfilePage';
