@@ -1,0 +1,305 @@
+/* ==========================================================================
+   Employee Attendance Page Styles
+   ========================================================================== */
+
+.employee-attendance-page {
+  padding: 1.75rem 2rem;
+  width: 100%;
+  max-width: 1200px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  color: var(--color-navy);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ea-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.ea-breadcrumb {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.ea-header h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0 0 0.25rem 0;
+}
+
+.ea-sub {
+  color: #64748B;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+/* Punch Card */
+.ea-punch-card {
+  background: #FFFFFF;
+  border-radius: 18px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 20px -2px rgba(11, 31, 58, 0.08);
+  overflow: hidden;
+}
+
+.ea-punch-header {
+  background: #F8FAFC;
+  padding: 1.15rem 1.5rem;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ea-date-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: #0B1F3A;
+  font-size: 0.95rem;
+}
+
+.ea-punch-body {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Timer Display */
+.ea-timer-display {
+  background: linear-gradient(135deg, #0B1F3A 0%, #1E3A8A 100%);
+  color: #FFFFFF;
+  border-radius: 14px;
+  padding: 1.35rem 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 6px 18px rgba(11, 31, 58, 0.2);
+}
+
+.ea-timer-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F4C430;
+}
+
+.timer-pulse {
+  animation: pulseRotate 2s infinite ease-in-out;
+}
+
+@keyframes pulseRotate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); color: #F59E0B; }
+  100% { transform: scale(1); }
+}
+
+.ea-timer-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ea-timer-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #93C5FD;
+}
+
+.ea-timer-val {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.04em;
+}
+
+/* Grid */
+.ea-punch-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.ea-col-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 600px) {
+  .ea-punch-details-grid { grid-template-columns: 1fr; }
+  .ea-col-span-2 { grid-column: span 1; }
+}
+
+.ea-detail-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 0.9rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ea-box-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ea-box-val {
+  font-size: 1.15rem;
+}
+
+/* Action Section */
+.ea-action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ea-note-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #CBD5E1;
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ea-note-input:focus {
+  border-color: #F4C430;
+  box-shadow: 0 0 0 2px rgba(244, 196, 48, 0.2);
+}
+
+.ea-punch-btn {
+  width: 100%;
+  padding: 1rem !important;
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.6rem !important;
+}
+
+.ea-punch-btn.green {
+  background: linear-gradient(135deg, #15803D 0%, #16A34A 100%) !important;
+  border-color: #15803D !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3) !important;
+}
+
+.ea-punch-btn.green:hover {
+  background: linear-gradient(135deg, #166534 0%, #15803D 100%) !important;
+}
+
+.ea-punch-btn.red {
+  background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important;
+  border-color: #DC2626 !important;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3) !important;
+}
+
+.ea-completed-banner {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+/* History Card */
+.ea-history-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.ea-history-header h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ea-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+}
+
+.ea-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ea-table thead th {
+  background: #F8FAFC;
+  padding: 0.8rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #E2E8F0;
+  text-align: left;
+}
+
+.ea-table tbody td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+/* Status Pills */
+.ea-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-present { background: #DCFCE7; color: #15803D; }
+.status-late { background: #FEF3C7; color: #B45309; }
+.status-half_day { background: #EFF6FF; color: #1D4ED8; }
+.status-absent { background: #F1F5F9; color: #64748B; }
+.status-leave { background: #F3E8FF; color: #7E22CE; }
+
+.text-danger { color: #DC2626 !important; }
+.text-success { color: #16A34A !important; }

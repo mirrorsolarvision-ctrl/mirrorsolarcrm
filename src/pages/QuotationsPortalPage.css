@@ -1,0 +1,571 @@
+/* ==========================================================================
+   Quotations Portal Page Styles
+   ========================================================================== */
+
+.quotations-portal-page {
+  padding: 1.75rem 2rem;
+  width: 100%;
+  max-width: 1600px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  color: var(--color-navy);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.qp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.qp-breadcrumb {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.qp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.qp-title-row h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0;
+}
+
+.qp-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.qp-sub {
+  color: #64748B;
+  font-size: 0.95rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.qp-create-btn {
+  padding: 0.75rem 1.4rem !important;
+  font-size: 0.95rem !important;
+  border-radius: 10px !important;
+}
+
+/* Stats Grid (Horizontal 4-Columns) */
+.qp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .qp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.qp-stat-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.qp-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qp-stat-icon.navy { background: #EFF6FF; color: #1D4ED8; }
+.qp-stat-icon.yellow { background: #FEF9C3; color: #A16207; }
+.qp-stat-icon.success { background: #DCFCE7; color: #15803D; }
+.qp-stat-icon.orange { background: #FFEDD5; color: #C2410C; }
+
+.qp-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.qp-stat-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.qp-stat-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  line-height: 1.2;
+}
+
+/* Main Panel */
+.qp-main-panel {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 2px 8px rgba(11, 31, 58, 0.04);
+}
+
+.qp-toolbar {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .qp-toolbar { flex-direction: column; align-items: stretch; }
+}
+
+.qp-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  flex: 1;
+}
+
+.qp-search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.9rem;
+  color: #0B1F3A;
+  width: 100%;
+}
+
+.qp-filter-select {
+  padding: 0.65rem 2.2rem 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0B1F3A;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Table */
+.qp-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.qp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.qp-table thead th {
+  background: #F8FAFC;
+  padding: 0.85rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #E2E8F0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.qp-table tbody td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.qp-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+.row-cancelled {
+  opacity: 0.55;
+}
+
+.qp-qnum-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qp-qnum {
+  font-family: monospace;
+  font-weight: 700;
+  color: #0B1F3A;
+}
+
+.qp-ver-tag {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.qp-cust-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.qp-cust-name {
+  font-weight: 700;
+  color: #0B1F3A;
+}
+
+.qp-cust-phone {
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.qp-cap-badge {
+  display: inline-block;
+  font-weight: 800;
+  color: #0B1F3A;
+  background: #FEF9C3;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-right: 0.4rem;
+}
+
+.qp-plant-type {
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.qp-subsidy-val {
+  color: #16A34A;
+  font-weight: 700;
+}
+
+.qp-payable-cell {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0B1F3A;
+}
+
+/* Status Pill */
+.qp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-draft { background: #FEF3C7; color: #B45309; }
+.status-sent { background: #EFF6FF; color: #1D4ED8; }
+.status-accepted { background: #DCFCE7; color: #15803D; }
+.status-converted { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+.status-amended { background: #F1F5F9; color: #64748B; }
+.status-cancelled { background: #FEE2E2; color: #DC2626; }
+
+/* Actions */
+.qp-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.qp-btn-act {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #0B1F3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.qp-btn-act:hover {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border-color: #0B1F3A;
+}
+
+.qp-btn-act.danger:hover {
+  background: #DC2626;
+  color: #FFFFFF;
+  border-color: #DC2626;
+}
+
+.qp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: #64748B;
+}
+
+.qp-empty svg {
+  color: #94A3B8;
+  margin-bottom: 0.85rem;
+}
+
+.qp-empty h4 {
+  color: #0B1F3A;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 0.3rem 0;
+}
+
+/* ==========================================================================
+   Version Comparison Modal (V1 vs V2 Diff Inspection)
+   ========================================================================== */
+.qp-compare-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 31, 58, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.qp-compare-modal-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.qp-compare-modal-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qp-compare-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #2563EB;
+  background: #EFF6FF;
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+.qp-compare-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0B1F3A;
+}
+
+.qp-compare-modal-body {
+  padding: 1.5rem 1.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.qp-compare-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.qp-compare-summary-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.qp-compare-summary-box.highlight {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+}
+
+.qp-compare-summary-box .label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+}
+
+.qp-compare-summary-box .val {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.qp-compare-summary-box .val.pos { color: #16A34A; }
+.qp-compare-summary-box .val.neg { color: #DC2626; }
+
+.qp-compare-section-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0.5rem 0 0 0;
+}
+
+.qp-compare-table-wrap {
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.qp-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.qp-compare-table th {
+  background: #F1F5F9;
+  color: #475569;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.qp-compare-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.diff-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
+.diff-modified { background: #FEF3C7; color: #B45309; }
+.diff-added { background: #DCFCE7; color: #15803D; }
+.diff-removed { background: #FEE2E2; color: #DC2626; }
+.diff-unchanged { background: #F1F5F9; color: #64748B; }
+
+.diff-row-added { background: #F0FDF4; }
+.diff-row-removed { background: #FEF2F2; }
+
+/* Responsive Adjustments for Mobile Viewports (320px - 600px) */
+@media (max-width: 600px) {
+  .quotations-portal-page {
+    padding: 1rem 0.75rem;
+    gap: 1rem;
+  }
+
+  .qp-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .qp-title-row h1 {
+    font-size: 1.45rem;
+  }
+
+  .qp-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .qp-stat-card {
+    padding: 1rem;
+  }
+
+  .qp-main-panel {
+    padding: 1rem 0.75rem;
+  }
+
+  .qp-compare-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .qp-compare-modal-card {
+    max-width: 95vw;
+    margin: 0.5rem;
+  }
+
+  .qp-compare-modal-header {
+    padding: 1rem;
+  }
+
+  .qp-compare-modal-body {
+    padding: 1rem;
+  }
+
+  .qp-compare-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .qp-compare-table {
+    min-width: 500px;
+  }
+}
+
+

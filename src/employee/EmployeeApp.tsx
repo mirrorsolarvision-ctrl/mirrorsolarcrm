@@ -5,7 +5,9 @@ import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
-import EmployeeAttendancePage from './EmployeeAttendancePage';
+import EmployeeAttendancePage from '../pages/EmployeeAttendancePage';
+import QuotationsPortalPage from '../pages/QuotationsPortalPage';
+import MarketingPortalPage from '../pages/MarketingPortalPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
 import FollowupsPage from '../FollowupsPage';
@@ -60,6 +62,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
     const routeName = currentPath === '/employee/dashboard' ? 'Dashboard' :
                       currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
+                      currentPath === '/employee/quotations' ? 'Quotations' :
+                      currentPath === '/employee/marketing' ? 'Marketing' :
                       currentPath === '/employee/followups' ? 'Leads' :
                       currentPath === '/employee/tasks' ? 'Dashboard' :
                       currentPath === '/employee/calendar' ? 'Dashboard' :
@@ -79,6 +83,10 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
       case '/employee/leads':
         // Pass filters to Leads page (e.g. stage, status) if it supports it
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/employee/quotations':
+        return <QuotationsPortalPage />;
+      case '/employee/marketing':
+        return <MarketingPortalPage />;
       case '/employee/followups':
         return <FollowupsPage />;
       case '/employee/tasks':

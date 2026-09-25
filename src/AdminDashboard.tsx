@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, Users, Briefcase, Package, Shield, 
   Bell, ChevronDown, ChevronRight, LogOut, Settings, User, 
   Menu, X, PanelLeftClose, PanelLeftOpen, 
   TrendingUp, Activity, AlertCircle, ArrowRight,
   UserPlus, CheckCircle2, Sun, Wallet, CheckCircle, PieChart,
-  CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck
+  CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck,
+  FileText, Megaphone, History
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import './AdminDashboard.css';
 import StockPage from './StockPage';
+import QuotationsPortalPage from './pages/QuotationsPortalPage';
+import MarketingPortalPage from './pages/MarketingPortalPage';
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage';
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
 import type { MockLead, Stage } from './context/CRMContext';
@@ -238,6 +242,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   const navItems = [
     { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Leads', icon: <Activity size={20} /> },
+    { name: 'Quotations', icon: <FileText size={20} /> },
+    { name: 'Marketing', icon: <Megaphone size={20} /> },
     { name: 'Tasks', icon: <CheckSquare size={20} /> },
     { name: 'Calendar', icon: <Calendar size={20} /> },
     { 
@@ -260,6 +266,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
     { name: 'Reports', icon: <PieChart size={20} /> },
+    { name: 'Audit Logs', icon: <History size={20} /> },
     { name: 'Access', icon: <Shield size={20} /> },
   ];
 
@@ -402,6 +409,12 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
           <AccessRestricted onReturnToDashboard={() => setActiveTab('Dashboard')} />
         ) : activeTab === 'Stock' ? (
           <StockPage />
+        ) : activeTab === 'Quotations' ? (
+          <QuotationsPortalPage />
+        ) : activeTab === 'Marketing' ? (
+          <MarketingPortalPage />
+        ) : activeTab === 'Audit Logs' ? (
+          <AdminAuditLogsPage />
         ) : activeTab === 'Employees' ? (
           <AdminEmployeesPage 
             onNavigateToLeads={() => {

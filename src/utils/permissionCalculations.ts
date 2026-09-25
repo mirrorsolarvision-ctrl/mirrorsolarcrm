@@ -74,6 +74,10 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
       return true;
     case 'Quotations':
       return true;
+    case 'Marketing':
+      return true;
+    case 'Audit Logs':
+      return user.role === 'Admin';
     case 'Responsibilities':
       return user.role === 'Admin';
     case 'Leads':

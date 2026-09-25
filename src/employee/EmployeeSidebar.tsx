@@ -10,6 +10,8 @@ import {
   CheckSquare,
   Calendar,
   UserCheck,
+  FileText,
+  Megaphone,
   X
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
@@ -43,6 +45,8 @@ export default function EmployeeSidebar({
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
+    { name: 'Marketing', path: '/employee/marketing', icon: Megaphone, routeName: 'Marketing' },
     { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Dashboard' },
     { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Dashboard' },
     { name: 'Follow-ups', path: '/employee/followups', icon: Bell, routeName: 'Leads' },
