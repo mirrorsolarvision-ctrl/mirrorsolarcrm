@@ -49,11 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               else userData.permissions = {} as any;
             }
             setCurrentUser(userData);
-          } else if (firebaseUser.email === 'mirrorsolarvision@gmail.com') {
+          } else if (firebaseUser.email === 'mirrorsolarvision@gmail.com' || firebaseUser.email === 'admin@mirrorsolar.in') {
             const adminFallback: CRMUser = {
               id: firebaseUser.uid,
               name: 'MSV Admin',
-              email: 'mirrorsolarvision@gmail.com',
+              email: firebaseUser.email || 'admin@mirrorsolar.in',
               initials: 'MSV',
               phone: '9182612420',
               status: 'Active',
@@ -68,11 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (err) {
           console.error("Error fetching user data:", err);
-          if (firebaseUser.email === 'mirrorsolarvision@gmail.com') {
+          if (firebaseUser.email === 'mirrorsolarvision@gmail.com' || firebaseUser.email === 'admin@mirrorsolar.in') {
             setCurrentUser({
               id: firebaseUser.uid,
               name: 'MSV Admin',
-              email: 'mirrorsolarvision@gmail.com',
+              email: firebaseUser.email || 'admin@mirrorsolar.in',
               initials: 'MSV',
               phone: '9182612420',
               status: 'Active',

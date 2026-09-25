@@ -51,13 +51,24 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         if (role === 'Dealer') {
           formattedEmail = `${formattedEmail}@dealer.in`;
         } else if (role === 'Admin' || formattedEmail === 'msvadmin' || formattedEmail === 'admin') {
-          formattedEmail = 'mirrorsolarvision@gmail.com';
+          formattedEmail = 'admin@mirrorsolar.in';
         } else {
           formattedEmail = `${formattedEmail}@mirrorsolar.in`;
         }
       }
 
-      const userCredential = await signInWithEmailAndPassword(auth, formattedEmail, password);
+      let userCredential;
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, formattedEmail, password);
+      } catch (err: any) {
+        if ((formattedEmail === 'mirrorsolarvision@gmail.com' || formattedEmail === 'admin@mirrorsolar.in') && 
+            (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found')) {
+          const alternate = formattedEmail === 'mirrorsolarvision@gmail.com' ? 'admin@mirrorsolar.in' : 'mirrorsolarvision@gmail.com';
+          userCredential = await signInWithEmailAndPassword(auth, alternate, password);
+        } else {
+          throw err;
+        }
+      }
       if (onLoginSuccess) {
         onLoginSuccess(userCredential.user.uid);
       }

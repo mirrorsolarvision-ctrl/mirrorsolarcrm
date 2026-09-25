@@ -8,15 +8,22 @@ service cloud.firestore {
     }
     
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role 
+        : (request.auth.token.email in ['mirrorsolarvision@gmail.com', 'admin@mirrorsolar.in'] ? 'Admin' : 'Employee');
     }
     
     function getUserName() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+        : request.auth.token.email;
     }
 
     function isAdmin() {
-      return isAuthenticated() && getUserRole() == 'Admin';
+      return isAuthenticated() && (
+        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'admin@mirrorsolar.in'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
+      );
     }
 
     // USERS COLLECTION
@@ -30,8 +37,9 @@ service cloud.firestore {
                     (request.auth.uid == userId && 
                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions'])));
                      
-      // Only admins can create or delete users
-      allow create, delete: if isAdmin();
+      // Only admins can create or delete users (or users initializing their profile document with matching uid)
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if isAdmin();
     }
 
     // LEADS COLLECTION
