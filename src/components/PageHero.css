@@ -184,22 +184,33 @@
 /* Mobile adjustments (98% mobile usage) */
 @media (max-width: 768px) {
   .page-hero-header {
-    padding: 1.35rem 1.15rem 1.15rem 1.15rem;
+    padding: 1.15rem 0.9rem 1rem 0.9rem;
   }
   
+  .hero-title-row {
+    min-width: 0 !important;
+    gap: 0.85rem !important;
+  }
+
   .hero-icon-badge {
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
     border-radius: 12px;
   }
   
+  .hero-title-area {
+    min-width: 0;
+    flex: 1;
+  }
+
   .hero-title-area h1 {
-    font-size: 1.45rem;
+    font-size: 1.35rem;
+    word-break: break-word;
   }
   
   .hero-title-area p {
-    font-size: 0.88rem;
-    line-height: 1.4;
+    font-size: 0.84rem;
+    line-height: 1.35;
   }
 
   .hero-action-container {
@@ -209,7 +220,7 @@
 
   .btn-hero-primary,
   .btn-hero-secondary {
-    padding: 0.65rem 1rem;
-    font-size: 0.88rem;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.85rem;
   }
 }
