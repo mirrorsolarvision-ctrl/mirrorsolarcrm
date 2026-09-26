@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { seedSampleLeads } from '../seedFirebase';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -264,6 +265,7 @@ export interface MockLead {
   installationRejectionReason?: string;
   payments?: LeadPayments;
   dealerSpecifications?: DealerProjectSpecifications;
+  createdBy?: string;
 }
 
 export type PermissionLevel = 'full' | 'edit' | 'view' | 'none';
@@ -336,6 +338,18 @@ export const defaultDealerFeatures: DealerFeatures = {
   leads: true,
   stock: true,
   payments: true,
+  reports: false,
+  tasks: true,
+  calendar: true
+};
+
+export const defaultEmployeeFeatures: DealerFeatures = {
+  myEmployees: false,
+  attendance: true,
+  quotations: true,
+  leads: true,
+  stock: true,
+  payments: false,
   reports: false,
   tasks: true,
   calendar: true
@@ -415,6 +429,8 @@ export interface User {
   permissions: UserPermissions;
   lastActive: string;
   address?: string; // specific to dealers
+  features?: DealerFeatures;
+  password?: string; // Stored securely for Admin credential management
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -424,6 +440,8 @@ export interface Employee extends User {
   dealerId?: string | null; // null = Company Staff, string = Dealer's Staff
   authId?: string;
   responsibilities?: EmployeeResponsibilities;
+  features?: DealerFeatures;
+  password?: string;
 }
 
 export type DealerStatus = 'Active' | 'Inactive';
@@ -432,6 +450,7 @@ export interface Dealer extends User {
   role: 'Dealer';
   address: string;
   features?: DealerFeatures;
+  password?: string;
 }
 
 export interface AttendanceRecord {
@@ -609,6 +628,9 @@ interface CRMContextType {
   getAttendanceForDate: (date: string, dealerId?: string | null) => AttendanceRecord[];
   getEmployeeAttendanceHistory: (employeeId: string) => AttendanceRecord[];
   updateDealerFeatures: (dealerId: string, features: Partial<DealerFeatures>) => Promise<void>;
+  updateEmployeeFeatures: (employeeId: string, features: Partial<DealerFeatures>) => Promise<void>;
+  updateUserPassword: (userId: string, role: 'Employee' | 'Dealer', newPassword: string) => Promise<void>;
+  updateUserFeatures: (userId: string, role: 'Employee' | 'Dealer', features: Partial<DealerFeatures>) => Promise<void>;
   addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => Promise<void>;
   updateDealerEmployee: (employeeId: string, dealerId: string, updates: Partial<Employee>) => Promise<void>;
 
@@ -625,6 +647,9 @@ interface CRMContextType {
   updateQuotationStatus: (id: string, status: QuotationStatus) => Promise<void>;
   getDealerQuotations: (dealerId: string) => Quotation[];
   getLeadQuotations: (leadId: string, dealerId: string) => Quotation[];
+
+  // Seed Helper
+  seedSampleLeads: () => Promise<number>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
@@ -792,14 +817,19 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addLead = async (lead: Omit<MockLead, 'id'>) => {
     try {
+      const assignedEmp = lead.assignedEmployee || (authUser?.role === 'Employee' ? authUser.name : '');
+      const assignedEmpId = lead.assignedEmployeeId || (authUser?.role === 'Employee' ? authUser.id : undefined);
       const leadPayload = {
         ...lead,
         dealerId: lead.dealerId || (authUser?.role === 'Dealer' ? authUser.id : undefined),
-        dealer: lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : '')
+        dealer: lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : ''),
+        assignedEmployee: assignedEmp,
+        assignedEmployeeId: assignedEmpId
       };
       await addDoc(collection(db, 'leads'), leadPayload);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding lead:", err);
+      alert(`Failed to save lead to database: ${err.message || String(err)}`);
     }
   };
 
@@ -1226,7 +1256,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .sort((a, b) => b.date.localeCompare(a.date));
   };
 
-  // --- Dealer Feature & Staff Management ---
+  // --- Dealer & Employee Feature & Staff Management ---
   const updateDealerFeatures = async (dealerId: string, newFeatures: Partial<DealerFeatures>) => {
     const targetDealer = dealers.find(d => d.id === dealerId);
     const existingFeatures = targetDealer?.features || defaultDealerFeatures;
@@ -1238,6 +1268,42 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await updateDoc(doc(db, 'users', dealerId), { features: updatedFeatures });
     } catch (err) {
       console.warn("Error updating dealer features in Firestore:", err);
+    }
+  };
+
+  const updateEmployeeFeatures = async (employeeId: string, newFeatures: Partial<DealerFeatures>) => {
+    const targetEmp = employees.find(e => e.id === employeeId);
+    const existingFeatures = targetEmp?.features || defaultEmployeeFeatures;
+    const updatedFeatures: DealerFeatures = { ...existingFeatures, ...newFeatures };
+
+    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, features: updatedFeatures } : e));
+
+    try {
+      await updateDoc(doc(db, 'users', employeeId), { features: updatedFeatures });
+    } catch (err) {
+      console.warn("Error updating employee features in Firestore:", err);
+    }
+  };
+
+  const updateUserFeatures = async (userId: string, role: 'Employee' | 'Dealer', newFeatures: Partial<DealerFeatures>) => {
+    if (role === 'Dealer') {
+      await updateDealerFeatures(userId, newFeatures);
+    } else {
+      await updateEmployeeFeatures(userId, newFeatures);
+    }
+  };
+
+  const updateUserPassword = async (userId: string, role: 'Employee' | 'Dealer', newPassword: string) => {
+    if (role === 'Dealer') {
+      setDealers(prev => prev.map(d => d.id === userId ? { ...d, password: newPassword } : d));
+    } else {
+      setEmployees(prev => prev.map(e => e.id === userId ? { ...e, password: newPassword } : e));
+    }
+
+    try {
+      await updateDoc(doc(db, 'users', userId), { password: newPassword, lastPasswordReset: new Date().toISOString() });
+    } catch (err) {
+      console.warn("Error updating password in Firestore:", err);
     }
   };
 
@@ -1396,17 +1462,21 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCustomerPayment, verifyCustomerPayment, deleteCustomerPayment,
       tasks, addTask, updateTask, deleteTask, resetData,
 
-      // Attendance & Dealer Feature Management
+      // Attendance & Dealer/Employee Feature Management
       attendances, markAttendance, removeAttendance, isEmployeePresent,
       getEmployeeAttendance, getAttendanceForDate, getEmployeeAttendanceHistory,
-      updateDealerFeatures, addDealerEmployee, updateDealerEmployee,
+      updateDealerFeatures, updateEmployeeFeatures, updateUserFeatures, updateUserPassword,
+      addDealerEmployee, updateDealerEmployee,
 
       // Responsibilities Management
       responsibilities, addResponsibility, updateResponsibility, assignEmployeeResponsibilities,
 
       // Products & Quotations
       approvedProducts, quotations, createQuotation, updateQuotationStatus,
-      getDealerQuotations, getLeadQuotations
+      getDealerQuotations, getLeadQuotations,
+
+      // Seed Helper
+      seedSampleLeads
     }}>
       {children}
     </CRMContext.Provider>

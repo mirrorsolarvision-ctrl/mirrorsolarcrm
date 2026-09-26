@@ -170,7 +170,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your username (e.g. jaswanth)"
+                  placeholder={role === 'Dealer' ? "Enter your username (e.g. hussain)" : (role === 'Admin' ? "Enter admin email (e.g. admin@mirrorsolar.in)" : "Enter your username (e.g. jaswanth)")}
                   required
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', appearance: 'none', background: 'transparent' }}
                 />

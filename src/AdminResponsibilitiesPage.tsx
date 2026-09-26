@@ -19,6 +19,7 @@ import {
 import { useCRM } from './context/CRMContext';
 import { useUI } from './context/UIContext';
 import type { Employee, Responsibility } from './context/CRMContext';
+import PageHero from './components/PageHero';
 import './AdminResponsibilitiesPage.css';
 
 export default function AdminResponsibilitiesPage() {
@@ -176,20 +177,18 @@ export default function AdminResponsibilitiesPage() {
 
   return (
     <div className="admin-responsibilities-container">
-      {/* Header */}
-      <div className="responsibilities-header">
-        <div>
-          <h1 className="page-title">Employee Operational Responsibilities</h1>
-          <p className="page-subtitle">Assign primary and secondary functional ownership across company staff</p>
-        </div>
-
-        <div className="header-actions-wrap">
-          <button className="btn-secondary-action" onClick={() => setIsCreateRespModalOpen(true)}>
-            <Plus size={16} />
-            <span>Create Master Responsibility</span>
+      {/* Hero Header */}
+      <PageHero
+        badge="Operational Accountability"
+        icon={<Briefcase size={26} />}
+        title="Employee Operational Responsibilities"
+        subtitle="Assign primary and secondary functional ownership across company staff."
+        actions={
+          <button className="btn-hero-primary" onClick={() => setIsCreateRespModalOpen(true)}>
+            <Plus size={16} /> Create Master Responsibility
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Unassigned Warning Alert Banner if any */}
       {unassignedEmployees.length > 0 && (

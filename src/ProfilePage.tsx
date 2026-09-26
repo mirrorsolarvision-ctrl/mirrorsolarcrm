@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Settings, Bell, Lock, Shield, Mail, Phone, Moon } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import PageHero from './components/PageHero';
 import './SharedProfile.css';
 
 export default function ProfilePage() {
@@ -24,11 +25,15 @@ export default function ProfilePage() {
   const activeLeads = leads.filter(l => !l.archived && l.stage !== 'Completed').length;
 
   return (
-    <div className="dealer-profile-container">
-      <div className="dealer-profile-header">
-        <h1>Profile & Settings</h1>
-        <p>Manage your account settings and preferences.</p>
-      </div>
+    <div className="dealer-profile-container" style={{ padding: 0 }}>
+      <PageHero
+        badge="Account & Security Preferences"
+        icon={<User size={26} />}
+        title="Profile & Settings"
+        subtitle="Manage your personal account details, contact info, notifications, and security."
+      />
+
+      <div style={{ padding: '1.5rem 2rem' }}>
 
       <div className="profile-layout-grid">
         
@@ -131,20 +136,32 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="premium-form" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-              <div className="premium-input-group">
-                <label>Current Password</label>
-                <input type="password" placeholder="••••••••" />
+            {currentUser?.role === 'Admin' ? (
+              <div className="premium-form" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+                <div className="premium-input-group">
+                  <label>Current Password</label>
+                  <input type="password" placeholder="••••••••" />
+                </div>
+                <div className="premium-input-group">
+                  <label>New Password</label>
+                  <input type="password" placeholder="••••••••" />
+                </div>
+                <button type="button" className="premium-btn-primary" onClick={handlePasswordChange} style={{ background: '#f8fafc', color: 'var(--color-navy)', border: '1px solid #e2e8f0' }}>Update Password</button>
               </div>
-              <div className="premium-input-group">
-                <label>New Password</label>
-                <input type="password" placeholder="••••••••" />
+            ) : (
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem', marginTop: '1rem', background: '#f8fafc', padding: '1.1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#0f172a', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <Lock size={16} color="#0284c7" /> Credentials Managed by Administrator
+                </div>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                  To maintain strict system security, your login password is encrypted and can only be updated or reset directly by the System Administrator in the Central Directory.
+                </p>
               </div>
-              <button type="button" className="premium-btn-primary" onClick={handlePasswordChange} style={{ background: '#f8fafc', color: 'var(--color-navy)', border: '1px solid #e2e8f0' }}>Update Password</button>
-            </div>
+            )}
           </div>
 
         </div>
+      </div>
       </div>
     </div>
   );

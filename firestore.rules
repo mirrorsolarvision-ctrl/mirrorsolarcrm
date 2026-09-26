@@ -49,15 +49,17 @@ service cloud.firestore {
       // Employees can only read leads assigned to them.
       allow read: if isAdmin() ||
                   (isAuthenticated() && getUserRole() == 'Dealer' && resource.data.dealer == getUserName()) ||
-                  (isAuthenticated() && getUserRole() == 'Employee' && resource.data.assignedEmployee == getUserName());
+                  (isAuthenticated() && getUserRole() == 'Employee' && (resource.data.assignedEmployee == getUserName() || resource.data.assignedEmployeeId == request.auth.uid));
 
-      // Only Admins and Dealers can create leads
-      allow create: if isAdmin() || (isAuthenticated() && getUserRole() == 'Dealer' && request.resource.data.dealer == getUserName());
+      // Admins, Dealers, and Employees can create leads
+      allow create: if isAdmin() || 
+                    (isAuthenticated() && getUserRole() == 'Dealer' && request.resource.data.dealer == getUserName()) ||
+                    (isAuthenticated() && getUserRole() == 'Employee' && (request.resource.data.assignedEmployee == getUserName() || request.resource.data.assignedEmployeeId == request.auth.uid));
 
       // Updates are restricted similarly
       allow update: if isAdmin() ||
                     (isAuthenticated() && getUserRole() == 'Dealer' && resource.data.dealer == getUserName()) ||
-                    (isAuthenticated() && getUserRole() == 'Employee' && resource.data.assignedEmployee == getUserName());
+                    (isAuthenticated() && getUserRole() == 'Employee' && (resource.data.assignedEmployee == getUserName() || resource.data.assignedEmployeeId == request.auth.uid));
 
       // Only admins can delete leads
       allow delete: if isAdmin();

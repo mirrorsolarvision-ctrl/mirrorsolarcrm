@@ -18,6 +18,9 @@ import type {
 import { useUI } from './context/UIContext';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
+import PageHero from './components/PageHero';
+import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
+import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
 import './PaymentsPage.css';
 
 interface PaymentsPageProps {
@@ -50,6 +53,17 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'Verified' | 'Pending Verification' | 'Rejected'>('all');
   const [customerModeFilter, setCustomerModeFilter] = useState('');
   const [customerDealerFilter, setCustomerDealerFilter] = useState('');
+
+  // Unified 2-in-1 Record Payment Modal (Customer to Vendor & Vendor to Dealer)
+  const [showUnifiedRecordModal, setShowUnifiedRecordModal] = useState(false);
+  const [unifiedModalType, setUnifiedModalType] = useState<PaymentRecordModalType>('customer_to_vendor');
+  const [unifiedModalLeadId, setUnifiedModalLeadId] = useState<string>('');
+
+  const handleOpenUnifiedModal = (type: PaymentRecordModalType = 'customer_to_vendor', leadId?: string) => {
+    setUnifiedModalType(type);
+    if (leadId) setUnifiedModalLeadId(leadId);
+    setShowUnifiedRecordModal(true);
+  };
 
   // Record Customer Payment Modal
   const [showRecordCustomerModal, setShowRecordCustomerModal] = useState(false);
@@ -525,33 +539,20 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
   return (
     <div className="payments-page">
       {/* Modern Top Hero Header */}
-      <div className="payments-hero-header">
-        <div className="payments-hero-content">
-          <div className="payments-title-row">
-            <div className="title-icon-badge">
-              <Wallet size={24} />
-            </div>
-            <div>
-              <div className="payments-badge-pill">
-                <Sparkles size={13} /> Solar Finance & Payouts Hub
-              </div>
-              <h1>Payments & Transactions Center</h1>
-              <p>
-                Manage incoming customer collections, milestone payouts to dealers, and complete company cashflow audit trails.
-              </p>
-            </div>
-          </div>
-
-          <div className="header-action-container">
-            <button 
-              className="btn-cool-primary"
-              onClick={handleOpenRecordCustomerModal}
-            >
-              <Plus size={18} /> Record Customer Payment
-            </button>
-          </div>
-        </div>
-
+      <PageHero
+        badge="Solar Finance & Payouts Hub"
+        icon={<Wallet size={26} />}
+        title="Payments & Transactions Center"
+        subtitle="Manage incoming customer collections, milestone payouts to dealers, and complete company cashflow audit trails."
+        actions={
+          <button 
+            className="btn-hero-primary"
+            onClick={() => handleOpenUnifiedModal('customer_to_vendor')}
+          >
+            <Plus size={18} /> Record Payment / Commission
+          </button>
+        }
+      >
         {/* Segmented Primary Navigation Tabs */}
         <div className="payments-tab-nav">
           <button 
@@ -584,7 +585,7 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             <span>Financial Analytics & Margin</span>
           </button>
         </div>
-      </div>
+      </PageHero>
 
       <div className="payments-main">
 
@@ -739,7 +740,7 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
                 <button 
                   className="btn-cool-primary"
                   style={{ marginTop: '0.75rem' }}
-                  onClick={handleOpenRecordCustomerModal}
+                  onClick={() => handleOpenUnifiedModal('customer_to_vendor')}
                 >
                   <Plus size={16} /> Record First Payment
                 </button>
@@ -984,6 +985,23 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
                     ))}
                   </select>
                 )}
+
+                <button 
+                  className="btn-cool-primary" 
+                  style={{ 
+                    padding: '0.6rem 1.1rem', 
+                    fontSize: '0.85rem', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.4rem', 
+                    whiteSpace: 'nowrap',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    borderColor: '#2563eb'
+                  }} 
+                  onClick={() => handleOpenUnifiedModal('vendor_to_dealer')}
+                >
+                  <Plus size={16} /> Record Dealer Commission
+                </button>
               </div>
             </div>
 
@@ -1304,172 +1322,14 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
       </div>
 
       {/* ========================================================= */}
-      {/* MODAL 1: RECORD CUSTOMER PAYMENT MODAL                    */}
+      {/* MODAL 1: UNIFIED RECORD PAYMENT MODAL (2-TYPE)            */}
       {/* ========================================================= */}
-      {showRecordCustomerModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '580px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-              <div>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <ArrowDownLeft size={22} color="#10b981" /> Record Customer Payment
-                </h2>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Log incoming payment collected from customer (Customer ➔ Admin).
-                </span>
-              </div>
-              <button 
-                onClick={() => setShowRecordCustomerModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
-              >
-                <X size={22} />
-              </button>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>Select Project / Customer Lead *</label>
-              <select 
-                value={recordForm.leadId}
-                onChange={e => setRecordForm({ ...recordForm, leadId: e.target.value })}
-                style={{ fontWeight: 600 }}
-              >
-                <option value="">-- Choose Customer / Lead --</option>
-                {accessibleLeads.map(lead => (
-                  <option key={lead.id} value={lead.id}>
-                    {lead.customer} ({lead.phone}) — {lead.stage} [Dealer: {lead.dealer}]
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <div className="form-group">
-                <label>Amount Collected (₹) *</label>
-                <input 
-                  type="number"
-                  placeholder="E.g. 50000"
-                  value={recordForm.amount}
-                  onChange={e => setRecordForm({ ...recordForm, amount: e.target.value })}
-                  style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Payment Category *</label>
-                <select 
-                  value={recordForm.paymentType}
-                  onChange={e => setRecordForm({ ...recordForm, paymentType: e.target.value as CustomerPaymentType })}
-                >
-                  <option value="Booking / Advance">Booking / Advance</option>
-                  <option value="First Milestone">First Milestone</option>
-                  <option value="Bank Loan Disbursal">Bank Loan Disbursal</option>
-                  <option value="Final Payment">Final Payment</option>
-                  <option value="Subsidy Received">Subsidy Received</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <div className="form-group">
-                <label>Payment Mode *</label>
-                <select 
-                  value={recordForm.paymentMode}
-                  onChange={e => setRecordForm({ ...recordForm, paymentMode: e.target.value as CustomerPaymentMode })}
-                >
-                  <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                  <option value="Bank Transfer / NEFT">Bank Transfer / NEFT / IMPS</option>
-                  <option value="Net Banking">Net Banking</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Loan">Bank Loan</option>
-                  <option value="Credit / Debit Card">Credit / Debit Card</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Date Paid</label>
-                <input 
-                  type="date"
-                  value={recordForm.paidAt}
-                  onChange={e => setRecordForm({ ...recordForm, paidAt: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>UTR / Transaction Ref / Cheque No.</label>
-              <input 
-                type="text"
-                placeholder="E.g. UTR1829401824 or Cheque #102931"
-                value={recordForm.referenceNumber}
-                onChange={e => setRecordForm({ ...recordForm, referenceNumber: e.target.value })}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>Receipt Screenshot / Proof Upload (Firebase Storage)</label>
-              <div 
-                className="upload-dropzone"
-                onClick={() => document.getElementById('customer-payment-file-input')?.click()}
-              >
-                <Upload size={32} color="#94a3b8" style={{ marginBottom: '0.4rem' }} />
-                <input 
-                  type="file"
-                  id="customer-payment-file-input"
-                  accept="image/*,application/pdf"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setRecordForm({ ...recordForm, file: e.target.files[0] });
-                    }
-                  }}
-                />
-                <button type="button" className="btn-outline" style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}>
-                  Browse Receipt File
-                </button>
-                {recordForm.file && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#10b981', fontWeight: 600 }}>
-                    ✓ Selected: {recordForm.file.name} ({(recordForm.file.size / 1024).toFixed(1)} KB)
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label>Notes / Comments</label>
-              <textarea 
-                placeholder="E.g. Received via GPay from customer's HDFC account..."
-                value={recordForm.notes}
-                onChange={e => setRecordForm({ ...recordForm, notes: e.target.value })}
-                style={{ minHeight: '60px' }}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                className="btn-outline" 
-                onClick={() => setShowRecordCustomerModal(false)}
-                disabled={isRecordingPayment}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-cool-primary" 
-                onClick={handleSubmitCustomerPayment}
-                disabled={isRecordingPayment || !recordForm.amount || !recordForm.leadId}
-              >
-                {isRecordingPayment ? (
-                  <><Loader2 size={16} className="spin-icon" /> Uploading & Saving...</>
-                ) : (
-                  <>Save Customer Payment</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UnifiedRecordPaymentModal
+        isOpen={showUnifiedRecordModal}
+        onClose={() => setShowUnifiedRecordModal(false)}
+        defaultType={unifiedModalType}
+        defaultLeadId={unifiedModalLeadId}
+      />
 
       {/* ========================================================= */}
       {/* MODAL 2: REJECT CUSTOMER PAYMENT MODAL                    */}

@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { 
   Download, FileText, TrendingUp, TrendingDown, Minus,
   Activity, Package, 
-  AlertTriangle, ArrowRight, X, Zap
+  AlertTriangle, ArrowRight, X, Zap, BarChart3
 } from 'lucide-react';
+import PageHero from './components/PageHero';
 import { useCRM, STAGES } from './context/CRMContext';
 import { useStock } from './context/StockContext';
 import { useUI } from './context/UIContext';
@@ -178,46 +179,60 @@ export default function AdminReportsPage({ onNavigate }: AdminReportsPageProps) 
   return (
     <div className="reports-page-container">
       {/* Header */}
-      <div className="reports-header">
-        <div className="reports-title">
-          <h1>Reports & Analytics</h1>
-          <p>Understand sales activity, team performance and inventory movement.</p>
-        </div>
-        <div className="reports-actions">
-          <select 
-            className="date-select" 
-            value={dateRange === 'Custom Range' ? 'Custom Range' : dateRange} 
-            onChange={(e) => {
-              if (e.target.value === 'Custom Range') setIsCustomDateModalOpen(true);
-              else setDateRange(e.target.value);
-            }}
-          >
-            <option>Today</option>
-            <option>Yesterday</option>
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>This Month</option>
-            <option>Last Month</option>
-            <option>This Quarter</option>
-            <option>Custom Range</option>
-          </select>
-          
-          {currentUser?.permissions?.reports === 'full' && (
-            <div className="btn-export-wrapper" onMouseLeave={() => setIsExportMenuOpen(false)}>
-              <button className="btn-export" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
-                <Download size={18} /> Export Report
-              </button>
-              {isExportMenuOpen && (
-                <div className="export-menu">
-                  <button onClick={() => handleExport('pdf')}><FileText size={16} /> PDF</button>
-                  <button onClick={() => handleExport('csv')}><Download size={16} /> CSV</button>
-                  <button onClick={() => handleExport('excel')}><Package size={16} /> Excel</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      <PageHero
+        badge="Solar Analytics & Insights Hub"
+        icon={<BarChart3 size={26} />}
+        title="Reports & Analytics"
+        subtitle="Understand conversion velocity, team performance, and inventory throughput."
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select 
+              className="date-select" 
+              value={dateRange === 'Custom Range' ? 'Custom Range' : dateRange} 
+              onChange={(e) => {
+                if (e.target.value === 'Custom Range') setIsCustomDateModalOpen(true);
+                else setDateRange(e.target.value);
+              }}
+              style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                padding: '0.65rem 1rem',
+                borderRadius: '10px',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                backdropFilter: 'blur(8px)',
+                outline: 'none'
+              }}
+            >
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Today</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Yesterday</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Last 7 Days</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Last 30 Days</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>This Month</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Last Month</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>This Quarter</option>
+              <option style={{ background: '#0b1f3a', color: '#fff' }}>Custom Range</option>
+            </select>
+            
+            {currentUser?.permissions?.reports === 'full' && (
+              <div className="btn-export-wrapper" onMouseLeave={() => setIsExportMenuOpen(false)}>
+                <button className="btn-hero-primary" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}>
+                  <Download size={18} /> Export Report
+                </button>
+                {isExportMenuOpen && (
+                  <div className="export-menu" style={{ zIndex: 100 }}>
+                    <button onClick={() => handleExport('pdf')}><FileText size={16} /> PDF</button>
+                    <button onClick={() => handleExport('csv')}><Download size={16} /> CSV</button>
+                    <button onClick={() => handleExport('excel')}><Package size={16} /> Excel</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        }
+      />
 
       {/* Filters Bar */}
       <div className="reports-filters-bar">

@@ -5,14 +5,14 @@
 .quotation-modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(11, 31, 58, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(11, 31, 58, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-sizing: border-box;
 }
 
@@ -20,160 +20,280 @@
   background: #F8FAFC;
   border-radius: 18px;
   width: 100%;
-  max-width: 1350px;
-  height: 92vh;
-  max-height: 92dvh;
+  max-width: 1560px;
+  height: 96vh;
+  max-height: 96dvh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  border: 1px solid #E2E8F0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   animation: qePop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes qePop {
-  0% { transform: scale(0.97); opacity: 0; }
+  0% { transform: scale(0.98); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Header */
-.qe-header {
-  background: #FFFFFF;
-  padding: 1.15rem 1.75rem;
-  border-bottom: 1px solid #E2E8F0;
+/* Compact Top Action Bar - Minimal Height (52px), Sleek & Sticky */
+.qe-compact-topbar {
+  background: linear-gradient(90deg, #0B1F3A 0%, #132D54 60%, #1E3A8A 100%);
+  color: #FFFFFF;
+  padding: 0.65rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(11, 31, 58, 0.2);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.qe-compact-topbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #F4C430 0%, #F59E0B 50%, #38BDF8 100%);
+}
+
+.qe-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.qe-topbar-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(244, 196, 48, 0.15);
+  border: 1px solid rgba(244, 196, 48, 0.35);
+  color: #F4C430;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.qe-badge {
+.qe-topbar-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.qe-topbar-sub {
+  font-size: 0.72rem;
+  color: #94A3B8;
+  display: block;
+  margin-top: 1px;
+}
+
+.qe-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-hero-primary {
+  background: #F4C430;
+  color: #0B1F3A;
+  border: 1px solid #EAB308;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: #FEF9C3;
-  color: #854D0E;
-  padding: 0.2rem 0.6rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  margin-bottom: 0.25rem;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(244, 196, 48, 0.3);
 }
 
-.qe-header h2 {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #0B1F3A;
-  margin: 0;
+.btn-hero-primary:hover {
+  background: #EAB308;
+  transform: translateY(-1px);
 }
 
-.qe-header-actions {
+.btn-hero-primary:disabled,
+.btn-hero-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-hero-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.btn-hero-secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.btn-hero-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.btn-hero-close:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+  transform: scale(1.05);
+}
+
+/* Integrated Company & Bank Settlement Strip (Scrolls naturally inside qe-body) */
+.qe-hero-company-strip {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .qe-hero-company-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qe-hero-company-card {
+  background: linear-gradient(135deg, #0B1F3A 0%, #132D54 100%);
+  border: 1px solid #1E3A8A;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 4px 12px rgba(11, 31, 58, 0.08);
+}
+
+.qe-hero-bank-card {
+  background: linear-gradient(135deg, #091E3A 0%, #0F3057 100%);
+  border: 1px solid #1E40AF;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 4px 12px rgba(11, 31, 58, 0.08);
+}
+
+.qe-strip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #86EFAC;
+}
+
+.qe-strip-badge.gold {
+  color: #FDE047;
+}
+
+.qe-strip-comp-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.qe-strip-comp-sub {
+  font-size: 0.78rem;
+  color: #CBD5E1;
+}
+
+.qe-strip-tags {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.qe-strip-tag {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  color: #E2E8F0;
+}
+
+.qe-strip-tag strong {
+  color: #FFFFFF;
+}
+
+.qe-strip-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.qe-bank-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.qe-bank-item .label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #94A3B8;
+  text-transform: uppercase;
+}
+
+.qe-bank-item .val {
+  font-size: 0.82rem;
+  color: #F1F5F9;
+}
+
+.qe-bank-item .text-amber {
+  color: #FBBF24;
 }
 
 /* Body */
 .qe-body {
   flex: 1;
-  padding: 1.5rem 1.75rem;
+  padding: 1.5rem 2rem 3rem 2rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
   box-sizing: border-box;
 }
-
-/* Locked Company Banner */
-.qe-locked-banner {
-  background: linear-gradient(135deg, #0B1F3A 0%, #1E3A8A 100%);
-  color: #FFFFFF;
-  border-radius: 14px;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 4px 14px rgba(11, 31, 58, 0.15);
-  position: relative;
-  overflow: hidden;
-}
-
-.qe-locked-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: rgba(244, 196, 48, 0.2);
-  color: #F4C430;
-  border: 1px solid rgba(244, 196, 48, 0.4);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
-}
-
-.qe-locked-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 1.5rem;
-}
-
-@media (max-width: 900px) {
-  .qe-locked-grid { grid-template-columns: 1fr; }
-}
-
-.qe-comp-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #FFFFFF;
-}
-
-.qe-comp-sub {
-  color: #CBD5E1;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-.qe-comp-details {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.82rem;
-  color: #94A3B8;
-  flex-wrap: wrap;
-}
-
-.qe-comp-details strong { color: #FFFFFF; }
-
-.qe-locked-bank {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  padding: 0.85rem 1rem;
-}
-
-.qe-bank-header {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #F4C430;
-  text-transform: uppercase;
-  margin-bottom: 0.4rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.qe-bank-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  color: #E2E8F0;
-  margin-bottom: 0.2rem;
-}
-
-.qe-bank-row strong { color: #FFFFFF; }
 
 /* Section Cards */
 .qe-section-card {
@@ -568,13 +688,72 @@
   font-size: 0.85rem;
 }
 
+/* Single Total Package Price Input Box */
+.qe-single-price-input-box {
+  background: #EFF6FF;
+  border: 2px solid #3B82F6;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.qe-single-price-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #1E3A8A;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.qe-total-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #FFFFFF;
+  border: 2px solid #2563EB;
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+}
+
+.qe-currency-symbol {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1E3A8A;
+}
+
+.qe-total-package-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0B1F3A;
+  font-family: inherit;
+}
+
+.qe-single-price-hint {
+  display: block;
+  font-size: 0.76rem;
+  color: #475569;
+  margin-top: 0.4rem;
+}
+
+.qe-highlight-field input {
+  border-color: #3B82F6 !important;
+  background-color: #F0F9FF !important;
+  font-weight: 700;
+}
+
 /* Subsidy Box */
 .qe-subsidy-box {
   background: #F0FDF4;
-  border: 1px solid #BBF7D0;
+  border: 1.5px solid #86EFAC;
   border-radius: 10px;
-  padding: 0.85rem 1rem;
-  margin: 0.75rem 0;
+  padding: 0.9rem 1.15rem;
+  margin: 0.85rem 0;
 }
 
 .qe-subsidy-toggle-row {
@@ -587,25 +766,40 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: #166534;
   cursor: pointer;
 }
 
-.qe-subsidy-badge {
+.qe-subsidy-badge-green {
   background: #16A34A;
   color: #FFFFFF;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 20px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.qe-subsidy-explanation {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #86EFAC;
 }
 
 .qe-subsidy-notice {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #15803D;
-  margin: 0.35rem 0 0 0;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.4;
+}
+
+.qe-subsidy-subnotice {
+  font-size: 0.72rem;
+  color: #166534;
+  margin: 0;
+  font-style: italic;
 }
 
 /* Net Payable Banner */
@@ -613,7 +807,7 @@
   background: linear-gradient(135deg, #0B1F3A 0%, #1E3A8A 100%);
   color: #FFFFFF;
   border-radius: 10px;
-  padding: 1rem 1.25rem;
+  padding: 1.1rem 1.25rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -633,3 +827,536 @@
   font-weight: 800;
   color: #FFFFFF;
 }
+
+/* WhatsApp button */
+.qe-whatsapp-btn {
+  background-color: #25D366 !important;
+  color: #FFFFFF !important;
+  border-color: #25D366 !important;
+  font-weight: 700 !important;
+}
+
+.qe-whatsapp-btn:hover {
+  background-color: #128C7E !important;
+  border-color: #128C7E !important;
+}
+
+.qe-active-view-btn {
+  background: #0B1F3A !important;
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   A4 Quotation Print & Preview Layout (Standard 210mm x 297mm)
+   ========================================================================== */
+.qe-a4-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: #E2E8F0;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+.qe-a4-toolbar {
+  width: 100%;
+  max-width: 820px;
+  background: #FFFFFF;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+  color: #0B1F3A;
+  box-sizing: border-box;
+}
+
+.qe-a4-toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.a4-quotation-sheet {
+  width: 100%;
+  max-width: 800px;
+  min-height: 1100px;
+  background: #FFFFFF;
+  color: #0F172A;
+  padding: 32px 36px;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* A4 Sheet Components */
+.a4-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #0B1F3A;
+}
+
+.a4-logo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.a4-logo-img {
+  height: 55px;
+  width: auto;
+  object-fit: contain;
+}
+
+.a4-tagline {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.a4-company-meta {
+  text-align: right;
+  font-size: 10.5px;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.a4-company-meta h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin: 0 0 2px 0;
+}
+
+.a4-company-meta p {
+  margin: 0;
+}
+
+.a4-title-bar {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  padding: 6px 14px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Info Grid */
+.a4-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.a4-info-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+}
+
+.a4-box-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0B1F3A;
+  border-bottom: 1px solid #CBD5E1;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.a4-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  color: #475569;
+}
+
+.a4-info-row strong {
+  color: #0F172A;
+}
+
+/* Specs Banner */
+.a4-specs-banner {
+  background: #EFF6FF;
+  border: 1.5px solid #93C5FD;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.a4-spec-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.a4-spec-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #1E40AF;
+  letter-spacing: 0.03em;
+}
+
+.a4-spec-val {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0B1F3A;
+}
+
+/* BOM Table */
+.a4-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0B1F3A;
+  border-left: 3px solid #F4C430;
+  padding-left: 6px;
+  margin-top: 2px;
+}
+
+.a4-bom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+}
+
+.a4-bom-table thead th {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: left;
+  border: 1px solid #0B1F3A;
+}
+
+.a4-bom-table tbody td {
+  padding: 5px 8px;
+  border: 1px solid #E2E8F0;
+  color: #1E293B;
+}
+
+.a4-bom-table tbody tr:nth-child(even) {
+  background: #F8FAFC;
+}
+
+/* Commercial Row */
+.a4-commercial-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.a4-subsidy-callout {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.a4-subsidy-header {
+  font-size: 10px;
+  font-weight: 800;
+  color: #166534;
+  letter-spacing: 0.03em;
+}
+
+.a4-subsidy-amount {
+  font-size: 20px;
+  font-weight: 900;
+  color: #15803D;
+  margin: 2px 0;
+}
+
+.a4-subsidy-text {
+  font-size: 9.5px;
+  color: #14532D;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.a4-pricing-table-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.a4-pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.a4-pricing-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.a4-total-row {
+  background: #F1F5F9;
+  font-size: 12px;
+  color: #0B1F3A;
+}
+
+.a4-payable-row {
+  background: #0B1F3A;
+  color: #FFFFFF !important;
+  font-size: 12.5px;
+}
+
+.a4-payable-row td {
+  color: #FFFFFF !important;
+  border: none;
+}
+
+/* Bank Banner */
+.a4-bank-banner {
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  padding: 6px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 10px;
+  color: #334155;
+}
+
+.a4-bank-col strong {
+  color: #0B1F3A;
+}
+
+/* Footer & Sign */
+.a4-footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: auto;
+}
+
+.a4-terms-box {
+  font-size: 9px;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+.a4-terms-title {
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 2px;
+}
+
+.a4-terms-box ol {
+  margin: 0;
+  padding-left: 14px;
+}
+
+.a4-sign-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.a4-sign-space {
+  height: 35px;
+}
+
+.a4-sign-line {
+  border-top: 1px solid #0B1F3A;
+  padding-top: 4px;
+  width: 140px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #0B1F3A;
+}
+
+.a4-sign-comp {
+  font-size: 9px;
+  color: #64748B;
+}
+
+/* Hidden on Screen - Visible Only on Print */
+.print-only-sheet {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Mobile & Responsive Adjustments (98% Mobile Screen Optimization)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .quotation-modal-overlay {
+    padding: 0 !important;
+    align-items: flex-start !important;
+  }
+
+  .quotation-editor-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .qe-compact-topbar {
+    padding: 0.6rem 0.85rem !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  .qe-topbar-left {
+    width: 100% !important;
+  }
+
+  .qe-topbar-title {
+    font-size: 0.95rem !important;
+  }
+
+  .qe-topbar-sub {
+    font-size: 0.68rem !important;
+  }
+
+  .qe-topbar-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 2px !important;
+    flex-wrap: nowrap !important;
+    gap: 0.4rem !important;
+  }
+
+  .qe-topbar-actions button {
+    flex-shrink: 0 !important;
+    font-size: 0.76rem !important;
+    padding: 0.4rem 0.7rem !important;
+  }
+
+  .qe-hero-company-strip {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .qe-hero-company-card,
+  .qe-hero-bank-card {
+    padding: 0.75rem 0.9rem !important;
+  }
+
+  .qe-body {
+    padding: 0.85rem 0.75rem 5rem 0.75rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .qe-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .qe-structure-types-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .qe-financials-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .qe-strip-bank-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.4rem 0.6rem !important;
+  }
+}
+
+/* ==========================================================================
+   Standard A4 Print Media Styles (Direct Print / PDF Export)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .quotation-modal-overlay,
+  .quotation-editor-modal {
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: block !important;
+  }
+
+  .qe-compact-topbar,
+  .qe-body {
+    display: none !important;
+  }
+
+  .print-only-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  #printable-a4-quotation,
+  #printable-a4-quotation * {
+    visibility: visible !important;
+  }
+
+  #printable-a4-quotation {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 4mm 8mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    overflow: visible !important;
+    z-index: 999999 !important;
+    box-sizing: border-box !important;
+  }
+}
+

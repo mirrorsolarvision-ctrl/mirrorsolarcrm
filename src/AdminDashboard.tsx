@@ -12,17 +12,12 @@ import logoUrl from './assets/mirrorsolarlogo.png';
 import './AdminDashboard.css';
 import StockPage from './StockPage';
 import QuotationsPortalPage from './pages/QuotationsPortalPage';
-import MarketingPortalPage from './pages/MarketingPortalPage';
-import AdminAuditLogsPage from './pages/AdminAuditLogsPage';
+import AdminUsersDirectoryPage from './AdminUsersDirectoryPage';
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
 import type { MockLead, Stage } from './context/CRMContext';
 import { useUI } from './context/UIContext';
-import AdminEmployeesPage from './AdminEmployeesPage';
-import AdminDealersPage from './AdminDealersPage';
-import AdminAccessPage from './AdminAccessPage';
 import AdminAttendancePage from './AdminAttendancePage';
-import AdminResponsibilitiesPage from './AdminResponsibilitiesPage';
 import AccessRestricted from './components/AccessRestricted';
 import { canAccessRoute } from './utils/permissionCalculations';
 import LeadsPage from './LeadsPage';
@@ -239,35 +234,23 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     }
   };
 
-  const navItems = [
+  interface NavItem {
+    name: string;
+    icon: React.ReactNode;
+    children?: string[];
+  }
+
+  const navItems: NavItem[] = [
     { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Leads', icon: <Activity size={20} /> },
     { name: 'Quotations', icon: <FileText size={20} /> },
-    { name: 'Marketing', icon: <Megaphone size={20} /> },
-    { name: 'Tasks', icon: <CheckSquare size={20} /> },
-    { name: 'Calendar', icon: <Calendar size={20} /> },
-    { 
-      name: 'Employees', 
-      icon: <Users size={20} />
-    },
-    { 
-      name: 'Responsibilities', 
-      icon: <Briefcase size={20} />
-    },
-    { 
-      name: 'Attendance', 
-      icon: <UserCheck size={20} />
-    },
-    { 
-      name: 'Dealers', 
-      icon: <Briefcase size={20} />,
-      children: ['Sri Solar Dealers', 'Green Energy', 'Sun Power', 'Aditya Solar', 'Bright Energy']
-    },
+    { name: 'Users & Access', icon: <Users size={20} /> },
+    { name: 'Attendance', icon: <UserCheck size={20} /> },
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
+    { name: 'Tasks', icon: <CheckSquare size={20} /> },
+    { name: 'Calendar', icon: <Calendar size={20} /> },
     { name: 'Reports', icon: <PieChart size={20} /> },
-    { name: 'Audit Logs', icon: <History size={20} /> },
-    { name: 'Access', icon: <Shield size={20} /> },
   ];
 
   const filteredLeads = useMemo(() => {
@@ -411,36 +394,17 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
           <StockPage />
         ) : activeTab === 'Quotations' ? (
           <QuotationsPortalPage />
-        ) : activeTab === 'Marketing' ? (
-          <MarketingPortalPage />
-        ) : activeTab === 'Audit Logs' ? (
-          <AdminAuditLogsPage />
-        ) : activeTab === 'Employees' ? (
-          <AdminEmployeesPage 
-            onNavigateToLeads={() => {
+        ) : activeTab === 'Users & Access' || activeTab === 'Employees' || activeTab === 'Dealers' || activeTab === 'Access' || activeTab === 'Responsibilities' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
+          <AdminUsersDirectoryPage 
+            onNavigateToLeads={(dealerOrEmp) => {
+              setSelectedDealerFilter(dealerOrEmp);
               setActiveTab('Leads');
             }} 
-            onNavigateToAccess={() => {
-              setActiveTab('Access');
-            }} 
           />
-        ) : activeTab === 'Responsibilities' ? (
-          <AdminResponsibilitiesPage />
         ) : activeTab === 'Attendance' ? (
           <AdminAttendancePage />
-        ) : activeTab === 'Dealers' ? (
-          <AdminDealersPage onNavigateToLeads={() => setActiveTab('Leads')} />
         ) : activeTab === 'Leads' ? (
           <LeadsPage />
-        ) : activeTab === 'Access' ? (
-          <AdminAccessPage 
-            onNavigateToEmployee={() => {
-              setActiveTab('Employees');
-            }} 
-            onNavigateToDealer={() => {
-              setActiveTab('Dealers');
-            }} 
-          />
         ) : activeTab === 'Payments' ? (
           <PaymentsPage onNavigate={handleNavClick} />
         ) : activeTab === 'Reports' ? (
@@ -498,8 +462,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Employees')}>
-                    View all employees →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
+                    View all employees & directory →
                   </div>
                 </div>
               )}
@@ -531,8 +495,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Dealers')}>
-                    View all dealers →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
+                    View all dealers & quotas →
                   </div>
                 </div>
               )}

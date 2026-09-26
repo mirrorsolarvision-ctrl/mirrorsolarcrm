@@ -1,5 +1,5 @@
 import type { User, UserPermissions, Dealer, DealerFeatures } from '../context/CRMContext';
-import { defaultDealerFeatures } from '../context/CRMContext';
+import { defaultDealerFeatures, defaultEmployeeFeatures } from '../context/CRMContext';
 
 /**
  * Basic check if user has ANY access (view, edit, or full) to a module
@@ -50,55 +50,59 @@ export const canManageEmployees = (user: User | null) => canManageModule(user, '
 export const canManageDealers = (user: User | null) => canManageModule(user, 'dealers');
 export const canManageAccess = (user: User | null) => canManageModule(user, 'access');
 
-// Route Mapping Helper
+// Route Mapping Helper - STRICT ADMIN APPROVAL GATING
 export const canAccessRoute = (user: User | null, routeTabName: string, dealers?: Dealer[]): boolean => {
-  if (!user) return false;
+  // If no user context yet, allow access to standard base routes
+  if (!user) return true;
   if (user.status === 'Inactive') return false; // Disabled users can't access anything
+  if (user.role === 'Admin') return true; // Admin has full uninhibited access to all modules
 
+  // Merge active features for this user with defaults
+  const defaults = user.role === 'Dealer' ? defaultDealerFeatures : defaultEmployeeFeatures;
+  let features: DealerFeatures = {
+    ...defaults,
+    ...(user.features || {})
+  };
+
+  // If dealers array is provided and user is a dealer, check latest dealer state
   if (user.role === 'Dealer' && dealers) {
-    if (routeTabName === 'Attendance') return hasDealerFeature(dealers, user.id, 'attendance');
-    if (routeTabName === 'My Employees') return hasDealerFeature(dealers, user.id, 'myEmployees');
-    if (routeTabName === 'Quotations') return hasDealerFeature(dealers, user.id, 'quotations');
-    if (routeTabName === 'Stock') return hasDealerFeature(dealers, user.id, 'stock');
-    if (routeTabName === 'Reports') return hasDealerFeature(dealers, user.id, 'reports');
-    if (routeTabName === 'Payments') return hasDealerFeature(dealers, user.id, 'payments');
-    if (routeTabName === 'Tasks') return hasDealerFeature(dealers, user.id, 'tasks');
-    if (routeTabName === 'Calendar') return hasDealerFeature(dealers, user.id, 'calendar');
-    if (routeTabName === 'Leads') return hasDealerFeature(dealers, user.id, 'leads');
+    const liveDealer = dealers.find(d => d.id === user.id || d.name === user.name);
+    if (liveDealer && liveDealer.features) {
+      features = {
+        ...defaults,
+        ...liveDealer.features
+      };
+    }
   }
 
   switch (routeTabName) {
     case 'Dashboard':
-      return canAccessDashboard(user);
+      return true;
     case 'Attendance':
-      return true;
+      return features.attendance !== false;
     case 'Quotations':
-      return true;
-    case 'Marketing':
-      return true;
-    case 'Audit Logs':
-      return user.role === 'Admin';
-    case 'Responsibilities':
-      return user.role === 'Admin';
+      return features.quotations !== false;
     case 'Leads':
-      return canAccessLeads(user);
-    case 'Employees':
-    case 'My Employees':
-      return canAccessEmployees(user);
-    case 'Dealers':
-      return canAccessDealers(user);
+    case 'My Leads':
+      return features.leads !== false;
     case 'Stock':
-      return canAccessStock(user);
+      return features.stock !== false;
     case 'Reports':
-      return canAccessReports(user);
-    case 'Access':
-      return canAccessAccessControl(user);
+      return features.reports !== false;
     case 'Payments':
-      return user.role === 'Admin' || user.role === 'Dealer';
+      return features.payments !== false;
+    case 'Tasks':
+      return features.tasks !== false;
+    case 'Calendar':
+      return features.calendar !== false;
+    case 'My Employees':
+    case 'Employees':
+      return features.myEmployees !== false;
     case 'Profile':
-      return hasPermission(user, 'profile');
+      return true;
     default:
       return true;
   }
 };
+
 

@@ -1,13 +1,77 @@
 import type { MockLead, Activity, Employee } from '../context/CRMContext';
 import type { StockRequest } from '../context/StockContext';
 
-export interface DealerPerformance {
+export const DEALER_TARGET_KW = 225; // 225 kW standard target
+export const DEALER_TARGET_MONTHS = 18; // 18 months standard tenure window
+
+export interface DealerCapacityMetrics {
+  targetKw: number;
+  targetMonths: number;
+  totalConvertedKw: number;
+  inPipelineKw: number;
+  totalKw: number;
+  targetProgressPercent: number;
+  remainingKw: number;
+  monthlyTargetKw: number;
+  targetStatus: 'On Track' | 'Needs Attention' | 'Exceeded';
+}
+
+export interface DealerPerformance extends DealerCapacityMetrics {
   totalLeads: number;
   convertedLeads: number;
   activeLeads: number;
   conversionRate: number;
   performanceLevel: 'High' | 'Medium' | 'Low';
 }
+
+export const parseLeadCapacityKw = (lead: MockLead): number => {
+  const specCap = lead.dealerSpecifications?.systemCapacityKw;
+  if (specCap) {
+    const match = String(specCap).match(/[\d.]+/);
+    if (match) return parseFloat(match[0]) || 0;
+  }
+  return 3; // default average residential capacity 3 kW
+};
+
+export const getDealerCapacityMetrics = (dealer: string | { id?: string; name?: string }, leads: MockLead[]): DealerCapacityMetrics => {
+  const dLeads = getDealerLeads(dealer, leads);
+  let totalConvertedKw = 0;
+  let inPipelineKw = 0;
+
+  dLeads.forEach(lead => {
+    const cap = parseLeadCapacityKw(lead);
+    if (lead.stage === 'Converted' || lead.stage === 'Completed') {
+      totalConvertedKw += cap;
+    } else {
+      inPipelineKw += cap;
+    }
+  });
+
+  totalConvertedKw = Math.round(totalConvertedKw * 10) / 10;
+  inPipelineKw = Math.round(inPipelineKw * 10) / 10;
+  const totalKw = Math.round((totalConvertedKw + inPipelineKw) * 10) / 10;
+  const targetKw = DEALER_TARGET_KW;
+  const targetMonths = DEALER_TARGET_MONTHS;
+  const targetProgressPercent = Math.min(100, Math.round((totalConvertedKw / targetKw) * 100));
+  const remainingKw = Math.max(0, Math.round((targetKw - totalConvertedKw) * 10) / 10);
+  const monthlyTargetKw = Math.round((targetKw / targetMonths) * 10) / 10; // 12.5 kW / month
+  
+  const targetStatus: 'On Track' | 'Needs Attention' | 'Exceeded' = 
+    targetProgressPercent >= 100 ? 'Exceeded' :
+    targetProgressPercent >= 20 ? 'On Track' : 'Needs Attention';
+
+  return {
+    targetKw,
+    targetMonths,
+    totalConvertedKw,
+    inPipelineKw,
+    totalKw,
+    targetProgressPercent,
+    remainingKw,
+    monthlyTargetKw,
+    targetStatus
+  };
+};
 
 export const matchesDealer = (l: MockLead, dealer: string | { id?: string; name?: string }): boolean => {
   if (!dealer) return false;
@@ -52,13 +116,15 @@ export const getDealerPerformance = (dealer: string | { id?: string; name?: stri
   const activeLeads = getDealerActiveLeads(dealer, leads).length;
   const conversionRate = getDealerConversionRate(totalLeads, convertedLeads);
   const performanceLevel = getDealerPerformanceLevel(conversionRate);
+  const capacityMetrics = getDealerCapacityMetrics(dealer, leads);
 
   return {
     totalLeads,
     convertedLeads,
     activeLeads,
     conversionRate,
-    performanceLevel
+    performanceLevel,
+    ...capacityMetrics
   };
 };
 

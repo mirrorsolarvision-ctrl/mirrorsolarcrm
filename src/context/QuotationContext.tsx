@@ -6,6 +6,7 @@ import { LOCKED_COMPANY_DETAILS } from '../config/companyDetails';
 import { calculateQuotationFinancials, recalculateLineItem, compareQuotationVersions } from '../utils/quotationCalculations';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
+import { useCRM } from './CRMContext';
 
 interface QuotationContextType {
   quotations: Quotation[];
@@ -55,7 +56,9 @@ export const useQuotations = () => {
 export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+  const { currentUser: authUser } = useAuth();
+  const { currentUser: crmUser } = useCRM();
+  const currentUser = authUser || crmUser;
   const { logAction } = useAudit();
 
   // Real-time Firestore sync
@@ -82,13 +85,13 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Filtered quotations based on user role (Strict Dealer Isolation)
   const myQuotations = useMemo(() => {
-    if (!currentUser) return [];
+    if (!currentUser) return quotations;
     if (currentUser.role === 'Admin') return quotations;
     if (currentUser.role === 'Dealer') {
       const dealerId = (currentUser as any).dealerId || currentUser.id;
       return quotations.filter((q) => q.dealerId === dealerId || q.createdById === currentUser.id);
     }
-    // Employee: see all or assigned
+    // Employee: see all quotations
     return quotations;
   }, [quotations, currentUser]);
 

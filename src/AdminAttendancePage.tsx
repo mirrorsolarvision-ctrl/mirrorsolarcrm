@@ -19,6 +19,7 @@ import {
 import { useCRM } from './context/CRMContext';
 import { useAttendance } from './context/AttendanceContext';
 import { useUI } from './context/UIContext';
+import PageHero from './components/PageHero';
 import './AdminAttendancePage.css';
 
 export default function AdminAttendancePage() {
@@ -132,36 +133,35 @@ export default function AdminAttendancePage() {
   return (
     <div className="admin-attendance-container">
       {/* Header */}
-      <div className="admin-attendance-header">
-        <div>
-          <h1 className="page-title">Company Staff Attendance</h1>
-          <p className="page-subtitle">Manage, view, and adjust daily attendance logs and review correction requests</p>
-        </div>
-
-        {/* Subtab Toggle Buttons */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            className={`btn-filter ${activeSubTab === 'roster' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('roster')}
-            style={{ padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', background: activeSubTab === 'roster' ? '#0F172A' : '#F1F5F9', color: activeSubTab === 'roster' ? '#fff' : '#475569', border: 'none' }}
-          >
-            Staff Daily Roster
-          </button>
-          <button 
-            className={`btn-filter ${activeSubTab === 'corrections' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('corrections')}
-            style={{ padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', background: activeSubTab === 'corrections' ? '#0F172A' : '#F1F5F9', color: activeSubTab === 'corrections' ? '#fff' : '#475569', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <FileCheck size={16} />
-            Correction Requests
-            {pendingCorrections.length > 0 && (
-              <span style={{ background: '#EF4444', color: '#fff', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
-                {pendingCorrections.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
+      <PageHero
+        badge="Attendance & Roster Governance"
+        icon={<UserCheck size={26} />}
+        title="Company Staff Attendance"
+        subtitle="Manage, view, and adjust daily attendance logs and review correction requests."
+        actions={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              className={`btn-hero-${activeSubTab === 'roster' ? 'primary' : 'secondary'}`}
+              onClick={() => setActiveSubTab('roster')}
+            >
+              Staff Daily Roster
+            </button>
+            <button 
+              className={`btn-hero-${activeSubTab === 'corrections' ? 'primary' : 'secondary'}`}
+              onClick={() => setActiveSubTab('corrections')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <FileCheck size={16} />
+              Correction Requests
+              {pendingCorrections.length > 0 && (
+                <span style={{ background: '#EF4444', color: '#fff', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
+                  {pendingCorrections.length}
+                </span>
+              )}
+            </button>
+          </div>
+        }
+      />
 
       {activeSubTab === 'corrections' ? (
         /* Correction Requests Tab */

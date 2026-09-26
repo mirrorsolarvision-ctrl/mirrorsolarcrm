@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { 
   Users, Target, TrendingUp, AlertCircle, PhoneCall, 
   Plus, Box, Package, Activity as ActivityIcon, ShoppingCart, 
-  UsersRound, Briefcase, CheckSquare, Calendar, CreditCard, Truck
+  UsersRound, Briefcase, CheckSquare, Calendar, CreditCard, Truck,
+  Zap, Award, FileText
 } from 'lucide-react';
 import { useCRM, STAGES } from '../context/CRMContext';
 import { useStock } from '../context/StockContext';
@@ -19,7 +20,7 @@ interface DealerDashboardProps {
 }
 
 export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
-  const { currentUser, leads, employees, activities, tasks } = useCRM();
+  const { currentUser, leads, employees, dealers, activities, tasks } = useCRM();
   const { stockItems, stockRequests, getDealerPendingDispatchesCount } = useStock();
 
   // Fallback to avoid crashes if somehow not logged in
@@ -131,9 +132,72 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
           <div className="dlr-summary-title">Converted</div>
           <div className="dlr-summary-value" style={{color: '#16a34a'}}>{performance.convertedLeads}</div>
         </div>
-        <div className="dlr-summary-card" onClick={() => onNavigate('/dealer/followups', { filter: 'Today' })}>
+        <div className="dlr-summary-card" onClick={() => onNavigate('/dealer/leads')}>
           <div className="dlr-summary-title">Follow-ups Today</div>
           <div className="dlr-summary-value" style={{color: '#ea580c'}}>{todayFollowUps.length}</div>
+        </div>
+      </div>
+
+      {/* 🎯 18-MONTH TARGET CARD (225 kW) */}
+      <div className="dlr-target-card">
+        <div className="dlr-target-header">
+          <div className="dlr-target-badge">
+            <Award size={16} /> Official 18-Month Target
+          </div>
+          <span className={`dlr-target-status-pill ${(performance.targetStatus || 'On Track').toLowerCase().replace(' ', '-')}`}>
+            {performance.targetStatus === 'Exceeded' ? '🎉 Target Exceeded' : performance.targetStatus === 'On Track' ? '🔥 On Track' : '⚡ Attention Needed'}
+          </span>
+        </div>
+
+        <div className="dlr-target-content-grid">
+          <div>
+            <div className="dlr-target-title-row">
+              <div className="dlr-target-icon-box">
+                <Zap size={24} />
+              </div>
+              <div>
+                <h3 className="dlr-target-title">Dealership Target: 225 kW</h3>
+                <p className="dlr-target-subtitle">18-Month Milestone Window (Average 12.5 kW / Month)</p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="dlr-target-progress-wrapper">
+              <div className="dlr-target-progress-labels">
+                <span className="dlr-target-achieved-txt">
+                  <strong>{performance.totalConvertedKw} kW</strong> Converted
+                </span>
+                <span className="dlr-target-goal-txt">
+                  Quota: <strong>225.0 kW</strong> ({performance.targetProgressPercent}%)
+                </span>
+              </div>
+              <div className="dlr-target-progress-track">
+                <div 
+                  className="dlr-target-progress-fill" 
+                  style={{ width: `${Math.min(100, Math.max(2, performance.targetProgressPercent))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="dlr-target-stats-col">
+            <div className="dlr-target-mini-stat">
+              <span className="stat-label">Converted Capacity</span>
+              <span className="stat-value text-emerald">{performance.totalConvertedKw} kW</span>
+            </div>
+            <div className="dlr-target-mini-stat">
+              <span className="stat-label">In-Pipeline Potential</span>
+              <span className="stat-value text-amber">{performance.inPipelineKw} kW</span>
+            </div>
+            <div className="dlr-target-mini-stat">
+              <span className="stat-label">Remaining to Target</span>
+              <span className="stat-value text-slate">{performance.remainingKw} kW</span>
+            </div>
+            <div className="dlr-target-mini-stat">
+              <span className="stat-label">Target Run-Rate</span>
+              <span className="stat-value text-blue">{performance.monthlyTargetKw} kW / mo</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -167,7 +231,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
                     • {f.lead.assignedEmployee} • {f.time}
                   </span>
                 </div>
-                <button className="btn-outline" onClick={() => onNavigate('/dealer/followups')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>View</button>
+                <button className="btn-outline" onClick={() => onNavigate('/dealer/leads')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>View</button>
               </div>
             )) : (
               <div className="dlr-empty-state" style={{padding: '1.5rem'}}>
@@ -176,7 +240,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
               </div>
             )}
             {todayFollowUps.length > 3 && (
-              <button className="btn-outline" onClick={() => onNavigate('/dealer/followups')}>View all {todayFollowUps.length}</button>
+              <button className="btn-outline" onClick={() => onNavigate('/dealer/leads')}>View all {todayFollowUps.length}</button>
             )}
           </div>
         </div>
@@ -304,7 +368,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
                     Overdue • {f.lead.assignedEmployee}
                   </span>
                 </div>
-                <button className="btn-action" onClick={() => onNavigate('/dealer/followups')}>View →</button>
+                <button className="btn-action" onClick={() => onNavigate('/dealer/leads')}>View →</button>
               </div>
             )) : (
               <div className="dlr-empty-state" style={{padding: '1.5rem'}}>
@@ -462,7 +526,11 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
               <Plus size={24} />
               Add Lead
             </button>
-            {canAccessRoute(currentUser, 'Stock') && (
+            <button className="dlr-action-btn" onClick={() => onNavigate('/dealer/quotations')}>
+              <FileText size={24} />
+              Quotations
+            </button>
+            {canAccessRoute(currentUser, 'Stock', dealers) && (
               <button className="dlr-action-btn" onClick={() => onNavigate('/dealer/stock', { action: 'request' })}>
                 <Package size={24} />
                 Request Stock
@@ -475,10 +543,6 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
             <button className="dlr-action-btn" onClick={() => onNavigate('/dealer/payments')}>
               <CreditCard size={24} />
               View Payments
-            </button>
-            <button className="dlr-action-btn" onClick={() => onNavigate('/dealer/followups')}>
-              <PhoneCall size={24} />
-              View Follow-ups
             </button>
           </div>
         </div>

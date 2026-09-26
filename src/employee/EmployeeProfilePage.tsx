@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Phone, Briefcase, Activity, CheckCircle2, MapPin, Users, TrendingUp, User } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
+import PageHero from '../components/PageHero';
 import '../SharedProfile.css';
 
 export default function EmployeeProfilePage() {
@@ -27,11 +28,15 @@ export default function EmployeeProfilePage() {
   };
 
   return (
-    <div className="dealer-profile-container">
-      <div className="dealer-profile-header">
-        <h1>Profile & Settings</h1>
-        <p>Manage your account settings and preferences.</p>
-      </div>
+    <div className="dealer-profile-container" style={{ padding: 0 }}>
+      <PageHero
+        badge="Staff Workspace Profile"
+        icon={<User size={26} />}
+        title="Employee Profile & Settings"
+        subtitle="Manage your employee contact details, role overview, and performance metrics."
+      />
+
+      <div style={{ padding: '1.5rem 2rem' }}>
 
       <div className="profile-layout-grid">
         
@@ -122,6 +127,7 @@ export default function EmployeeProfilePage() {
           </div>
 
         </div>
+      </div>
       </div>
     </div>
   );

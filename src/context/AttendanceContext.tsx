@@ -14,6 +14,7 @@ interface AttendanceContextType {
   correctionRequests: AttendanceCorrectionRequest[];
   checkIn: (options?: { notes?: string }) => Promise<AttendanceRecord>;
   checkOut: (options?: { notes?: string }) => Promise<AttendanceRecord>;
+  markAttendance: (type: 'FULL_DAY' | 'HALF_DAY', notes?: string) => Promise<AttendanceRecord>;
   adminUpdateRecord: (id: string, updates: Partial<AttendanceRecord>, reason?: string) => Promise<void>;
   requestCorrection: (attendanceId: string, date: string, requestedCheckIn: string, requestedCheckOut: string, reason: string) => Promise<void>;
   reviewCorrection: (requestId: string, approved: boolean, reviewNotes?: string) => Promise<void>;
@@ -234,6 +235,72 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
     return updatedRecord;
   };
 
+  const markAttendance = async (type: 'FULL_DAY' | 'HALF_DAY', notes?: string): Promise<AttendanceRecord> => {
+    if (!currentUser) throw new Error('User must be logged in to mark attendance');
+    const today = getTodayString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const recordId = `ATT_${currentUser.id}_${today}`;
+    const status: AttendanceStatus = type === 'FULL_DAY' ? 'PRESENT' : 'HALF_DAY';
+    const totalWorkingMinutes = type === 'FULL_DAY' ? 480 : 240;
+
+    let location: GeoLocationPoint | null = null;
+    try {
+      location = await getCurrentGeoLocation();
+    } catch {
+      // Non-blocking fallback
+    }
+
+    const record: AttendanceRecord = {
+      id: recordId,
+      employeeId: currentUser.id,
+      employeeName: currentUser.name,
+      employeeRole: (currentUser.role as any) || 'Employee',
+      dealerId: (currentUser as any)?.dealerId,
+      dealerName: (currentUser as any)?.dealerName,
+      date: today,
+      checkInTime: todayRecord?.checkInTime || nowIso,
+      checkOutTime: type === 'HALF_DAY' ? nowIso : null,
+      totalWorkingMinutes,
+      lateMinutes: 0,
+      overtimeMinutes: 0,
+      checkInLocation: location || todayRecord?.checkInLocation || null,
+      checkOutLocation: null,
+      status,
+      deviceInfo: navigator.userAgent.substring(0, 100),
+      notes: notes || (type === 'FULL_DAY' ? 'Full Day Attendance Marked (Present)' : 'Half Day Attendance Marked'),
+      createdAt: todayRecord?.createdAt || nowIso,
+      updatedAt: nowIso
+    };
+
+    try {
+      await setDoc(doc(db, 'attendance', recordId), record, { merge: true });
+    } catch (err) {
+      console.error('Attendance Firestore error:', err);
+    }
+
+    setRecords((prev) => {
+      const idx = prev.findIndex((r) => r.id === recordId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = record;
+        return next;
+      }
+      return [record, ...prev];
+    });
+
+    await logAction({
+      action: 'ATTENDANCE_CHECK_IN',
+      entityType: 'Attendance',
+      entityId: recordId,
+      entityLabel: `${currentUser.name} Marked ${type === 'FULL_DAY' ? 'Full Day (Present)' : 'Half Day'}`,
+      newValue: record,
+      reason: `Direct marked ${type}`
+    });
+
+    return record;
+  };
+
   const adminUpdateRecord = async (id: string, updates: Partial<AttendanceRecord>, reason?: string) => {
     const existing = records.find((r) => r.id === id);
     if (!existing) return;
@@ -354,6 +421,7 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
         correctionRequests,
         checkIn,
         checkOut,
+        markAttendance,
         adminUpdateRecord,
         requestCorrection,
         reviewCorrection,

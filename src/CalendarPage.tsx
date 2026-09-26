@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, CheckCircle2, X, Plus, Search, Trash2, Edit2
 import { useCRM } from './context/CRMContext';
 import type { FollowUpType, FollowUpStatus, TaskStatus } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import PageHero from './components/PageHero';
 
 interface CalendarPageProps {
   onNavigate?: (path: string, filters?: any) => void;
@@ -451,65 +452,68 @@ export default function CalendarPage({ onNavigate }: CalendarPageProps) {
   };
 
   return (
-    <div className="calendar-page fade-in" style={{padding: '1rem', width: '100%', boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', height: '100%'}}>
+    <div className="calendar-page fade-in" style={{padding: '0', width: '100%', boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', height: '100%'}}>
       
       {/* Header */}
-      <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem'}}>
-        <div>
-          <h1 style={{fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', margin: '0 0 0.25rem 0'}}>Calendar</h1>
-          <p style={{color: '#64748b', margin: 0, fontSize: '0.9rem'}}>Schedule and upcoming events</p>
-        </div>
-        
-        <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', width: '100%', justifyContent: 'space-between'}}>
-          <div style={{display: 'flex', background: '#e2e8f0', padding: '3px', borderRadius: '8px'}}>
-            <button 
-              type="button" 
-              onClick={() => setViewMode('Month')}
-              style={{
-                border: 'none', 
-                background: viewMode === 'Month' ? 'white' : 'transparent', 
-                color: viewMode === 'Month' ? 'var(--color-navy)' : '#64748b',
-                padding: '5px 12px',
-                borderRadius: '6px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer'
-              }}
-            >
-              Month
-            </button>
-            <button 
-              type="button" 
-              onClick={() => setViewMode('Agenda')}
-              style={{
-                border: 'none', 
-                background: viewMode === 'Agenda' ? 'white' : 'transparent', 
-                color: viewMode === 'Agenda' ? 'var(--color-navy)' : '#64748b',
-                padding: '5px 12px',
-                borderRadius: '6px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer'
-              }}
-            >
-              Agenda
+      <PageHero
+        badge="Schedule & Site Appointments"
+        icon={<Calendar size={26} />}
+        title="Calendar & Site Appointments"
+        subtitle="Track survey schedules, customer follow-up meetings, and plant installation dates."
+        actions={
+          <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap'}}>
+            <div style={{display: 'flex', background: 'rgba(255, 255, 255, 0.15)', padding: '3px', borderRadius: '8px', backdropFilter: 'blur(8px)'}}>
+              <button 
+                type="button" 
+                onClick={() => setViewMode('Month')}
+                style={{
+                  border: 'none', 
+                  background: viewMode === 'Month' ? '#f4c430' : 'transparent', 
+                  color: viewMode === 'Month' ? '#0b1f3a' : '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Month
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setViewMode('Agenda')}
+                style={{
+                  border: 'none', 
+                  background: viewMode === 'Agenda' ? '#f4c430' : 'transparent', 
+                  color: viewMode === 'Agenda' ? '#0b1f3a' : '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Agenda
+              </button>
+            </div>
+
+            <div style={{display: 'flex', gap: '0.4rem', alignItems: 'center'}}>
+              <button className="btn-hero-secondary" style={{padding: '0.5rem 0.75rem'}} onClick={prevMonth} aria-label="Previous month"><ChevronLeft size={18} /></button>
+              <span style={{fontWeight: 700, fontSize: '1rem', minWidth: '130px', textAlign: 'center', color: '#ffffff'}}>
+                {monthNames[month].slice(0, 3)} {year}
+              </span>
+              <button className="btn-hero-secondary" style={{padding: '0.5rem 0.75rem'}} onClick={nextMonth} aria-label="Next month"><ChevronRight size={18} /></button>
+              <button className="btn-hero-secondary" style={{padding: '0.5rem 0.9rem', fontSize: '0.85rem'}} onClick={goToday}>Today</button>
+            </div>
+
+            <button className="btn-hero-primary" onClick={() => openAddModal()}>
+              <Plus size={16} /> Add Follow-up
             </button>
           </div>
+        }
+      />
 
-          <div style={{display: 'flex', gap: '0.4rem', alignItems: 'center'}}>
-            <button className="btn-outline" style={{padding: '0.4rem 0.6rem'}} onClick={prevMonth} aria-label="Previous month"><ChevronLeft size={18} /></button>
-            <span style={{fontWeight: 700, fontSize: '1rem', minWidth: '120px', textAlign: 'center'}}>
-              {monthNames[month].slice(0, 3)} {year}
-            </span>
-            <button className="btn-outline" style={{padding: '0.4rem 0.6rem'}} onClick={nextMonth} aria-label="Next month"><ChevronRight size={18} /></button>
-            <button className="btn-outline" style={{padding: '0.4rem 0.75rem', fontSize: '0.85rem'}} onClick={goToday}>Today</button>
-          </div>
-
-          <button className="btn-primary" onClick={() => openAddModal()} style={{display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%', justifyContent: 'center', marginTop: '0.25rem'}}>
-            <Plus size={16} /> Add Follow-up
-          </button>
-        </div>
-      </div>
+      <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
 
       {/* Filters (Mimicking FollowupsPage style) */}
       <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center'}}>
@@ -975,7 +979,7 @@ export default function CalendarPage({ onNavigate }: CalendarPageProps) {
           </div>
         </div>
       )}
-
+      </div>
     </div>
   );
 }

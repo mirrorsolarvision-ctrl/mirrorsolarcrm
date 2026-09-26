@@ -50,7 +50,6 @@ export default function DealerSidebar({
     { name: 'Payments', path: '/dealer/payments', icon: CreditCard, routeName: 'Payments' },
     { name: 'Tasks', path: '/dealer/tasks', icon: CheckSquare, routeName: 'Tasks' },
     { name: 'Calendar', path: '/dealer/calendar', icon: Calendar, routeName: 'Calendar' },
-    { name: 'Follow-ups', path: '/dealer/followups', icon: Bell, routeName: 'Leads' },
     { name: 'Stock', path: '/dealer/stock', icon: Package, routeName: 'Stock' },
     { name: 'Reports', path: '/dealer/reports', icon: LayoutDashboard, routeName: 'Reports' },
   ];

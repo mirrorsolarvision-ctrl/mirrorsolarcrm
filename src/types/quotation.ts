@@ -14,6 +14,7 @@ export type CustomerType = 'Residential' | 'Commercial' | 'Industrial' | 'Agricu
 export type PhaseType = 'Single Phase' | 'Three Phase';
 export type PlantType = 'On-Grid' | 'Off-Grid' | 'Hybrid';
 export type RoofType = 'RCC Flat Roof' | 'Slanted Tile Roof' | 'Tin Shed / Metal Sheet' | 'Ground Mount';
+export type StructureType = 'Hot Dip Company Structure' | 'Mono Rail' | 'Welding Structure';
 
 export interface QuotationCustomerDetails {
   customerName: string;
@@ -36,6 +37,10 @@ export interface QuotationProjectDetails {
   plantType: PlantType;
   phaseType: PhaseType;
   roofType: RoofType;
+  structureType?: StructureType;
+  frontLegHeight?: string;
+  rearLegHeight?: string;
+  singleTotalPrice?: number;
   sanctionedLoadKw?: number;
   discomName?: string;
   consumerNumber?: string;

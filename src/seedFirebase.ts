@@ -1,9 +1,19 @@
 import { auth, db } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import type { Employee, Dealer, User as CRMUser } from './context/CRMContext';
+import type { Employee, Dealer, User as CRMUser, MockLead } from './context/CRMContext';
 
-export const seedFirebaseUsers = async (employees: Employee[], dealers: Dealer[]) => {
+export const defaultSeedDealers: Array<Omit<Dealer, 'id' | 'permissions'> & { id?: string; permissions?: any }> = [];
+
+export const defaultSeedEmployees: Array<Omit<Employee, 'id' | 'permissions'> & { id?: string; permissions?: any }> = [];
+
+export const defaultSeedLeads: MockLead[] = [];
+
+export const seedSampleLeads = async () => {
+  return 0;
+};
+
+export const seedFirebaseUsers = async (employees: Employee[] = [], dealers: Dealer[] = []) => {
   const defaultPassword = 'Password123!';
   let seededCount = 0;
   let lastError = '';
@@ -29,21 +39,20 @@ export const seedFirebaseUsers = async (employees: Employee[], dealers: Dealer[]
       name: 'Admin User',
       initials: 'AD',
       email: adminEmail,
-      phone: '123-456-7890',
+      phone: '+91 99999 99999',
       role: 'Admin',
       status: 'Active',
       permissions: { dashboard: 'full', leads: 'full', employees: 'full', dealers: 'full', stock: 'full', reports: 'full', access: 'full', profile: 'full' },
       lastActive: 'Just now'
     };
-    await setDoc(doc(db, 'users', uid), adminUser);
+    await setDoc(doc(db, 'users', uid), adminUser, { merge: true });
     seededCount++;
-    console.log("Seeded Admin");
   } catch (err: any) {
     console.error("Error seeding Admin:", err);
     lastError = err.message || err.code || String(err);
   }
 
-  // 2. Seed Employees
+  // 2. Seed Employees if provided
   for (const emp of employees) {
     try {
       const email = emp.email.toLowerCase().replace(/\s+/g, '');
@@ -66,16 +75,15 @@ export const seedFirebaseUsers = async (employees: Employee[], dealers: Dealer[]
         email: email
       };
       
-      await setDoc(doc(db, 'users', uid), firestoreUser);
+      await setDoc(doc(db, 'users', uid), firestoreUser, { merge: true });
       seededCount++;
-      console.log(`Seeded Employee: ${emp.name}`);
     } catch (err: any) {
       console.error(`Error seeding Employee ${emp.name}:`, err);
       if (!lastError) lastError = err.message || err.code || String(err);
     }
   }
 
-  // 3. Seed Dealers
+  // 3. Seed Dealers if provided
   for (const dlr of dealers) {
     try {
       const email = dlr.email.toLowerCase().replace(/\s+/g, '');
@@ -98,9 +106,8 @@ export const seedFirebaseUsers = async (employees: Employee[], dealers: Dealer[]
         email: email
       };
       
-      await setDoc(doc(db, 'users', uid), firestoreUser);
+      await setDoc(doc(db, 'users', uid), firestoreUser, { merge: true });
       seededCount++;
-      console.log(`Seeded Dealer: ${dlr.name}`);
     } catch (err: any) {
       console.error(`Error seeding Dealer ${dlr.name}:`, err);
       if (!lastError) lastError = err.message || err.code || String(err);

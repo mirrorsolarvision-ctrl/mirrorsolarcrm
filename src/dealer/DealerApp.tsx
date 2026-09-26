@@ -12,7 +12,6 @@ import QuotationsPortalPage from '../pages/QuotationsPortalPage';
 import DealerStockPage from './DealerStockPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
-import FollowupsPage from '../FollowupsPage';
 import AdminReportsPage from '../AdminReportsPage';
 import TasksPage from '../TasksPage';
 import CalendarPage from '../CalendarPage';
@@ -70,7 +69,6 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
                       currentPath === '/dealer/employees' ? 'My Employees' :
                       currentPath === '/dealer/attendance' ? 'Attendance' :
                       currentPath === '/dealer/payments' ? 'Payments' :
-                      currentPath === '/dealer/followups' ? 'Leads' :
                       currentPath === '/dealer/tasks' ? 'Tasks' :
                       currentPath === '/dealer/calendar' ? 'Calendar' :
                       currentPath === '/dealer/stock' ? 'Stock' :
@@ -94,8 +92,6 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
         return <DealerAttendancePage />;
       case '/dealer/payments':
         return <PaymentsPage onNavigate={handleNavigate} />;
-      case '/dealer/followups':
-        return <FollowupsPage />;
       case '/dealer/tasks':
         return <TasksPage onNavigate={handleNavigate} />;
       case '/dealer/calendar':

@@ -2,10 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Plus, Search, Filter, Download, Share2, Printer, 
   Copy, Edit3, Trash2, CheckCircle2, AlertCircle, Eye, RefreshCw,
-  Clock, CheckCircle, XCircle, ArrowRight, User, Shield, Lock, Layers, Zap
+  Clock, CheckCircle, XCircle, ArrowRight, User, Shield, Lock, Layers, Zap, FileSpreadsheet
 } from 'lucide-react';
+import PageHero from '../components/PageHero';
 import { useQuotations } from '../context/QuotationContext';
 import { useAuth } from '../context/AuthContext';
+import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
 import type { Quotation, QuotationStatus } from '../types/quotation';
 import { compareQuotationVersions } from '../utils/quotationCalculations';
@@ -14,7 +16,9 @@ import './QuotationsPortalPage.css';
 
 export default function QuotationsPortalPage() {
   const { myQuotations, amendQuotation, duplicateQuotation, cancelQuotation, finalizeQuotation, updateQuotationStatus, getQuotationById } = useQuotations();
-  const { currentUser } = useAuth();
+  const { currentUser: authUser } = useAuth();
+  const { currentUser: crmUser } = useCRM();
+  const currentUser = authUser || crmUser;
   const { showToast, showConfirmModal } = useUI();
 
   // Search & Filter
@@ -29,12 +33,13 @@ export default function QuotationsPortalPage() {
 
   // Filtered list
   const filteredQuotations = useMemo(() => {
-    return myQuotations.filter((q) => {
+    return (myQuotations || []).filter((q) => {
+      if (!q) return false;
       const query = searchQuery.toLowerCase().trim();
       if (query && !(
-        q.quotationNumber.toLowerCase().includes(query) ||
-        q.customer.customerName.toLowerCase().includes(query) ||
-        q.customer.mobileNumber.includes(query) ||
+        q.quotationNumber?.toLowerCase().includes(query) ||
+        q.customer?.customerName?.toLowerCase().includes(query) ||
+        q.customer?.mobileNumber?.includes(query) ||
         (q.dealerName && q.dealerName.toLowerCase().includes(query))
       )) return false;
 
@@ -45,12 +50,13 @@ export default function QuotationsPortalPage() {
 
   // Statistics Summary
   const stats = useMemo(() => {
-    const total = myQuotations.length;
-    const drafts = myQuotations.filter((q) => q.status === 'Draft').length;
-    const sent = myQuotations.filter((q) => q.status === 'Sent').length;
-    const accepted = myQuotations.filter((q) => q.status === 'Accepted' || q.status === 'Converted').length;
-    const totalValue = myQuotations.reduce((sum, q) => sum + q.financials.grandTotal, 0);
-    const totalSubsidy = myQuotations.reduce((sum, q) => sum + (q.financials.subsidyAmount || 0), 0);
+    const list = myQuotations || [];
+    const total = list.length;
+    const drafts = list.filter((q) => q?.status === 'Draft').length;
+    const sent = list.filter((q) => q?.status === 'Sent').length;
+    const accepted = list.filter((q) => q?.status === 'Accepted' || q?.status === 'Converted').length;
+    const totalValue = list.reduce((sum, q) => sum + (q?.financials?.grandTotal || 0), 0);
+    const totalSubsidy = list.reduce((sum, q) => sum + (q?.financials?.subsidyAmount || 0), 0);
 
     return { total, drafts, sent, accepted, totalValue, totalSubsidy };
   }, [myQuotations]);
@@ -118,15 +124,28 @@ export default function QuotationsPortalPage() {
   };
 
   const handleShareWhatsApp = (q: Quotation) => {
-    const text = `*SOLAR PROPOSAL — ${q.companySnapshot.name}*\n` +
-      `Quotation No: ${q.quotationNumber}\n` +
-      `Customer: ${q.customer.customerName}\n` +
-      `System: ${q.project.systemCapacityKw} kW (${q.project.plantType})\n` +
-      `Grand Total: ₹${q.financials.grandTotal.toLocaleString('en-IN')}\n` +
-      (q.financials.subsidyAmount > 0 ? `PM Surya Ghar Subsidy: ₹${q.financials.subsidyAmount.toLocaleString('en-IN')}\n` : '') +
-      `*Net Payable: ₹${q.financials.netPayableByCustomer.toLocaleString('en-IN')}*\n\n` +
-      `Validity: ${q.validityDays} Days.\nContact: ${q.companySnapshot.phone}`;
-    window.open(`https://api.whatsapp.com/send?phone=91${q.customer.mobileNumber}&text=${encodeURIComponent(text)}`, '_blank');
+    let text = `*MIRROR SOLAR VISION — SOLAR PROPOSAL*\n` +
+      `===================================\n` +
+      `*Quotation No:* ${q.quotationNumber}\n` +
+      `*Customer:* ${q.customer.customerName}\n` +
+      `*Mobile:* ${q.customer.mobileNumber}\n` +
+      `*Plant Capacity:* ${q.project.systemCapacityKw} kW (${q.project.plantType})\n` +
+      `*Structure Type:* ${q.project.structureType || 'Hot Dip Company Structure'}\n`;
+
+    if (q.project.structureType === 'Hot Dip Company Structure') {
+      text += `*Leg Heights:* Front ${q.project.frontLegHeight || '4 ft'}, Rear ${q.project.rearLegHeight || '7 ft'}\n`;
+    }
+
+    text += `-----------------------------------\n` +
+      `*Total Project Price:* ₹${q.financials.grandTotal.toLocaleString('en-IN')} (Includes 5% GST)\n` +
+      `*PM Surya Ghar Central Subsidy:* ₹78,000/- (Direct Govt. DBT credit to customer account; not deducted from company invoice)\n` +
+      `*Net Payable to Mirror Solar:* ₹${q.financials.grandTotal.toLocaleString('en-IN')}\n\n` +
+      `*Validity:* ${q.validityDays} Calendar Days\n` +
+      `*Mirror Solar Vision* | Ph: ${q.companySnapshot.phone}`;
+
+    const cleanPhone = q.customer.mobileNumber.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    window.open(`https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const diffResult = useMemo(() => {
@@ -137,23 +156,20 @@ export default function QuotationsPortalPage() {
   return (
     <div className="quotations-portal-page">
       {/* Top Header */}
-      <div className="qp-header">
-        <div>
-          <div className="qp-breadcrumb">Dashboard / Quotations</div>
-          <div className="qp-title-row">
-            <h1>Commercial Quotation Engine</h1>
-            <span className="qp-role-badge">
-              <Shield size={13} /> {currentUser?.role} Workspace
-            </span>
-          </div>
-          <p className="qp-sub">Create, amend, calculate PM Surya Ghar subsidies, and print bill-book proposals.</p>
-        </div>
-        <button className="btn-primary qp-create-btn" onClick={() => handleOpenNew()}>
-          <Plus size={18} /> New Quotation
-        </button>
-      </div>
+      <PageHero
+        badge={`${currentUser?.role || 'Dealer'} Quotation Engine`}
+        icon={<FileSpreadsheet size={26} />}
+        title="Quotations"
+        subtitle="Create, amend, calculate PM Surya Ghar subsidies, and print bill-book proposals."
+        actions={
+          <button className="btn-hero-primary" onClick={() => handleOpenNew()}>
+            <Plus size={18} /> New Quotation
+          </button>
+        }
+      />
 
-      {/* Summary Stat Grid */}
+      <div className="quotations-portal-body">
+        {/* Summary Stat Grid */}
       <div className="qp-stats-grid">
         <div className="qp-stat-card">
           <div className="qp-stat-icon navy"><FileText size={20} /></div>
@@ -218,10 +234,10 @@ export default function QuotationsPortalPage() {
               <tr>
                 <th>QUOTATION #</th>
                 <th>CUSTOMER</th>
-                <th>CAPACITY</th>
-                <th>SUBTOTAL</th>
-                <th>SUBSIDY</th>
-                <th>NET PAYABLE</th>
+                <th>CAPACITY & SPECS</th>
+                <th>PACKAGE TOTAL (5% GST INCL)</th>
+                <th>PM SURYA GHAR SUBSIDY</th>
+                <th>NET PAYABLE TO COMPANY</th>
                 <th>STATUS</th>
                 <th>DATE</th>
                 <th style={{ textAlign: 'center' }}>ACTIONS</th>
@@ -232,38 +248,36 @@ export default function QuotationsPortalPage() {
                 <tr key={q.id} className={q.status === 'Cancelled' ? 'row-cancelled' : ''}>
                   <td>
                     <div className="qp-qnum-cell">
-                      <span className="qp-qnum">{q.quotationNumber}</span>
-                      {q.version > 1 && <span className="qp-ver-tag">V{q.version}</span>}
+                      <span className="qp-qnum">{q.quotationNumber || 'MSV-QT-Draft'}</span>
+                      {(q.version || 1) > 1 && <span className="qp-ver-tag">V{q.version}</span>}
                     </div>
                   </td>
                   <td>
                     <div className="qp-cust-cell">
-                      <span className="qp-cust-name">{q.customer.customerName}</span>
-                      <span className="qp-cust-phone">{q.customer.mobileNumber} • {q.customer.city}</span>
+                      <span className="qp-cust-name">{q.customer?.customerName || 'Customer'}</span>
+                      <span className="qp-cust-phone">{q.customer?.mobileNumber || '—'} {q.customer?.city ? `• ${q.customer.city}` : ''}</span>
                     </div>
                   </td>
                   <td>
-                    <span className="qp-cap-badge">{q.project.systemCapacityKw} kW</span>
-                    <span className="qp-plant-type">{q.project.plantType}</span>
+                    <span className="qp-cap-badge">{q.project?.systemCapacityKw || 3} kW</span>
+                    <span className="qp-plant-type">{q.project?.structureType || q.project?.plantType || 'Residential On-Grid'}</span>
                   </td>
-                  <td className="font-semibold">₹{q.financials.subtotal.toLocaleString('en-IN')}</td>
+                  <td className="font-semibold">₹{(q.financials?.grandTotal || 0).toLocaleString('en-IN')}</td>
                   <td>
-                    {q.financials.subsidyAmount > 0 ? (
-                      <span className="qp-subsidy-val">-₹{q.financials.subsidyAmount.toLocaleString('en-IN')}</span>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
+                    <span className="qp-subsidy-val" style={{ color: '#16A34A', fontWeight: 700 }}>
+                      ₹{(q.financials?.subsidyAmount || 78000).toLocaleString('en-IN')} (Govt DBT)
+                    </span>
                   </td>
                   <td className="qp-payable-cell">
-                    ₹{q.financials.netPayableByCustomer.toLocaleString('en-IN')}
+                    ₹{(q.financials?.grandTotal || 0).toLocaleString('en-IN')}
                   </td>
                   <td>
-                    <span className={`qp-status-pill status-${q.status.toLowerCase()}`}>
-                      {q.status}
+                    <span className={`qp-status-pill status-${(q.status || 'Draft').toLowerCase()}`}>
+                      {q.status || 'Draft'}
                     </span>
                   </td>
                   <td className="text-muted text-sm">
-                    {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {q.createdAt ? new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today'}
                   </td>
                   <td>
                     <div className="qp-actions-row">
@@ -313,6 +327,7 @@ export default function QuotationsPortalPage() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       {/* Full-Screen Bill-Book Quotation Editor Modal */}

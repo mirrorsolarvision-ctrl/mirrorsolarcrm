@@ -5,8 +5,9 @@ import {
   CheckCircle2, MapPin, Phone, Mail,
   FileText, Upload, User, Clock, CheckSquare, Download, Loader2,
   Eye, ExternalLink, Trash2, RefreshCw, AlertTriangle, ShieldCheck,
-  Camera, Check, Lock, CheckCircle, ShieldAlert, FolderCheck
+  Camera, Check, Lock, CheckCircle, ShieldAlert, FolderCheck, Target
 } from 'lucide-react';
+import PageHero from './components/PageHero';
 import { 
   useCRM, STAGES,
   SECTION_1_DEALER_KYC_DOCS,
@@ -31,6 +32,9 @@ import { canManageModule } from './utils/permissionCalculations';
 import './LeadsPage.css';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
+import CustomerFinancialsCard from './components/CustomerFinancialsCard';
+import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
+import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
 
 const MAX_FILE_SIZE_MB = 10;
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/heic', 'image/heif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
@@ -105,6 +109,11 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   
   const [activityFilter, setActivityFilter] = useState('All');
 
+  // Unified Payment & Commission Record Modal State
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [recordPaymentModalType, setRecordPaymentModalType] = useState<PaymentRecordModalType>('customer_to_vendor');
+  const [recordPaymentModalLeadId, setRecordPaymentModalLeadId] = useState<string>('');
+
   // Document management state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadForm, setUploadForm] = useState({ documentType: '', file: null as File | null, notes: '' });
@@ -174,20 +183,54 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     try {
       setIsSavingSpecs(true);
       const updatedSpecs = { ...specsForm };
-      await updateLead(selectedLead.id, {
+      const isAutoConverting = selectedLead.stage === 'Lead';
+      const newStage: Stage = isAutoConverting ? 'Converted' : selectedLead.stage;
+      const convertedAt = isAutoConverting ? new Date().toISOString() : selectedLead.convertedAt;
+
+      const leadUpdates: Partial<MockLead> = {
         dealerSpecifications: updatedSpecs,
         phone: updatedSpecs.phone || selectedLead.phone,
         email: updatedSpecs.email || selectedLead.email,
-        customer: updatedSpecs.fullName || selectedLead.customer
+        customer: updatedSpecs.fullName || selectedLead.customer,
+        stage: newStage,
+        updatedAt: new Date().toISOString()
+      };
+      if (isAutoConverting) {
+        leadUpdates.convertedAt = convertedAt;
+      }
+
+      await updateLead(selectedLead.id, leadUpdates);
+
+      if (isAutoConverting) {
+        await addActivity({
+          type: 'Lead Converted',
+          message: `Lead ${selectedLead.customer} automatically CONVERTED upon saving Dealer Technical Specifications`,
+          user: currentUser?.name || 'Staff',
+          leadId: selectedLead.id,
+          dealer: selectedLead.dealer
+        });
+      } else {
+        await addActivity({
+          type: 'Technical Specs Saved',
+          message: `${currentUser?.name || 'Staff'} saved project technical specifications for ${selectedLead.customer}`,
+          user: currentUser?.name || 'Staff',
+          leadId: selectedLead.id,
+          dealer: selectedLead.dealer
+        });
+      }
+
+      showToast(
+        isAutoConverting
+          ? "✓ Specifications saved! Lead automatically converted to Converted stage."
+          : "Project Technical Specifications saved successfully!",
+        'success'
+      );
+      setSelectedLead({
+        ...selectedLead,
+        dealerSpecifications: updatedSpecs,
+        stage: newStage,
+        convertedAt
       });
-      addActivity({
-        type: 'Technical Specs Saved',
-        message: `${currentUser?.name || 'Staff'} saved project technical specifications for ${selectedLead.customer}`,
-        user: currentUser?.name || 'Staff',
-        leadId: selectedLead.id,
-        dealer: selectedLead.dealer
-      });
-      showToast("Project Technical Specifications saved successfully!", 'success');
     } catch (err: any) {
       console.error("Error saving specifications:", err);
       showToast("Failed to save specifications.", 'error');
@@ -300,10 +343,28 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   // This completely prevents data leaks by restricting the base dataset.
   const baseLeads = useMemo(() => {
     let result = leads;
-    if (isEmployee) {
-      result = result.filter(l => l.assignedEmployee === currentUser.name);
-    } else if (isDealer) {
-      result = result.filter(l => l.dealer === currentUser.name);
+    if (isEmployee && currentUser) {
+      const curName = (currentUser.name || '').trim().toLowerCase();
+      const curId = (currentUser.id || '').trim().toLowerCase();
+      result = result.filter(l => {
+        const empName = (l.assignedEmployee || '').trim().toLowerCase();
+        const empId = (l.assignedEmployeeId || '').trim().toLowerCase();
+        const createdBy = (l.createdBy || '').trim().toLowerCase();
+        return (empName && (empName === curName || empName.includes(curName) || curName.includes(empName))) ||
+               (empId && empId === curId) ||
+               (createdBy && (createdBy === curId || createdBy === curName));
+      });
+    } else if (isDealer && currentUser) {
+      const curName = (currentUser.name || '').trim().toLowerCase();
+      const curId = (currentUser.id || '').trim().toLowerCase();
+      result = result.filter(l => {
+        const dlrName = (l.dealer || '').trim().toLowerCase();
+        const dlrId = (l.dealerId || '').trim().toLowerCase();
+        const createdBy = (l.createdBy || '').trim().toLowerCase();
+        return (dlrName && (dlrName === curName || dlrName.includes(curName) || curName.includes(dlrName))) ||
+               (dlrId && dlrId === curId) ||
+               (createdBy && (createdBy === curId || createdBy === curName));
+      });
     }
     return result;
   }, [leads, isEmployee, isDealer, currentUser]);
@@ -340,10 +401,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       // Dealer & Employee
       if (dlrFilter !== 'All' && l.dealer !== dlrFilter) return false;
       if (empFilter !== 'All') {
-        if (empFilter === 'Unassigned') {
+        if (isEmployee) {
+          // Employee already viewing their own scoped leads in baseLeads
+        } else if (empFilter === 'Unassigned') {
           if (l.assignedEmployee && l.assignedEmployee !== 'Unassigned' && l.assignedEmployee.trim() !== '') return false;
         } else {
-          if (l.assignedEmployee !== empFilter) return false;
+          if (l.assignedEmployee !== empFilter && l.assignedEmployeeId !== empFilter) return false;
         }
       }
       
@@ -692,18 +755,50 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       };
 
       const updatedDocs = [...(selectedLead.documents || []), newDoc];
-      updateLead(selectedLead.id, { documents: updatedDocs });
+      const isAutoConverting = selectedLead.stage === 'Lead';
+      const newStage: Stage = isAutoConverting ? 'Converted' : selectedLead.stage;
+      const convertedAt = isAutoConverting ? new Date().toISOString() : selectedLead.convertedAt;
+
+      const leadUpdates: Partial<MockLead> = { 
+        documents: updatedDocs,
+        stage: newStage,
+        updatedAt: new Date().toISOString()
+      };
+      if (isAutoConverting) {
+        leadUpdates.convertedAt = convertedAt;
+      }
+
+      await updateLead(selectedLead.id, leadUpdates);
       
-      addActivity({
-        type: 'Document Uploaded',
-        message: `${currentUser?.role || 'User'} uploaded ${docType}`,
-        user: currentUser?.name || 'System',
-        dealer: selectedLead.dealer,
-        leadId: selectedLead.id
+      if (isAutoConverting) {
+        await addActivity({
+          type: 'Lead Converted',
+          message: `Lead ${selectedLead.customer} automatically CONVERTED to Converted stage upon document upload (${docType})`,
+          user: currentUser?.name || 'System',
+          dealer: selectedLead.dealer,
+          leadId: selectedLead.id
+        });
+      } else {
+        await addActivity({
+          type: 'Document Uploaded',
+          message: `${currentUser?.role || 'User'} uploaded ${docType}`,
+          user: currentUser?.name || 'System',
+          dealer: selectedLead.dealer,
+          leadId: selectedLead.id
+        });
+      }
+      
+      showToast(
+        isAutoConverting 
+          ? `✓ ${docType} uploaded! Lead automatically converted to Converted stage.` 
+          : `${docType} uploaded successfully!`
+      );
+      setSelectedLead({ 
+        ...selectedLead, 
+        documents: updatedDocs,
+        stage: newStage,
+        convertedAt
       });
-      
-      showToast(`${docType} uploaded successfully`);
-      setSelectedLead({ ...selectedLead, documents: updatedDocs });
     } catch (err) {
       console.error("Upload failed:", err);
       showToast(`Upload failed: ${err instanceof Error ? err.message : (err as any)?.message || 'Unknown error'}`, "error");
@@ -776,17 +871,50 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         updatedDocs = [...updatedDocs, newDoc];
       }
 
-      updateLead(selectedLead.id, { documents: updatedDocs });
-      addActivity({
-        type: activityType,
-        message: activityMessage,
-        user: currentUser?.name || 'System',
-        dealer: selectedLead.dealer,
-        leadId: selectedLead.id
-      });
+      const isAutoConverting = selectedLead.stage === 'Lead';
+      const newStage: Stage = isAutoConverting ? 'Converted' : selectedLead.stage;
+      const convertedAt = isAutoConverting ? new Date().toISOString() : selectedLead.convertedAt;
+
+      const leadUpdates: Partial<MockLead> = { 
+        documents: updatedDocs,
+        stage: newStage,
+        updatedAt: new Date().toISOString()
+      };
+      if (isAutoConverting) {
+        leadUpdates.convertedAt = convertedAt;
+      }
+
+      await updateLead(selectedLead.id, leadUpdates);
+
+      if (isAutoConverting) {
+        await addActivity({
+          type: 'Lead Converted',
+          message: `Lead ${selectedLead.customer} automatically CONVERTED to Converted stage upon document upload (${uploadForm.documentType})`,
+          user: currentUser?.name || 'System',
+          dealer: selectedLead.dealer,
+          leadId: selectedLead.id
+        });
+      } else {
+        await addActivity({
+          type: activityType,
+          message: activityMessage,
+          user: currentUser?.name || 'System',
+          dealer: selectedLead.dealer,
+          leadId: selectedLead.id
+        });
+      }
       
-      showToast(isReplacingDocId ? 'Document replaced successfully' : 'Document uploaded successfully');
-      setSelectedLead({ ...selectedLead, documents: updatedDocs });
+      showToast(
+        isAutoConverting 
+          ? `✓ ${uploadForm.documentType} uploaded! Lead automatically converted to Converted stage.`
+          : (isReplacingDocId ? 'Document replaced successfully' : 'Document uploaded successfully')
+      );
+      setSelectedLead({ 
+        ...selectedLead, 
+        documents: updatedDocs,
+        stage: newStage,
+        convertedAt
+      });
       setShowUploadModal(false);
     } catch (err) {
       console.error("Upload failed:", err);
@@ -1025,18 +1153,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       )}
 
       {/* HEADER SECTION */}
-      <div className="leads-header">
-        <div className="leads-title-area">
-          <div className="leads-breadcrumb">Dashboard / Leads {stageFilter !== 'All' ? `/ ${stageFilter}` : ''}</div>
-          <h1>Leads</h1>
-          <p>Track customers, manage pipeline progress and follow up on opportunities.</p>
-        </div>
-        {canManageModule(currentUser, 'leads') && (
-          <button type="button" className="btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Add Lead
-          </button>
-        )}
-      </div>
+      <PageHero
+        badge="Solar Lead Operations & Pipeline"
+        icon={<Target size={26} />}
+        title="Leads & Project Pipeline"
+        subtitle="Track customer inquiries, manage stage progress, and follow up on solar opportunities."
+        actions={
+          canManageModule(currentUser, 'leads') && (
+            <button type="button" className="btn-hero-primary" onClick={() => setShowAddModal(true)}>
+              <Plus size={18} /> Add Lead
+            </button>
+          )
+        }
+      />
 
       <div className="leads-main">
         {/* SUMMARY CARDS */}
@@ -1087,10 +1216,26 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <Search size={18} color="#94a3b8" />
               <input 
                 type="text" 
+                name="crm_lead_search_prevent_autofill"
+                id="crm_lead_search_prevent_autofill"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 placeholder="Search leads by name, phone, or ID..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => setSearchQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#94a3b8' }}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
             
             <select className="filter-select" value={leadTypeFilter} onChange={e => setLeadTypeFilter(e.target.value)}>
@@ -1518,6 +1663,18 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     <span className="detail-value" style={{cursor: 'pointer', color: 'var(--color-navy)', textDecoration: 'underline'}} onClick={() => showToast('Navigating to Employee...')}>{selectedLead.assignedEmployee}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Customer Financials & Commission Tracking (Dual Payment Section) */}
+              <div className="detail-section" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+                <CustomerFinancialsCard
+                  lead={selectedLead}
+                  onOpenRecordModal={(type) => {
+                    setRecordPaymentModalType(type);
+                    setRecordPaymentModalLeadId(selectedLead.id);
+                    setShowRecordPaymentModal(true);
+                  }}
+                />
               </div>
 
               {/* --- PROJECT LEAD SECTIONS --- */}
@@ -2606,7 +2763,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   return;
                 }
                 const actualDealer = isDealer && currentUser ? currentUser.name : newLeadForm.dealer;
-                const actualEmployee = isDealer ? '' : (isEmployee && currentUser ? currentUser.name : newLeadForm.assignedEmployee);
+                const actualEmployee = isDealer ? '' : (isEmployee ? (currentUser?.name || 'Kumari') : newLeadForm.assignedEmployee);
+                const actualEmployeeId = isEmployee ? (currentUser?.id || '') : undefined;
                 
                 addLead({
                   customer: newLeadForm.customer,
@@ -2615,6 +2773,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   location: newLeadForm.location,
                   dealer: actualDealer,
                   assignedEmployee: actualEmployee,
+                  assignedEmployeeId: actualEmployeeId,
                   notes: newLeadForm.notes,
                   stage: 'Lead',
                   priority: 'Medium',
@@ -3221,6 +3380,14 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           </div>
         </div>
       )}
+
+      {/* Unified Record Payment & Commission Modal */}
+      <UnifiedRecordPaymentModal
+        isOpen={showRecordPaymentModal}
+        onClose={() => setShowRecordPaymentModal(false)}
+        defaultType={recordPaymentModalType}
+        defaultLeadId={recordPaymentModalLeadId}
+      />
 
     </div>
   );

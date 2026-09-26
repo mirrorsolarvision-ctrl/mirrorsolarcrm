@@ -1,74 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Clock, MapPin, CheckCircle2, AlertTriangle, Calendar, 
-  Shield, Play, Square, History, FileText, ChevronRight, Check
+  Clock, CheckCircle2, Calendar, 
+  History, Shield, AlertCircle, Sun, Coffee, Check, RefreshCw
 } from 'lucide-react';
 import { useAttendance } from '../context/AttendanceContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import PageHero from '../components/PageHero';
 import './EmployeeAttendancePage.css';
 
 export default function EmployeeAttendancePage() {
-  const { todayRecord, config, checkIn, checkOut, getRecordsByEmployee, requestCorrection } = useAttendance();
+  const { todayRecord, markAttendance, getRecordsByEmployee, requestCorrection } = useAttendance();
   const { currentUser } = useAuth();
   const { showToast } = useUI();
 
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Correction Request Modal State
   const [selectedRecordForCorrection, setSelectedRecordForCorrection] = useState<any>(null);
-  const [reqIn, setReqIn] = useState('09:00');
+  const [reqIn, setReqIn] = useState('09:30');
   const [reqOut, setReqOut] = useState('18:00');
   const [reqReason, setReqReason] = useState('');
 
-  // Live Timer when Checked In
+  // Keep live digital clock
   useEffect(() => {
-    if (!todayRecord || !todayRecord.checkInTime || todayRecord.checkOutTime) {
-      return;
-    }
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    const checkInDate = new Date(todayRecord.checkInTime).getTime();
-    const updateTimer = () => {
-      const now = Date.now();
-      const diffSec = Math.floor((now - checkInDate) / 1000);
-      setElapsedSeconds(diffSec > 0 ? diffSec : 0);
-    };
+  // Time Analysis for Recommendations
+  const currentHours = currentTime.getHours();
+  const currentMinutes = currentTime.getMinutes();
+  const currentTotalMins = currentHours * 60 + currentMinutes;
 
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [todayRecord]);
+  // 9:30 AM = 570 mins, 10:30 AM = 630 mins
+  const isFullDayWindow = currentTotalMins >= 540 && currentTotalMins <= 660; // 9:00 AM to 11:00 AM
+  // Around 1:00 PM (12:30 PM to 2:30 PM)
+  const isHalfDayWindow = currentTotalMins >= 750 && currentTotalMins <= 870; // 12:30 PM to 2:30 PM
 
-  const formatTimer = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const handleCheckIn = async () => {
+  const handleMark = async (type: 'FULL_DAY' | 'HALF_DAY') => {
     setIsProcessing(true);
     try {
-      await checkIn({ notes });
-      showToast('Checked in successfully! Have a productive day.', 'success');
+      await markAttendance(type, notes.trim() || undefined);
+      showToast(
+        type === 'FULL_DAY' 
+          ? 'Present! Full Day Attendance marked successfully.' 
+          : 'Half Day Attendance marked successfully.', 
+        'success'
+      );
       setNotes('');
     } catch (err: any) {
-      showToast(err.message || 'Check-in failed. Please enable location access.', 'error');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleCheckOut = async () => {
-    setIsProcessing(true);
-    try {
-      await checkOut({ notes });
-      showToast('Checked out successfully. Shift completed!', 'success');
-      setNotes('');
-    } catch (err: any) {
-      showToast(err.message || 'Check-out failed', 'error');
+      showToast(err.message || 'Failed to mark attendance', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -77,7 +61,7 @@ export default function EmployeeAttendancePage() {
   const handleSubmitCorrection = async () => {
     if (!selectedRecordForCorrection) return;
     if (!reqReason.trim()) {
-      showToast('Please provide a valid reason for the correction request', 'error');
+      showToast('Please provide a reason for the attendance correction', 'error');
       return;
     }
 
@@ -95,124 +79,121 @@ export default function EmployeeAttendancePage() {
   };
 
   const myHistory = currentUser ? getRecordsByEmployee(currentUser.id) : [];
-
-  const isCheckedIn = !!todayRecord && !!todayRecord.checkInTime && !todayRecord.checkOutTime;
-  const isShiftComplete = !!todayRecord && !!todayRecord.checkOutTime;
+  const isMarked = !!todayRecord && !!todayRecord.status && todayRecord.status !== 'ABSENT';
 
   return (
     <div className="employee-attendance-page">
       {/* Header */}
-      <div className="ea-header">
-        <div>
-          <div className="ea-breadcrumb">Staff Portal / Attendance</div>
-          <h1>Live Attendance & Geolocation Check-In</h1>
-          <p className="ea-sub">
-            Office Hours: {config.officeStartTime} - {config.officeEndTime} (Grace: {config.gracePeriodMinutes} mins) • Geofence Radius: {config.geofenceRadiusMeters}m
-          </p>
-        </div>
-      </div>
+      <PageHero
+        badge="Daily Attendance Logging"
+        icon={<Clock size={26} />}
+        title="Staff Daily Attendance"
+        subtitle="Fast 1-click attendance marking for company staff & field employees."
+      />
 
-      {/* Main Today Punch Card */}
+      {/* Main Today Action Card */}
       <div className="ea-punch-card">
         <div className="ea-punch-header">
           <div className="ea-date-badge">
-            <Calendar size={15} />
-            <span>{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <Calendar size={16} />
+            <span>
+              {currentTime.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
-          {todayRecord ? (
+          {isMarked ? (
             <span className={`ea-status-pill status-${todayRecord.status.toLowerCase()}`}>
-              {todayRecord.status}
+              ✓ {todayRecord.status === 'HALF_DAY' ? 'Half Day' : 'Present (Full Day)'}
             </span>
           ) : (
-            <span className="ea-status-pill status-absent">Not Checked In</span>
+            <span className="ea-status-pill status-absent">Not Marked Yet</span>
           )}
         </div>
 
         <div className="ea-punch-body">
-          {/* Live Timer / Clock Display */}
-          <div className="ea-timer-display">
-            <div className="ea-timer-icon-wrap">
-              <Clock size={32} className={isCheckedIn ? 'timer-pulse' : ''} />
+          {/* Digital Clock Banner */}
+          <div className="ea-time-banner">
+            <div className="ea-time-icon">
+              <Clock size={28} />
             </div>
-            <div className="ea-timer-text">
-              <span className="ea-timer-label">
-                {isCheckedIn ? 'ACTIVE SHIFT WORKING TIME' : isShiftComplete ? 'TOTAL SHIFT DURATION' : 'READY TO START SHIFT'}
-              </span>
-              <span className="ea-timer-val">
-                {isCheckedIn ? formatTimer(elapsedSeconds) : isShiftComplete ? `${Math.floor(todayRecord.totalWorkingMinutes / 60)}h ${todayRecord.totalWorkingMinutes % 60}m` : '00:00:00'}
-              </span>
-            </div>
-          </div>
-
-          {/* Geo-location & Check-in Details */}
-          <div className="ea-punch-details-grid">
-            <div className="ea-detail-box">
-              <span className="ea-box-label">Check-In Time:</span>
-              <span className="ea-box-val font-bold text-navy">
-                {todayRecord?.checkInTime ? new Date(todayRecord.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-              </span>
-              {todayRecord?.lateMinutes ? (
-                <span className="text-danger text-xs font-bold">Late by {todayRecord.lateMinutes} mins</span>
-              ) : todayRecord?.checkInTime ? (
-                <span className="text-success text-xs font-bold">On Time ✓</span>
-              ) : null}
-            </div>
-
-            <div className="ea-detail-box">
-              <span className="ea-box-label">Check-Out Time:</span>
-              <span className="ea-box-val font-bold text-navy">
-                {todayRecord?.checkOutTime ? new Date(todayRecord.checkOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-              </span>
-              {isShiftComplete && (
-                <span className="text-muted text-xs">Completed</span>
-              )}
-            </div>
-
-            <div className="ea-detail-box ea-col-span-2">
-              <span className="ea-box-label"><MapPin size={13} /> GPS Geolocation Status:</span>
-              <span className="ea-box-val text-xs text-muted">
-                {todayRecord?.checkInLocation ? (
-                  `Lat: ${todayRecord.checkInLocation.latitude.toFixed(4)}, Long: ${todayRecord.checkInLocation.longitude.toFixed(4)} (±${todayRecord.checkInLocation.accuracyMeters}m)`
+            <div className="ea-time-info">
+              <div className="ea-current-clock">
+                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </div>
+              <div className="ea-window-guidance">
+                {isFullDayWindow ? (
+                  <span className="ea-guide-active">
+                    🟢 Full Day Window Active: Mark Present between <strong>9:30 AM – 10:30 AM</strong>
+                  </span>
+                ) : isHalfDayWindow ? (
+                  <span className="ea-guide-half">
+                    🟡 Half Day Window Active: Mark Half Day around <strong>1:00 PM</strong>
+                  </span>
                 ) : (
-                  'GPS verified automatically upon punch action'
+                  <span className="ea-guide-standard">
+                    Standard Working Hours: 9:30 AM to 6:30 PM
+                  </span>
                 )}
-              </span>
+              </div>
             </div>
           </div>
 
-          {/* Action Input & Buttons */}
-          <div className="ea-action-section">
+          {/* Today Record Status if Already Marked */}
+          {isMarked && (
+            <div className="ea-already-marked-card">
+              <div className="ea-marked-icon">
+                <CheckCircle2 size={32} color="#16A34A" />
+              </div>
+              <div className="ea-marked-details">
+                <div className="ea-marked-title">
+                  Attendance Recorded: <strong>{todayRecord.status === 'HALF_DAY' ? 'Half Day' : 'Full Day (Present)'}</strong>
+                </div>
+                <div className="ea-marked-sub">
+                  Marked at {todayRecord.checkInTime ? new Date(todayRecord.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--'} • {todayRecord.notes || 'Recorded successfully'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Attendance Selection Buttons */}
+          <div className="ea-buttons-wrapper">
+            <div className="ea-button-card">
+              <button 
+                className={`ea-mark-btn btn-full-day ${todayRecord?.status === 'PRESENT' ? 'btn-active-selection' : ''}`}
+                onClick={() => handleMark('FULL_DAY')}
+                disabled={isProcessing}
+              >
+                <div className="ea-btn-title-row">
+                  <Sun size={20} />
+                  <span>Mark Present (Full Day)</span>
+                </div>
+                <span className="ea-btn-sub">Click between 9:30 AM – 10:30 AM</span>
+              </button>
+            </div>
+
+            <div className="ea-button-card">
+              <button 
+                className={`ea-mark-btn btn-half-day ${todayRecord?.status === 'HALF_DAY' ? 'btn-active-selection' : ''}`}
+                onClick={() => handleMark('HALF_DAY')}
+                disabled={isProcessing}
+              >
+                <div className="ea-btn-title-row">
+                  <Coffee size={20} />
+                  <span>Mark Half Day</span>
+                </div>
+                <span className="ea-btn-sub">Click around 1:00 PM</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Optional Notes */}
+          <div className="ea-notes-row">
             <input 
               type="text" 
-              className="ea-note-input" 
-              value={notes} 
+              className="ea-note-input"
+              value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional: Enter visit notes / site survey destination / client location..."
-              disabled={isShiftComplete}
+              placeholder="Optional: Add visit/meeting notes or site location description..."
             />
-
-            {!todayRecord?.checkInTime ? (
-              <button 
-                className="btn-primary ea-punch-btn green" 
-                onClick={handleCheckIn} 
-                disabled={isProcessing}
-              >
-                <Play size={18} /> PUNCH IN (START SHIFT)
-              </button>
-            ) : !todayRecord?.checkOutTime ? (
-              <button 
-                className="btn-danger ea-punch-btn red" 
-                onClick={handleCheckOut} 
-                disabled={isProcessing}
-              >
-                <Square size={18} /> PUNCH OUT (END SHIFT)
-              </button>
-            ) : (
-              <div className="ea-completed-banner">
-                <CheckCircle2 size={20} color="#16A34A" />
-                <span>Shift Completed for today! Enjoy your evening.</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -228,12 +209,10 @@ export default function EmployeeAttendancePage() {
             <thead>
               <tr>
                 <th>DATE</th>
-                <th>IN</th>
-                <th>OUT</th>
-                <th>WORKING HOURS</th>
-                <th>LATE</th>
+                <th>TIME MARKED</th>
+                <th>ATTENDANCE TYPE</th>
                 <th>STATUS</th>
-                <th>LOCATION</th>
+                <th>NOTES</th>
                 <th style={{ textAlign: 'center' }}>ACTION</th>
               </tr>
             </thead>
@@ -241,33 +220,23 @@ export default function EmployeeAttendancePage() {
               {myHistory.map((rec) => (
                 <tr key={rec.id}>
                   <td className="font-semibold text-navy">
-                    {new Date(rec.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {new Date(rec.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
-                  <td>{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
-                  <td>{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
                   <td>
-                    <span className="font-bold text-navy">
-                      {Math.floor(rec.totalWorkingMinutes / 60)}h {rec.totalWorkingMinutes % 60}m
+                    {rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--'}
+                  </td>
+                  <td>
+                    <span className="font-bold">
+                      {rec.status === 'HALF_DAY' ? 'Half Day' : 'Full Day'}
                     </span>
-                  </td>
-                  <td>
-                    {rec.lateMinutes > 0 ? (
-                      <span className="text-danger font-bold">{rec.lateMinutes}m</span>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
                   </td>
                   <td>
                     <span className={`ea-status-pill status-${rec.status.toLowerCase()}`}>
-                      {rec.status}
+                      {rec.status === 'HALF_DAY' ? 'Half Day' : 'Present'}
                     </span>
                   </td>
-                  <td className="text-muted text-xs">
-                    {rec.notes?.includes('OUT OF GEOFENCE') ? (
-                      <span className="text-warning font-semibold">⚠️ Field Punch</span>
-                    ) : rec.checkInLocation ? (
-                      <span className="text-success font-semibold">✓ On-Site Verified</span>
-                    ) : '--'}
+                  <td className="text-muted text-sm">
+                    {rec.notes || '—'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button 
@@ -282,8 +251,8 @@ export default function EmployeeAttendancePage() {
               ))}
               {myHistory.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
-                    No attendance records logged yet.
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
+                    No attendance records logged yet. Click Full Day or Half Day above to mark attendance.
                   </td>
                 </tr>
               )}
@@ -298,44 +267,39 @@ export default function EmployeeAttendancePage() {
           <div className="modal-content" style={{ maxWidth: '460px', padding: '1.5rem', background: '#fff', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)' }}>
             <h3 style={{ margin: '0 0 0.5rem 0', color: '#0F172A', fontSize: '1.15rem' }}>Request Attendance Correction</h3>
             <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '1rem' }}>
-              Date: <strong>{selectedRecordForCorrection.date}</strong>
+              Submitting correction for: <strong>{new Date(selectedRecordForCorrection.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</strong>
             </p>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Requested In Time</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Actual In Time:</label>
                 <input 
                   type="time" 
                   value={reqIn} 
                   onChange={(e) => setReqIn(e.target.value)} 
-                  style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px' }}
                 />
               </div>
+
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Requested Out Time</label>
-                <input 
-                  type="time" 
-                  value={reqOut} 
-                  onChange={(e) => setReqOut(e.target.value)} 
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Reason for Correction *</label>
+                <textarea 
+                  rows={3} 
+                  value={reqReason} 
+                  onChange={(e) => setReqReason(e.target.value)} 
+                  placeholder="e.g. Field visit to customer site early morning, punch omitted..." 
                   style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
                 />
               </div>
-            </div>
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Reason for Correction</label>
-              <textarea 
-                rows={3} 
-                value={reqReason} 
-                onChange={(e) => setReqReason(e.target.value)} 
-                placeholder="Explain missed punch / field survey / network interruption..."
-                style={{ width: '100%', padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="btn-outline" onClick={() => setSelectedRecordForCorrection(null)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSubmitCorrection}>Submit for Admin Approval</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '0.5rem' }}>
+                <button className="btn-secondary" onClick={() => setSelectedRecordForCorrection(null)}>
+                  Cancel
+                </button>
+                <button className="btn-primary" onClick={handleSubmitCorrection}>
+                  Submit Request
+                </button>
+              </div>
             </div>
           </div>
         </div>

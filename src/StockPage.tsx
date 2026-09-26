@@ -11,6 +11,7 @@ import type {
 import { useCRM } from './context/CRMContext';
 import { useUI } from './context/UIContext';
 import { canManageModule } from './utils/permissionCalculations';
+import PageHero from './components/PageHero';
 import './StockPage.css';
 
 export default function StockPage() {
@@ -425,34 +426,30 @@ export default function StockPage() {
   return (
     <div className="stock-page fade-in">
       {/* Breadcrumb & Header */}
-      <div className="stock-header">
-        <div>
-          <div className="stock-breadcrumb">Dashboard / Stock Management</div>
-          <div className="stock-title">
-            <h1>Stock Management & Dealer Inventory</h1>
-            <p>Monitor warehouse inventory, dealer stock dispatches, and material consumption tracking.</p>
+      <PageHero
+        badge="Inventory & Warehouse Hub"
+        icon={<Package size={26} />}
+        title="Stock & Warehouse Management"
+        subtitle="Monitor warehouse inventory, dealer stock dispatches, and material consumption tracking."
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {canManageStock && (
+              <button className="btn-hero-secondary" onClick={() => openModal('dispatch')}>
+                <Truck size={18} /> Dispatch Stock
+              </button>
+            )}
+            {canManageStock ? (
+              <button className="btn-hero-primary" onClick={() => openModal('add')}>
+                <Plus size={18} /> Add Stock Item
+              </button>
+            ) : (
+              <button className="btn-hero-primary" onClick={() => openModal('request')}>
+                <Plus size={18} /> Request Stock
+              </button>
+            )}
           </div>
-        </div>
-        <div className="stock-header-actions" style={{display: 'flex', gap: '0.75rem'}}>
-          {canManageStock && (
-            <button className="btn-secondary" onClick={() => openModal('dispatch')} style={{display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#0284c7', color: '#ffffff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700}}>
-              <Truck size={18} />
-              Dispatch Stock to Dealer
-            </button>
-          )}
-          {canManageStock ? (
-            <button className="btn-primary" onClick={() => openModal('add')}>
-              <Plus size={18} />
-              Add Stock Item
-            </button>
-          ) : (
-            <button className="btn-primary" onClick={() => openModal('request')}>
-              <Plus size={18} />
-              Request Stock
-            </button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {/* Tabs Navigation */}
       <div className="stock-tabs-nav" style={{

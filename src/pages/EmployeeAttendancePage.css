@@ -297,9 +297,162 @@
 
 .status-present { background: #DCFCE7; color: #15803D; }
 .status-late { background: #FEF3C7; color: #B45309; }
-.status-half_day { background: #EFF6FF; color: #1D4ED8; }
+.status-half_day { background: #FEF3C7; color: #D97706; }
 .status-absent { background: #F1F5F9; color: #64748B; }
 .status-leave { background: #F3E8FF; color: #7E22CE; }
 
 .text-danger { color: #DC2626 !important; }
 .text-success { color: #16A34A !important; }
+
+/* Time Banner */
+.ea-time-banner {
+  background: linear-gradient(135deg, #0B1F3A 0%, #1E3A8A 100%);
+  color: #FFFFFF;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 4px 16px rgba(11, 31, 58, 0.15);
+}
+
+.ea-time-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F4C430;
+  flex-shrink: 0;
+}
+
+.ea-current-clock {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  font-family: monospace;
+}
+
+.ea-window-guidance {
+  font-size: 0.88rem;
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ea-guide-active {
+  color: #4ADE80;
+  font-weight: 600;
+}
+
+.ea-guide-half {
+  color: #FDE047;
+  font-weight: 600;
+}
+
+.ea-guide-standard {
+  color: #94A3B8;
+}
+
+/* Already Marked Card */
+.ea-already-marked-card {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 12px;
+  padding: 1.15rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ea-marked-title {
+  font-size: 1.05rem;
+  color: #14532D;
+}
+
+.ea-marked-sub {
+  font-size: 0.85rem;
+  color: #166534;
+  margin-top: 0.2rem;
+}
+
+/* Buttons Grid */
+.ea-buttons-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .ea-buttons-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ea-button-card {
+  width: 100%;
+}
+
+.ea-mark-btn {
+  width: 100%;
+  padding: 1.25rem 1rem;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.ea-mark-btn:hover {
+  transform: translateY(-2px);
+}
+
+.ea-btn-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.ea-btn-sub {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.btn-full-day {
+  background: linear-gradient(135deg, #15803D 0%, #16A34A 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+}
+
+.btn-full-day:hover {
+  background: linear-gradient(135deg, #166534 0%, #15803D 100%);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.35);
+}
+
+.btn-half-day {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.25);
+}
+
+.btn-half-day:hover {
+  background: linear-gradient(135deg, #B45309 0%, #D97706 100%);
+  box-shadow: 0 6px 18px rgba(217, 119, 6, 0.35);
+}
+
+.btn-active-selection {
+  border-color: #F4C430 !important;
+  box-shadow: 0 0 0 4px rgba(244, 196, 48, 0.35) !important;
+}
+
+.ea-notes-row {
+  margin-top: 0.5rem;
+}
+

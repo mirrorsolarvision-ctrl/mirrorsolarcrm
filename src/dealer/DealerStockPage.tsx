@@ -6,6 +6,7 @@ import {
 import { useStock } from '../context/StockContext';
 import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
+import PageHero from '../components/PageHero';
 import '../StockPage.css';
 
 export default function DealerStockPage() {
@@ -134,18 +135,17 @@ export default function DealerStockPage() {
   return (
     <div className="stock-page" style={{ minHeight: '100%' }}>
       {/* Header */}
-      <div className="stock-header">
-        <div className="stock-title">
-          <div className="stock-breadcrumb">Dashboard / My Stock</div>
-          <h1>Dealer Stock & Materials Hub</h1>
-          <p>Manage your on-hand stock inventory, confirm incoming dispatches from Admin, and view project consumptions.</p>
-        </div>
-        <div className="stock-header-actions">
-          <button className="btn-primary" onClick={() => setActiveTab('request')} style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+      <PageHero
+        badge="Dealer Stock & Materials Hub"
+        icon={<Package size={26} />}
+        title="Dealer Stock & Materials Hub"
+        subtitle="Manage on-hand inventory, confirm incoming dispatches, and request materials from Admin."
+        actions={
+          <button className="btn-hero-primary" onClick={() => setActiveTab('request')}>
             <Plus size={16} /> Request Material from Admin
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ⚠️ PENDING DISPATCHES NOTIFICATION BANNER */}
       {pendingDispatches.length > 0 && (

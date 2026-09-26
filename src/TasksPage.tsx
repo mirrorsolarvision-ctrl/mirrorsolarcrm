@@ -6,6 +6,7 @@ import {
 import { useCRM } from './context/CRMContext';
 import type { Task, TaskType, TaskStatus, TaskPriority } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import PageHero from './components/PageHero';
 import './LeadsPage.css'; // Reusing styles
 
 interface TasksPageProps {
@@ -153,29 +154,31 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
   };
 
   return (
-    <div className="leads-page fade-in" style={{padding: '1rem', width: '100%', boxSizing: 'border-box', overflowY: 'auto'}}>
-      <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
-        <div>
-          <h1 style={{fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', margin: '0 0 0.25rem 0'}}>Tasks</h1>
-          <p style={{color: '#64748b', margin: 0, fontSize: '0.9rem'}}>Manage and track your work</p>
-        </div>
-        <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-          {onNavigate && (
-            <button 
-              className="btn-outline" 
-              onClick={() => onNavigate(currentUser?.role === 'Admin' ? 'Calendar' : `/${currentUser?.role.toLowerCase()}/calendar`)} 
-              style={{minHeight: '40px'}}
-            >
-              <Calendar size={18} style={{marginRight: '0.5rem'}} /> Calendar
+    <div className="leads-page fade-in" style={{padding: '0', width: '100%', boxSizing: 'border-box', overflowY: 'auto'}}>
+      <PageHero
+        badge="Operations & Task Board"
+        icon={<CheckSquare size={26} />}
+        title="Tasks & Activities"
+        subtitle="Manage and track scheduled tasks, operational assignments, and follow-ups."
+        actions={
+          <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
+            {onNavigate && (
+              <button 
+                className="btn-hero-secondary" 
+                onClick={() => onNavigate(currentUser?.role === 'Admin' ? 'Calendar' : `/${currentUser?.role.toLowerCase()}/calendar`)} 
+              >
+                <Calendar size={18} /> Calendar View
+              </button>
+            )}
+            <button className="btn-hero-primary" onClick={() => setShowCreateModal(true)}>
+              <Plus size={18} /> Create Task
             </button>
-          )}
-          <button className="btn-primary" onClick={() => setShowCreateModal(true)} style={{minHeight: '40px'}}>
-            <Plus size={18} style={{marginRight: '0.5rem'}} /> Create Task
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
-      {/* Filters */}
+      <div style={{ padding: '1.25rem' }}>
+        {/* Filters */}
       <div className="filters-container" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', background: '#fff', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
         <div className="search-box" style={{flex: '1 1 100%', minWidth: '0'}}>
           <Search size={18} className="search-icon" />
@@ -430,6 +433,7 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

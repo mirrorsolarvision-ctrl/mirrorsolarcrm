@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
+import PageHero from '../components/PageHero';
 import './DealerAttendancePage.css';
 
 export default function DealerAttendancePage() {
@@ -103,30 +104,31 @@ export default function DealerAttendancePage() {
   return (
     <div className="dealer-attendance-container">
       {/* Header */}
-      <div className="dealer-attendance-header">
-        <div>
-          <h1 className="page-title">Team Attendance</h1>
-          <p className="page-subtitle">Track and verify daily attendance for your staff members</p>
-        </div>
-
-        {/* Date Selector */}
-        <div className="date-picker-control">
-          <CalendarIcon size={18} className="text-blue" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            max={todayIso}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-          {isTodaySelected ? (
-            <span className="today-badge">Today</span>
-          ) : (
-            <button className="reset-today-btn" onClick={() => setSelectedDate(todayIso)}>
-              Go to Today
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHero
+        badge="Dealership Staff Attendance"
+        icon={<UserCheck size={26} />}
+        title="Team Attendance Tracking"
+        subtitle="Track and verify daily attendance logs for your dealership staff members."
+        actions={
+          <div className="date-picker-control" style={{ background: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)', borderColor: 'rgba(255, 255, 255, 0.25)', color: '#fff' }}>
+            <CalendarIcon size={18} className="text-yellow" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              max={todayIso}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ background: 'transparent', color: '#fff', border: 'none', fontWeight: 600, outline: 'none' }}
+            />
+            {isTodaySelected ? (
+              <span className="today-badge" style={{ background: '#f4c430', color: '#0b1f3a' }}>Today</span>
+            ) : (
+              <button className="reset-today-btn" onClick={() => setSelectedDate(todayIso)} style={{ color: '#fef08a' }}>
+                Go to Today
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {/* Date Banner */}
       <div className="date-summary-banner">

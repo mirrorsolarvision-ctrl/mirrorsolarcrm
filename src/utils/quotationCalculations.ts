@@ -39,8 +39,64 @@ export function calculateQuotationFinancials(
   capacityKw: number = 3,
   customerType: CustomerType | string = 'Residential',
   isInterState: boolean = false,
-  manualSubsidyOverride?: { overrideAmount: number; reason: string; approvedBy?: string }
+  manualSubsidyOverride?: { overrideAmount: number; reason: string; approvedBy?: string },
+  singlePackagePrice?: number
 ): QuotationFinancials {
+  const subsidyResult = evaluateSubsidy(
+    capacityKw,
+    customerType,
+    isSubsidyEligible,
+    'PMSGY_2024',
+    manualSubsidyOverride ? { amount: manualSubsidyOverride.overrideAmount, reason: manualSubsidyOverride.reason } : undefined
+  );
+
+  // If a single package price (inclusive of 5% GST) is provided:
+  if (singlePackagePrice !== undefined && Number(singlePackagePrice) > 0) {
+    const roundedGrandTotal = Math.round(Number(singlePackagePrice));
+    // Inclusive 5% GST calculation: Taxable = Total / 1.05
+    const taxableAmount = Math.round((roundedGrandTotal / 1.05) * 100) / 100;
+    const gstTotal = Math.round((roundedGrandTotal - taxableAmount) * 100) / 100;
+
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+
+    if (isInterState) {
+      igst = gstTotal;
+    } else {
+      cgst = Math.round((gstTotal / 2) * 100) / 100;
+      sgst = Math.round((gstTotal / 2) * 100) / 100;
+    }
+
+    // Do NOT subtract subsidy from total amount
+    const netPayableByCustomer = roundedGrandTotal;
+
+    return {
+      subtotal: taxableAmount,
+      totalItemDiscount: 0,
+      extraDiscount: 0,
+      taxableAmount,
+      gstTotal,
+      cgst,
+      sgst,
+      igst,
+      subsidyEligible: subsidyResult.eligible,
+      subsidyScheme: subsidyResult.schemeName,
+      subsidyRuleVersion: subsidyResult.ruleVersion,
+      subsidyBreakdown: subsidyResult.calculationBreakdown,
+      subsidyAmount: subsidyResult.amount,
+      manualSubsidyOverride: manualSubsidyOverride ? {
+        isOverridden: subsidyResult.isOverridden,
+        overrideAmount: manualSubsidyOverride.overrideAmount,
+        reason: manualSubsidyOverride.reason,
+        approvedBy: manualSubsidyOverride.approvedBy
+      } : undefined,
+      roundOff: 0,
+      grandTotal: roundedGrandTotal,
+      netPayableByCustomer
+    };
+  }
+
   let subtotal = 0;
   let totalItemDiscount = 0;
   let gstTotal = 0;
@@ -69,22 +125,14 @@ export function calculateQuotationFinancials(
     sgst = Math.round((gstTotal / 2) * 100) / 100;
   }
 
-  // Evaluate subsidy using versioned rule scheme
-  const subsidyResult = evaluateSubsidy(
-    capacityKw,
-    customerType,
-    isSubsidyEligible,
-    'PMSGY_2024',
-    manualSubsidyOverride ? { amount: manualSubsidyOverride.overrideAmount, reason: manualSubsidyOverride.reason } : undefined
-  );
-
   const rawGrandTotal = taxableAmount + gstTotal;
   
   // Exact round off
   const roundedGrandTotal = Math.round(rawGrandTotal);
   const roundOff = Math.round((roundedGrandTotal - rawGrandTotal) * 100) / 100;
 
-  const netPayableByCustomer = Math.max(0, roundedGrandTotal - subsidyResult.amount);
+  // Do NOT subtract subsidy from total amount
+  const netPayableByCustomer = roundedGrandTotal;
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,

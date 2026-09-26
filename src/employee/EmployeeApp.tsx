@@ -7,10 +7,8 @@ import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
 import EmployeeAttendancePage from '../pages/EmployeeAttendancePage';
 import QuotationsPortalPage from '../pages/QuotationsPortalPage';
-import MarketingPortalPage from '../pages/MarketingPortalPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
-import FollowupsPage from '../FollowupsPage';
 import StockPage from '../StockPage';
 import AdminReportsPage from '../AdminReportsPage';
 import TasksPage from '../TasksPage';
@@ -63,10 +61,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
                       currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
                       currentPath === '/employee/quotations' ? 'Quotations' :
-                      currentPath === '/employee/marketing' ? 'Marketing' :
-                      currentPath === '/employee/followups' ? 'Leads' :
-                      currentPath === '/employee/tasks' ? 'Dashboard' :
-                      currentPath === '/employee/calendar' ? 'Dashboard' :
+                      currentPath === '/employee/tasks' ? 'Tasks' :
+                      currentPath === '/employee/calendar' ? 'Calendar' :
                       currentPath === '/employee/stock' ? 'Stock' :
                       currentPath === '/employee/reports' ? 'Reports' :
                       currentPath === '/employee/profile' ? 'Profile' : 'Dashboard';
@@ -85,10 +81,6 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         return <LeadsPage {...(routeFilters || {})} />;
       case '/employee/quotations':
         return <QuotationsPortalPage />;
-      case '/employee/marketing':
-        return <MarketingPortalPage />;
-      case '/employee/followups':
-        return <FollowupsPage />;
       case '/employee/tasks':
         return <TasksPage onNavigate={handleNavigate} />;
       case '/employee/calendar':

@@ -10,6 +10,7 @@ import { useUI } from '../context/UIContext';
 import type { MarketingLead, LeadSource, MarketingStage } from '../types/marketing';
 import { LOCKED_COMPANY_DETAILS } from '../config/companyDetails';
 import QuotationEditor from '../components/QuotationEditor';
+import PageHero from '../components/PageHero';
 import './MarketingPortalPage.css';
 
 const STAGE_LABELS: Record<MarketingStage, string> = {
@@ -118,18 +119,17 @@ export default function MarketingPortalPage() {
   return (
     <div className="marketing-portal-page">
       {/* Header */}
-      <div className="mp-header">
-        <div>
-          <div className="mp-breadcrumb">Employee Workspace / Marketing Operations</div>
-          <div className="mp-title-row">
-            <h1>Marketing & Lead Generation Hub</h1>
-          </div>
-          <p className="mp-sub">Track digital campaigns, enquiries, customer calls, surveys, and conversion funnels.</p>
-        </div>
-        <button className="btn-primary" onClick={() => setIsAddModalOpen(true)}>
-          <Plus size={18} /> New Campaign Lead
-        </button>
-      </div>
+      <PageHero
+        badge="Solar Growth & Campaigns"
+        icon={<Megaphone size={26} />}
+        title="Marketing & Lead Generation Hub"
+        subtitle="Track digital campaigns, enquiries, customer calls, surveys, and conversion funnels."
+        actions={
+          <button className="btn-hero-primary" onClick={() => setIsAddModalOpen(true)}>
+            <Plus size={18} /> New Campaign Lead
+          </button>
+        }
+      />
 
       {/* Metrics Funnel Bar */}
       <div className="mp-funnel-grid">

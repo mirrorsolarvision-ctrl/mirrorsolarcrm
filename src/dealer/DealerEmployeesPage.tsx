@@ -17,6 +17,7 @@ import {
 import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
 import type { Employee } from '../context/CRMContext';
+import PageHero from '../components/PageHero';
 import './DealerEmployeesPage.css';
 
 export default function DealerEmployeesPage() {
@@ -140,16 +141,18 @@ export default function DealerEmployeesPage() {
   return (
     <div className="dealer-employees-container">
       {/* Header */}
-      <div className="dealer-employees-header">
-        <div>
-          <h1 className="page-title">My Team & Employees</h1>
-          <p className="page-subtitle">Manage your dealership's staff and account access</p>
-        </div>
-        <button className="add-staff-btn" onClick={handleOpenAddModal}>
-          <Plus size={18} />
-          <span>Add New Employee</span>
-        </button>
-      </div>
+      <PageHero
+        badge="Dealership Workforce"
+        icon={<Users size={26} />}
+        title="My Team & Employees"
+        subtitle="Manage your dealership's staff, daily attendance, and account access."
+        actions={
+          <button className="btn-hero-primary" onClick={handleOpenAddModal}>
+            <Plus size={18} />
+            <span>Add New Employee</span>
+          </button>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="dealer-staff-stats-grid">

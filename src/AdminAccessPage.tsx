@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { 
-  Users, Search, X, Shield, CheckCircle2, ArrowRight, Key, ShieldAlert
+  Users, Search, X, Shield, CheckCircle2, ArrowRight, Key, ShieldAlert, ShieldCheck
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
 import type { User as CRMUser, UserPermissions, PermissionLevel } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import PageHero from './components/PageHero';
 import './AdminAccessPage.css';
 
 interface AdminAccessPageProps {
@@ -251,18 +252,17 @@ export default function AdminAccessPage({ onNavigateToEmployee, onNavigateToDeal
   return (
     <div className="access-page fade-in">
       {/* Header */}
-      <div className="access-header">
-        <div>
-          <div className="access-breadcrumb">Dashboard / Access</div>
-          <div className="access-title">
-            <h1>Access & Permissions</h1>
-            <p>Control user access, roles and application permissions.</p>
-          </div>
-        </div>
-        <button className="btn-outline" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>
-          Permission Overview <ArrowRight size={16} />
-        </button>
-      </div>
+      <PageHero
+        badge="Role & Security Governance"
+        icon={<ShieldCheck size={26} />}
+        title="Access & Permissions Control"
+        subtitle="Control user access, system roles, feature levels, and application security policies."
+        actions={
+          <button className="btn-hero-secondary" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>
+            Permission Overview <ArrowRight size={16} />
+          </button>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="access-summary-grid">

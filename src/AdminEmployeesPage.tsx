@@ -13,6 +13,7 @@ import {
   getEmployeePipeline,
   getEmployeeFollowUps
 } from './utils/employeeCalculations';
+import PageHero from './components/PageHero';
 import './AdminEmployeesPage.css';
 
 interface AdminEmployeesPageProps {
@@ -226,18 +227,17 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   return (
     <div className="employees-page fade-in">
       {/* Header */}
-      <div className="employees-header">
-        <div>
-          <div className="employees-breadcrumb">Dashboard / Employees</div>
-          <div className="employees-title">
-            <h1>Employee Management</h1>
-            <p>Monitor employee workload, customer activity and sales performance.</p>
-          </div>
-        </div>
-        <button className="btn-primary" onClick={handleOpenAddModal}>
-          <Plus size={18} /> Add Employee
-        </button>
-      </div>
+      <PageHero
+        badge="Workforce & Team Directory"
+        icon={<Users size={26} />}
+        title="Employee & Staff Management"
+        subtitle="Monitor staff assignments, performance KPIs, and customer lead allocations."
+        actions={
+          <button className="btn-hero-primary" onClick={handleOpenAddModal}>
+            <Plus size={18} /> Add Employee
+          </button>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="employees-summary-grid">

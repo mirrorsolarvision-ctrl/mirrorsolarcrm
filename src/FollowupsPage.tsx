@@ -7,6 +7,7 @@ import type { FollowUp } from './context/CRMContext';
 import { useUI } from './context/UIContext';
 import { canManageModule } from './utils/permissionCalculations';
 import { isDateInPeriod } from './utils/analyticsCalculations';
+import PageHero from './components/PageHero';
 import './FollowupsPage.css';
 
 // Flat task interface
@@ -162,17 +163,19 @@ export default function FollowupsPage({ filter, onNavigate }: FollowupsPageProps
 
   return (
     <div className="fu-page fade-in">
-      <div className="fu-header">
-        <div className="fu-title-area">
-          <h1>Follow-ups</h1>
-          <p>Stay on top of customer conversations and scheduled tasks.</p>
-        </div>
-        {canManageModule(currentUser, 'leads') && (
-          <button className="btn-primary" onClick={() => onNavigate && onNavigate(isEmployee ? '/employee/leads' : isDealer ? '/dealer/leads' : '/leads')}>
-            <Plus size={18} /> Add Follow-up
-          </button>
-        )}
-      </div>
+      <PageHero
+        badge="Customer Follow-up Radar"
+        icon={<Clock size={26} />}
+        title="Follow-ups & Action Queue"
+        subtitle="Stay on top of customer conversations, site visits, and scheduled commitments."
+        actions={
+          canManageModule(currentUser, 'leads') && (
+            <button className="btn-hero-primary" onClick={() => onNavigate && onNavigate(isEmployee ? '/employee/leads' : isDealer ? '/dealer/leads' : '/leads')}>
+              <Plus size={18} /> Add Follow-up
+            </button>
+          )
+        }
+      />
 
       <div className="fu-main">
         {/* SUMMARY CARDS */}

@@ -46,10 +46,8 @@ export default function EmployeeSidebar({
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
-    { name: 'Marketing', path: '/employee/marketing', icon: Megaphone, routeName: 'Marketing' },
-    { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Dashboard' },
-    { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Dashboard' },
-    { name: 'Follow-ups', path: '/employee/followups', icon: Bell, routeName: 'Leads' },
+    { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Tasks' },
+    { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Calendar' },
     { name: 'Stock', path: '/employee/stock', icon: Package, routeName: 'Stock' },
     { name: 'Reports', path: '/employee/reports', icon: LayoutDashboard, routeName: 'Reports' },
   ];

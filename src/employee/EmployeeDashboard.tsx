@@ -101,7 +101,7 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
           <div className="emp-summary-title">Active</div>
           <div className="emp-summary-value" style={{color: '#d97706'}}>{performance.activeLeads}</div>
         </div>
-        <div className="emp-summary-card" onClick={() => onNavigate('/employee/followups', { filter: 'Today' })}>
+        <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads')}>
           <div className="emp-summary-title">Follow-ups Today</div>
           <div className="emp-summary-value" style={{color: '#ea580c'}}>{todayFollowUps.length}</div>
         </div>
@@ -161,7 +161,7 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
               </div>
             )}
             {todayFollowUps.length > 3 && (
-              <button className="btn-outline" onClick={() => onNavigate('/employee/followups')}>View all {todayFollowUps.length}</button>
+              <button className="btn-outline" onClick={() => onNavigate('/employee/leads')}>View all {todayFollowUps.length}</button>
             )}
           </div>
         </div>
@@ -255,7 +255,7 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
                     Overdue • {f.date} {f.time}
                   </span>
                 </div>
-                <button className="btn-action" onClick={() => onNavigate('/employee/followups')}>View →</button>
+                <button className="btn-action" onClick={() => onNavigate('/employee/leads')}>View →</button>
               </div>
             )) : (
               <div className="emp-empty-state" style={{padding: '1.5rem'}}>
@@ -273,7 +273,7 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
               <Plus size={24} />
               Add Lead
             </button>
-            <button className="emp-action-btn" onClick={() => onNavigate('/employee/followups')}>
+            <button className="emp-action-btn" onClick={() => onNavigate('/employee/leads')}>
               <PhoneCall size={24} />
               Today's Calls
             </button>

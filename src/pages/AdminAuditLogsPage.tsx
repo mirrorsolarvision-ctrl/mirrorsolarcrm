@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAudit } from '../context/AuditLogContext';
 import type { AuditAction, EntityType } from '../types/audit';
+import PageHero from '../components/PageHero';
 import './AdminAuditLogsPage.css';
 
 export default function AdminAuditLogsPage() {
@@ -53,19 +54,18 @@ export default function AdminAuditLogsPage() {
 
   return (
     <div className="admin-audit-page">
-      <div className="aap-header">
-        <div>
-          <div className="aap-breadcrumb">Security & Compliance / Audit Trail</div>
-          <div className="aap-title-row">
-            <h1>System-Wide Audit Logs</h1>
-            <span className="aap-badge"><Shield size={13} /> Tamper-Evident History</span>
-          </div>
-          <p className="aap-sub">Complete audit record of quotation changes, inventory actions, price edits, and stage progressions.</p>
-        </div>
-        <button className="btn-outline" onClick={exportCSV}>
-          <Download size={16} /> Export Audit CSV
-        </button>
-      </div>
+      {/* Header */}
+      <PageHero
+        badge="Security & Compliance Audit Trail"
+        icon={<Shield size={26} />}
+        title="System-Wide Audit Logs"
+        subtitle="Complete immutable ledger of quotation changes, inventory actions, price edits, and stage progressions."
+        actions={
+          <button className="btn-hero-secondary" onClick={exportCSV}>
+            <Download size={16} /> Export Audit CSV
+          </button>
+        }
+      />
 
       <div className="aap-main-card">
         <div className="aap-toolbar">
