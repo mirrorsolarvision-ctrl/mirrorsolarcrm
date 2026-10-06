@@ -4,7 +4,7 @@ import {
   Upload, Eye, Download, ExternalLink, X, 
   CheckCircle, ArrowUpRight, ShieldCheck,
   AlertCircle, ChevronRight, User, Phone, MapPin, Loader2, IndianRupee,
-  ArrowDownLeft, Plus, Filter, FileText, Check, XCircle, Trash2,
+  ArrowDownLeft, Plus, Filter, FileText, Check, XCircle, Trash2, Copy,
   TrendingUp, Wallet, DollarSign, Building2, Receipt, ArrowRightLeft, Sparkles
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
@@ -16,8 +16,7 @@ import type {
   CustomerPaymentMode
 } from './context/CRMContext';
 import { useUI } from './context/UIContext';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from './firebase';
+import { uploadFileToStorage } from './utils/cloudStorageUtils';
 import PageHero from './components/PageHero';
 import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
 import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
@@ -320,16 +319,11 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
     };
   }, [customerMetrics, dealerMetrics]);
 
-  // Firebase Upload Helper
+  // Firebase Upload Helper with auto-compression
   const uploadToFirebase = async (file: File, folder: string): Promise<string> => {
-    try {
-      const fileRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-      await uploadBytes(fileRef, file);
-      const downloadUrl = await getDownloadURL(fileRef);
-      return downloadUrl;
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to upload proof to Firebase Storage');
-    }
+    return uploadFileToStorage(file, folder, {
+      compressImage: true
+    });
   };
 
   // ==========================================
@@ -588,6 +582,68 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
       </PageHero>
 
       <div className="payments-main">
+
+        {/* Company Official Bank & Settlement Account Banner */}
+        <div className="company-bank-details-banner">
+          <div className="bank-banner-left">
+            <div className="bank-logo-box">
+              <Building2 size={24} color="#0284c7" />
+            </div>
+            <div className="bank-details-info">
+              <span className="bank-holder-badge">Official Company Settlement Account</span>
+              <h3 className="bank-company-name">MIRROR SOLAR VISION</h3>
+              <p className="bank-branch-name">HDFC BANK, ELURU</p>
+            </div>
+          </div>
+
+          <div className="bank-banner-grid">
+            <div className="bank-data-cell">
+              <span className="bank-cell-lbl">Account Number</span>
+              <div className="bank-cell-val-wrap">
+                <span className="bank-cell-val font-mono">50200118210181</span>
+                <button 
+                  type="button" 
+                  className="btn-copy-mini"
+                  onClick={() => {
+                    navigator.clipboard.writeText('50200118210181');
+                    showToast('✓ Account Number copied: 50200118210181', 'success');
+                  }}
+                  title="Copy Account Number"
+                >
+                  <Copy size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div className="bank-data-cell">
+              <span className="bank-cell-lbl">IFSC Code</span>
+              <div className="bank-cell-val-wrap">
+                <span className="bank-cell-val font-mono">HDFC0001641</span>
+                <button 
+                  type="button" 
+                  className="btn-copy-mini"
+                  onClick={() => {
+                    navigator.clipboard.writeText('HDFC0001641');
+                    showToast('✓ IFSC Code copied: HDFC0001641', 'success');
+                  }}
+                  title="Copy IFSC Code"
+                >
+                  <Copy size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div className="bank-data-cell">
+              <span className="bank-cell-lbl">Account Holder</span>
+              <span className="bank-cell-val">MIRROR SOLAR VISION</span>
+            </div>
+
+            <div className="bank-data-cell">
+              <span className="bank-cell-lbl">Bank & Branch</span>
+              <span className="bank-cell-val">HDFC Bank, Eluru</span>
+            </div>
+          </div>
+        </div>
 
         {/* ========================================================= */}
         {/* TAB 1: CUSTOMER TO ADMIN (INCOMING COLLECTIONS)           */}

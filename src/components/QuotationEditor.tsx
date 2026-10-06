@@ -19,6 +19,8 @@ import { useQuotations } from '../context/QuotationContext';
 import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
 import logoUrl from '../assets/mirrorsolarlogo.png';
+import SolarRoiCalculatorModal from './SolarRoiCalculatorModal';
+import WhatsAppDispatchModal from './WhatsAppDispatchModal';
 import './QuotationEditor.css';
 
 interface QuotationEditorProps {
@@ -36,6 +38,11 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
   // Mode: Existing Lead vs New Lead
   const [mode, setMode] = useState<'existing' | 'new'>(initialLeadId || initialQuotation?.leadId ? 'existing' : 'new');
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialLeadId || initialQuotation?.leadId || '');
+
+  // Solar ROI and WhatsApp Modal State
+  const [showRoiModal, setShowRoiModal] = useState<boolean>(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
+
 
 
   // Customer Details Form
@@ -343,8 +350,16 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
           <div className="qe-topbar-actions">
             <button 
               type="button" 
+              className="btn-hero-secondary qe-roi-btn" 
+              onClick={() => setShowRoiModal(true)}
+              title="Calculate solar generation, monthly savings & 25-yr ROI"
+            >
+              <Zap size={15} color="#f59e0b" /> <span>Solar ROI</span>
+            </button>
+            <button 
+              type="button" 
               className="btn-hero-secondary qe-whatsapp-btn" 
-              onClick={handleShareWhatsApp}
+              onClick={() => setShowWhatsAppModal(true)}
               title="Share quotation proposal directly on WhatsApp"
             >
               <Share2 size={15} /> <span>Send WhatsApp</span>
@@ -1032,6 +1047,38 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
             </div>
           </div>
         </div>
+
+        {/* Solar ROI Calculator Modal */}
+        <SolarRoiCalculatorModal
+          isOpen={showRoiModal}
+          onClose={() => setShowRoiModal(false)}
+          initialCapacityKw={project.systemCapacityKw}
+          initialCost={financials.grandTotal}
+          initialSubsidy={financials.subsidyAmount}
+          customerName={customer.customerName || 'Valued Customer'}
+          customerPhone={customer.mobileNumber}
+          onApplyToQuotation={(newKw, calculatedCost) => {
+            setProject(prev => ({ ...prev, systemCapacityKw: newKw, singleTotalPrice: calculatedCost || (newKw * 65000) }));
+            showToast(`Applied ${newKw} kW capacity to quotation!`, 'success');
+          }}
+        />
+
+        {/* WhatsApp Smart Communication Modal */}
+        <WhatsAppDispatchModal
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          defaultTemplate="proposal"
+          customerData={{
+            customerName: customer.customerName || 'Valued Customer',
+            customerPhone: customer.mobileNumber,
+            capacityKw: project.systemCapacityKw,
+            quotationNumber: initialQuotation?.quotationNumber || 'DRAFT',
+            grandTotal: financials.grandTotal,
+            subsidyAmount: financials.subsidyAmount,
+            netPayable: financials.netPayableByCustomer
+          }}
+        />
       </div>
   );
 }
+

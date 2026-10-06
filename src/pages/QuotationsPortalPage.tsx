@@ -12,6 +12,8 @@ import { useUI } from '../context/UIContext';
 import type { Quotation, QuotationStatus } from '../types/quotation';
 import { compareQuotationVersions } from '../utils/quotationCalculations';
 import QuotationEditor from '../components/QuotationEditor';
+import SolarRoiCalculatorModal from '../components/SolarRoiCalculatorModal';
+import WhatsAppDispatchModal from '../components/WhatsAppDispatchModal';
 import './QuotationsPortalPage.css';
 
 export default function QuotationsPortalPage() {
@@ -30,6 +32,11 @@ export default function QuotationsPortalPage() {
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [selectedLeadIdForNew, setSelectedLeadIdForNew] = useState<string | undefined>(undefined);
   const [comparingVersions, setComparingVersions] = useState<{ v1: Quotation; v2: Quotation } | null>(null);
+
+  // Solar ROI and WhatsApp Smart Communication Modal States
+  const [showRoiModal, setShowRoiModal] = useState<boolean>(false);
+  const [whatsAppModalQuotation, setWhatsAppModalQuotation] = useState<Quotation | null>(null);
+
 
   // Filtered list
   const filteredQuotations = useMemo(() => {
@@ -124,28 +131,7 @@ export default function QuotationsPortalPage() {
   };
 
   const handleShareWhatsApp = (q: Quotation) => {
-    let text = `*MIRROR SOLAR VISION — SOLAR PROPOSAL*\n` +
-      `===================================\n` +
-      `*Quotation No:* ${q.quotationNumber}\n` +
-      `*Customer:* ${q.customer.customerName}\n` +
-      `*Mobile:* ${q.customer.mobileNumber}\n` +
-      `*Plant Capacity:* ${q.project.systemCapacityKw} kW (${q.project.plantType})\n` +
-      `*Structure Type:* ${q.project.structureType || 'Hot Dip Company Structure'}\n`;
-
-    if (q.project.structureType === 'Hot Dip Company Structure') {
-      text += `*Leg Heights:* Front ${q.project.frontLegHeight || '4 ft'}, Rear ${q.project.rearLegHeight || '7 ft'}\n`;
-    }
-
-    text += `-----------------------------------\n` +
-      `*Total Project Price:* ₹${q.financials.grandTotal.toLocaleString('en-IN')} (Includes 5% GST)\n` +
-      `*PM Surya Ghar Central Subsidy:* ₹78,000/- (Direct Govt. DBT credit to customer account; not deducted from company invoice)\n` +
-      `*Net Payable to Mirror Solar:* ₹${q.financials.grandTotal.toLocaleString('en-IN')}\n\n` +
-      `*Validity:* ${q.validityDays} Calendar Days\n` +
-      `*Mirror Solar Vision* | Ph: ${q.companySnapshot.phone}`;
-
-    const cleanPhone = q.customer.mobileNumber.replace(/\D/g, '');
-    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    window.open(`https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(text)}`, '_blank');
+    setWhatsAppModalQuotation(q);
   };
 
   const diffResult = useMemo(() => {
@@ -162,9 +148,18 @@ export default function QuotationsPortalPage() {
         title="Quotations"
         subtitle="Create, amend, calculate PM Surya Ghar subsidies, and print bill-book proposals."
         actions={
-          <button className="btn-hero-primary" onClick={() => handleOpenNew()}>
-            <Plus size={18} /> New Quotation
-          </button>
+          <div style={{ display: 'flex', gap: '0.65rem' }}>
+            <button 
+              className="btn-hero-secondary" 
+              onClick={() => setShowRoiModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+            >
+              <Zap size={16} color="#f59e0b" /> <span>Solar ROI Estimator</span>
+            </button>
+            <button className="btn-hero-primary" onClick={() => handleOpenNew()}>
+              <Plus size={18} /> New Quotation
+            </button>
+          </div>
         }
       />
 
@@ -426,6 +421,32 @@ export default function QuotationsPortalPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Solar ROI Estimator Modal */}
+      <SolarRoiCalculatorModal
+        isOpen={showRoiModal}
+        onClose={() => setShowRoiModal(false)}
+        initialCapacityKw={3}
+        customerName="Customer Proposal"
+      />
+
+      {/* WhatsApp Smart Communication Modal */}
+      {whatsAppModalQuotation && (
+        <WhatsAppDispatchModal
+          isOpen={!!whatsAppModalQuotation}
+          onClose={() => setWhatsAppModalQuotation(null)}
+          defaultTemplate="proposal"
+          customerData={{
+            customerName: whatsAppModalQuotation.customer.customerName,
+            customerPhone: whatsAppModalQuotation.customer.mobileNumber,
+            capacityKw: whatsAppModalQuotation.project.systemCapacityKw,
+            quotationNumber: whatsAppModalQuotation.quotationNumber,
+            grandTotal: whatsAppModalQuotation.financials.grandTotal,
+            subsidyAmount: whatsAppModalQuotation.financials.subsidyAmount,
+            netPayable: whatsAppModalQuotation.financials.netPayableByCustomer
+          }}
+        />
       )}
     </div>
   );

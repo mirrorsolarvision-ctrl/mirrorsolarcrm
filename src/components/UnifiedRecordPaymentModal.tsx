@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, ArrowDownLeft, ArrowUpRight, Upload, 
-  IndianRupee, CheckCircle2, Clock, AlertCircle, FileText, Loader2, Sparkles, Building2, User
+  IndianRupee, CheckCircle2, Clock, AlertCircle, FileText, Loader2, Sparkles, Building2, User, Copy
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import type { 
@@ -11,8 +11,7 @@ import type {
   CustomerPaymentMode 
 } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { uploadFileToStorage } from '../utils/cloudStorageUtils';
 import './UnifiedRecordPaymentModal.css';
 
 export type PaymentRecordModalType = 'customer_to_vendor' | 'vendor_to_dealer';
@@ -107,9 +106,9 @@ export default function UnifiedRecordPaymentModal({
   if (!isOpen) return null;
 
   const uploadToFirebase = async (file: File, folder: string): Promise<string> => {
-    const fileRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-    await uploadBytes(fileRef, file);
-    return await getDownloadURL(fileRef);
+    return uploadFileToStorage(file, folder, {
+      compressImage: true
+    });
   };
 
   const handleCustomerPaymentSubmit = async (e: React.FormEvent) => {
@@ -321,6 +320,57 @@ export default function UnifiedRecordPaymentModal({
         {/* TAB 1 FORM: CUSTOMER TO VENDOR AMOUNT */}
         {activeType === 'customer_to_vendor' && (
           <form onSubmit={handleCustomerPaymentSubmit} className="modal-tab-form">
+            {/* Mirror Solar Vision Official Bank Details Quick Reference */}
+            <div className="modal-bank-reference-card">
+              <div className="modal-bank-header">
+                <div className="modal-bank-title">
+                  <Building2 size={16} className="text-blue" />
+                  <span>Mirror Solar Vision Official Bank Details</span>
+                </div>
+                <span className="modal-bank-branch-pill">HDFC BANK, ELURU</span>
+              </div>
+              <div className="modal-bank-grid">
+                <div className="modal-bank-col">
+                  <span className="mb-lbl">A/C No:</span>
+                  <div className="mb-val-row">
+                    <span className="mb-val font-mono">50200118210181</span>
+                    <button
+                      type="button"
+                      className="mb-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText('50200118210181');
+                        showToast('✓ Copied A/C: 50200118210181', 'success');
+                      }}
+                      title="Copy Account Number"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+                <div className="modal-bank-col">
+                  <span className="mb-lbl">IFSC:</span>
+                  <div className="mb-val-row">
+                    <span className="mb-val font-mono">HDFC0001641</span>
+                    <button
+                      type="button"
+                      className="mb-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText('HDFC0001641');
+                        showToast('✓ Copied IFSC: HDFC0001641', 'success');
+                      }}
+                      title="Copy IFSC"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+                <div className="modal-bank-col">
+                  <span className="mb-lbl">Holder:</span>
+                  <span className="mb-val bold">MIRROR SOLAR VISION</span>
+                </div>
+              </div>
+            </div>
+
             <div className="form-two-col">
               <div className="form-field">
                 <label>Amount Collected (₹) *</label>
