@@ -19,6 +19,7 @@ const PaymentsPage = lazy(() => import('../PaymentsPage'));
 const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
 const TasksPage = lazy(() => import('../TasksPage'));
 const CalendarPage = lazy(() => import('../CalendarPage'));
+const EmployeeEodReportPage = lazy(() => import('../pages/EmployeeEodReportPage'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -71,6 +72,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
                       currentPath === '/employee/payments' ? 'Payments' :
                       currentPath === '/employee/stock' ? 'Stock' :
                       currentPath === '/employee/reports' ? 'Reports' :
+                      currentPath === '/employee/eod-report' ? 'EOD Report' :
                       currentPath === '/employee/profile' ? 'Profile' : 'Dashboard';
 
     if (!canAccessRoute(currentUser, routeName)) {
@@ -94,6 +96,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         return <PaymentsPage onNavigate={handleNavigate} />;
       case '/employee/stock':
         return <StockPage />;
+      case '/employee/eod-report':
+        return <EmployeeEodReportPage />;
       case '/employee/profile':
         return <ProfilePage />;
       case '/employee/reports':

@@ -30,6 +30,9 @@ export default function EmployeeAttendancePage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Sunday Check
+  const isSunday = currentTime.getDay() === 0;
+
   // Time Analysis for Recommendations
   const currentHours = currentTime.getHours();
   const currentMinutes = currentTime.getMinutes();
@@ -120,7 +123,11 @@ export default function EmployeeAttendancePage() {
                 {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
               <div className="ea-window-guidance">
-                {isFullDayWindow ? (
+                {isSunday ? (
+                  <span style={{color: '#4338ca', fontWeight: 600}}>
+                    🏖️ Sunday is a Weekly Holiday! If you have active field duty or project work today, you can freely punch attendance below.
+                  </span>
+                ) : isFullDayWindow ? (
                   <span className="ea-guide-active">
                     🟢 Full Day Window Active: Mark Present between <strong>9:30 AM – 10:30 AM</strong>
                   </span>
@@ -221,6 +228,11 @@ export default function EmployeeAttendancePage() {
                 <tr key={rec.id}>
                   <td className="font-semibold text-navy">
                     {new Date(rec.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {new Date(rec.date).getDay() === 0 && (
+                      <span style={{ display: 'inline-block', fontSize: '10px', background: '#ede9fe', color: '#6d28d9', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 700 }}>
+                        Sunday Duty
+                      </span>
+                    )}
                   </td>
                   <td>
                     {rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--'}

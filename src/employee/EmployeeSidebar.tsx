@@ -40,19 +40,28 @@ export default function EmployeeSidebar({
   onSignOut
 }: EmployeeSidebarProps) {
   const { currentUser } = useCRM();
+  const isStockIncharge = currentUser?.employeeCategory === 'Stock Incharge';
+  const isSuryaGhar = currentUser?.employeeCategory === 'Surya Ghar Incharge' || currentUser?.employeeCategory === 'PM Surya Ghar Incharge';
 
   const allNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
-    { name: 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: isSuryaGhar ? 'All Leads & KYC' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
     { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Tasks' },
     { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Calendar' },
-    { name: 'Stock', path: '/employee/stock', icon: Package, routeName: 'Stock' },
+    { name: isStockIncharge ? 'Warehouse Stock' : 'Stock Availability', path: '/employee/stock', icon: Package, routeName: 'Stock' },
+    { name: 'Day End Report', path: '/employee/eod-report', icon: FileText, routeName: 'EOD Report' },
     { name: 'Reports', path: '/employee/reports', icon: LayoutDashboard, routeName: 'Reports' },
   ];
 
-  const navItems = allNavItems.filter(item => canAccessRoute(currentUser, item.routeName));
+  const navItems = allNavItems.filter(item => {
+    // If stock incharge without explicit leads access, hide leads/quotations unless enabled
+    if (isStockIncharge && (item.routeName === 'Leads' || item.routeName === 'Quotations')) {
+      return canAccessRoute(currentUser, item.routeName);
+    }
+    return canAccessRoute(currentUser, item.routeName);
+  });
 
   return (
     <>

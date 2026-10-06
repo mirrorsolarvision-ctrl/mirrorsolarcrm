@@ -23,7 +23,9 @@ export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead
 
 export const isSuryaGharEmployee = (user: User | null | undefined): boolean => {
   if (!user) return false;
-  return user.employeeCategory === 'Surya Ghar Incharge' || user.role === 'Employee';
+  return user.employeeCategory === 'Surya Ghar Incharge' || 
+         user.employeeCategory === 'PM Surya Ghar Incharge' || 
+         user.role === 'Admin';
 };
 
 export const getEmployeeLeads = (employeeName: string, leads: MockLead[]) => {

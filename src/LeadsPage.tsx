@@ -497,7 +497,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const baseLeads = useMemo(() => {
     let result = leads;
     if (isEmployee && currentUser) {
-      result = result.filter(l => isLeadAssignedToEmployee(currentUser, l));
+      if (isSuryaGhar) {
+        // PM Surya Ghar Incharge gets full company-wide visibility to ALL leads across marketing employees and dealers
+        result = leads;
+      } else {
+        result = result.filter(l => isLeadAssignedToEmployee(currentUser, l));
+      }
     } else if (isDealer && currentUser) {
       const curName = (currentUser.name || '').trim().toLowerCase();
       const curId = (currentUser.id || '').trim().toLowerCase();
@@ -511,7 +516,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       });
     }
     return result;
-  }, [leads, isEmployee, isDealer, currentUser]);
+  }, [leads, isEmployee, isDealer, isSuryaGhar, currentUser]);
 
   // --- 2. SUMMARY METRICS (Derived strictly from baseLeads) ---
   const totalLeads = baseLeads.length;

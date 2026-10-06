@@ -536,6 +536,26 @@ export default function StockPage() {
         </button>
       </div>
 
+      {!canManageStock && (
+        <div style={{
+          background: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          borderRadius: '10px',
+          padding: '0.85rem 1.25rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          color: '#166534',
+          fontSize: '0.9rem'
+        }}>
+          <Package size={20} color="#16a34a" style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Live Stock Availability (Read-Only Catalog):</strong> You can review available panels, inverters, and components to quote accurately to clients. Stock inward entries, dispatches, and warehouse alterations are handled by the Stock Incharge.
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* TAB 1: CENTRAL WAREHOUSE INVENTORY                                        */}
       {/* ========================================================================= */}

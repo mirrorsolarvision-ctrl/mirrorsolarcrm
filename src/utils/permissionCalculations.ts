@@ -98,6 +98,10 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
     case 'My Employees':
     case 'Employees':
       return features.myEmployees !== false;
+    case 'EOD Report':
+    case 'Day End Report':
+    case 'EOD':
+      return true;
     case 'Profile':
       return true;
     default:
