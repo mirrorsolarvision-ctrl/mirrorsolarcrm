@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { 
   LayoutDashboard, Users, Briefcase, Package, Shield, 
   Bell, ChevronDown, ChevronRight, LogOut, Settings, User, 
@@ -10,22 +10,27 @@ import {
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import './AdminDashboard.css';
-import StockPage from './StockPage';
-import QuotationsPortalPage from './pages/QuotationsPortalPage';
-import AdminUsersDirectoryPage from './AdminUsersDirectoryPage';
+
+import RouteLoadingFallback from './components/RouteLoadingFallback';
+import ErrorBoundary from './components/ErrorBoundary';
+
+const StockPage = lazy(() => import('./StockPage'));
+const QuotationsPortalPage = lazy(() => import('./pages/QuotationsPortalPage'));
+const AdminUsersDirectoryPage = lazy(() => import('./AdminUsersDirectoryPage'));
+const AdminAttendancePage = lazy(() => import('./AdminAttendancePage'));
+const LeadsPage = lazy(() => import('./LeadsPage'));
+const AdminReportsPage = lazy(() => import('./AdminReportsPage'));
+const ProfilePage = lazy(() => import('./ProfilePage'));
+const TasksPage = lazy(() => import('./TasksPage'));
+const CalendarPage = lazy(() => import('./CalendarPage'));
+const PaymentsPage = lazy(() => import('./PaymentsPage'));
+
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
 import type { MockLead, Stage } from './context/CRMContext';
 import { useUI } from './context/UIContext';
-import AdminAttendancePage from './AdminAttendancePage';
 import AccessRestricted from './components/AccessRestricted';
 import { canAccessRoute } from './utils/permissionCalculations';
-import LeadsPage from './LeadsPage';
-import AdminReportsPage from './AdminReportsPage';
-import ProfilePage from './ProfilePage';
-import TasksPage from './TasksPage';
-import CalendarPage from './CalendarPage';
-import PaymentsPage from './PaymentsPage';
 import MobileBottomNav from './components/MobileBottomNav';
 
 // --- Custom Hooks ---
@@ -67,7 +72,10 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   const [stageAnimation, setStageAnimation] = useState(0);
 
   // Lead State
-  const { leads, employees, dealers, currentUser, activities, tasks, updateLeadStage, updateLead, addActivity } = useCRM();
+  const { 
+    leads, employees, dealers, currentUser, activities, tasks, 
+    updateLeadStage, updateLead, addActivity, resolveLeadReassignment 
+  } = useCRM();
   const { showToast, showConfirmModal } = useUI();
   const { deductDealerStockForLeadMaterial, stockDispatches } = useStock();
   const pendingDispatchesCount = useMemo(() => stockDispatches?.filter(d => d.status === 'Pending Dealer Confirmation').length || 0, [stockDispatches]);
@@ -92,6 +100,29 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectTargetLead, setRejectTargetLead] = useState<MockLead | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  // Pending Reassignment Transfer Requests Alert
+  const pendingReassignmentLeads = useMemo(() => {
+    return leads.filter(l => l.reassignmentRequest && l.reassignmentRequest.status === 'Pending');
+  }, [leads]);
+
+  const handleApproveReassignment = async (lead: MockLead) => {
+    try {
+      await resolveLeadReassignment(lead.id, 'Approved');
+      showToast(`✓ Lead transfer approved for ${lead.customer}!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to approve transfer', 'error');
+    }
+  };
+
+  const handleRejectReassignment = async (lead: MockLead) => {
+    try {
+      await resolveLeadReassignment(lead.id, 'Rejected', 'Rejected by Admin from Dashboard');
+      showToast(`Lead transfer rejected for ${lead.customer}`, 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reject transfer', 'error');
+    }
+  };
 
   const handleApproveInstallation = async (lead: MockLead) => {
     if (lead.dealerSpecifications && lead.dealer) {
@@ -388,40 +419,42 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
           </div>
         </header>
 
-        {!canAccessRoute(currentUser, activeTab) ? (
-          <AccessRestricted onReturnToDashboard={() => setActiveTab('Dashboard')} />
-        ) : activeTab === 'Stock' ? (
-          <StockPage />
-        ) : activeTab === 'Quotations' ? (
-          <QuotationsPortalPage />
-        ) : activeTab === 'Users & Access' || activeTab === 'Employees' || activeTab === 'Dealers' || activeTab === 'Access' || activeTab === 'Responsibilities' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
-          <AdminUsersDirectoryPage 
-            onNavigateToLeads={(dealerOrEmp) => {
-              setSelectedDealerFilter(dealerOrEmp);
-              setActiveTab('Leads');
-            }} 
-          />
-        ) : activeTab === 'Attendance' ? (
-          <AdminAttendancePage />
-        ) : activeTab === 'Leads' ? (
-          <LeadsPage />
-        ) : activeTab === 'Payments' ? (
-          <PaymentsPage onNavigate={handleNavClick} />
-        ) : activeTab === 'Reports' ? (
-          <AdminReportsPage onNavigate={handleNavClick} />
-        ) : activeTab === 'Profile' ? (
-          <ProfilePage />
-        ) : activeTab === 'Tasks' ? (
-          <TasksPage onNavigate={handleNavClick} />
-        ) : activeTab === 'Calendar' ? (
-          <CalendarPage onNavigate={handleNavClick} />
-        ) : (
-        <div className="dashboard-content">
-          <div className={`welcome-section ${stageAnimation >= 3 ? 'reveal' : ''}`}>
-            <h1>Good morning, Admin</h1>
-            <div className="welcome-accent"></div>
-            <p>Here’s what’s happening across your solar operations today.</p>
-          </div>
+        <ErrorBoundary fallbackTitle="Module Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
+          <Suspense fallback={<RouteLoadingFallback message={`Loading ${activeTab}...`} subMessage="Mirror Solar Workspace" />}>
+            {!canAccessRoute(currentUser, activeTab) ? (
+              <AccessRestricted onReturnToDashboard={() => setActiveTab('Dashboard')} />
+            ) : activeTab === 'Stock' ? (
+              <StockPage />
+            ) : activeTab === 'Quotations' ? (
+              <QuotationsPortalPage />
+            ) : activeTab === 'Users & Access' || activeTab === 'Employees' || activeTab === 'Dealers' || activeTab === 'Access' || activeTab === 'Responsibilities' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
+              <AdminUsersDirectoryPage 
+                onNavigateToLeads={(dealerOrEmp) => {
+                  setSelectedDealerFilter(dealerOrEmp);
+                  setActiveTab('Leads');
+                }} 
+              />
+            ) : activeTab === 'Attendance' ? (
+              <AdminAttendancePage />
+            ) : activeTab === 'Leads' ? (
+              <LeadsPage />
+            ) : activeTab === 'Payments' ? (
+              <PaymentsPage onNavigate={handleNavClick} />
+            ) : activeTab === 'Reports' ? (
+              <AdminReportsPage onNavigate={handleNavClick} />
+            ) : activeTab === 'Profile' ? (
+              <ProfilePage />
+            ) : activeTab === 'Tasks' ? (
+              <TasksPage onNavigate={handleNavClick} />
+            ) : activeTab === 'Calendar' ? (
+              <CalendarPage onNavigate={handleNavClick} />
+            ) : (
+            <div className="dashboard-content">
+              <div className={`welcome-section ${stageAnimation >= 3 ? 'reveal' : ''}`}>
+                <h1>Good morning, Admin</h1>
+                <div className="welcome-accent"></div>
+                <p>Here’s what’s happening across your solar operations today.</p>
+              </div>
 
           <div className={`overview-grid ${stageAnimation >= 4 ? 'reveal' : ''}`}>
             <div className="overview-card interactive-card" style={{animationDelay: '0s'}} onClick={() => handleNavClick('Leads')}>
@@ -586,6 +619,64 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               })()}
             </div>
           </div>
+
+          {/* PENDING LEAD REASSIGNMENT / TRANSFER REQUESTS ALERT */}
+          {pendingReassignmentLeads.length > 0 && (
+            <div className="dashboard-panel" style={{background: '#eff6ff', border: '1.5px solid #93c5fd', padding: '1.25rem', marginBottom: '1.5rem', borderRadius: '12px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
+                  <div style={{width: 36, height: 36, borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8'}}>
+                    <ArrowRight size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{margin: 0, fontSize: '1.05rem', color: '#1e40af', fontWeight: 800}}>Pending Lead Transfer Requests</h3>
+                    <p style={{margin: '0.15rem 0 0', fontSize: '0.8rem', color: '#3b82f6'}}>
+                      {pendingReassignmentLeads.length} staff member{pendingReassignmentLeads.length === 1 ? '' : 's'} requested lead reassignment requiring Admin approval
+                    </p>
+                  </div>
+                </div>
+                <span style={{background: '#dbeafe', color: '#1e40af', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #bfdbfe'}}>
+                  {pendingReassignmentLeads.length} Awaiting Approval
+                </span>
+              </div>
+
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.65rem'}}>
+                {pendingReassignmentLeads.map(lead => (
+                  <div key={lead.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', background: '#fff', borderRadius: '10px', border: '1px solid #bfdbfe', flexWrap: 'wrap', gap: '0.75rem'}}>
+                    <div>
+                      <div style={{fontWeight: 700, color: '#1e293b', fontSize: '0.95rem'}}>
+                        {lead.customer} <span style={{fontSize: '0.8rem', color: '#64748b', fontWeight: 400}}>({lead.phone})</span>
+                      </div>
+                      <div style={{fontSize: '0.82rem', color: '#475569', marginTop: '0.2rem'}}>
+                        Requested by: <strong>{lead.reassignmentRequest?.requestedBy}</strong> ({lead.reassignmentRequest?.requestedByRole}) &rarr; Target: <strong style={{color: '#2563eb'}}>{[lead.reassignmentRequest?.targetEmployee, lead.reassignmentRequest?.targetDealer].filter(Boolean).join(' / ')}</strong>
+                      </div>
+                      {lead.reassignmentRequest?.reason && (
+                        <div style={{fontSize: '0.78rem', color: '#64748b', fontStyle: 'italic', marginTop: '0.15rem'}}>
+                          "{lead.reassignmentRequest.reason}"
+                        </div>
+                      )}
+                    </div>
+                    <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                      <button 
+                        className="btn-primary" 
+                        style={{padding: '0.35rem 0.85rem', fontSize: '0.85rem', background: '#16a34a', borderColor: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.35rem'}}
+                        onClick={() => handleApproveReassignment(lead)}
+                      >
+                        <Check size={14} /> Approve Transfer
+                      </button>
+                      <button 
+                        className="btn-outline" 
+                        style={{padding: '0.35rem 0.85rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5'}}
+                        onClick={() => handleRejectReassignment(lead)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* PENDING INSTALLATION APPROVALS ALERT */}
           {pendingInstallationLeads.length > 0 && (
@@ -814,6 +905,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
           </div>
         </div>
         )}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* LEAD DETAIL SLIDE-OVER PANEL */}

@@ -1,19 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
-import EmployeeAttendancePage from '../pages/EmployeeAttendancePage';
-import QuotationsPortalPage from '../pages/QuotationsPortalPage';
-import ProfilePage from '../ProfilePage';
-import LeadsPage from '../LeadsPage';
-import StockPage from '../StockPage';
-import AdminReportsPage from '../AdminReportsPage';
-import TasksPage from '../TasksPage';
-import CalendarPage from '../CalendarPage';
 import MobileBottomNav from '../components/MobileBottomNav';
+import RouteLoadingFallback from '../components/RouteLoadingFallback';
+import ErrorBoundary from '../components/ErrorBoundary';
+
+// Lazy-loaded portal modules
+const EmployeeAttendancePage = lazy(() => import('../pages/EmployeeAttendancePage'));
+const QuotationsPortalPage = lazy(() => import('../pages/QuotationsPortalPage'));
+const ProfilePage = lazy(() => import('../ProfilePage'));
+const LeadsPage = lazy(() => import('../LeadsPage'));
+const StockPage = lazy(() => import('../StockPage'));
+const PaymentsPage = lazy(() => import('../PaymentsPage'));
+const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
+const TasksPage = lazy(() => import('../TasksPage'));
+const CalendarPage = lazy(() => import('../CalendarPage'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -63,6 +68,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
                       currentPath === '/employee/quotations' ? 'Quotations' :
                       currentPath === '/employee/tasks' ? 'Tasks' :
                       currentPath === '/employee/calendar' ? 'Calendar' :
+                      currentPath === '/employee/payments' ? 'Payments' :
                       currentPath === '/employee/stock' ? 'Stock' :
                       currentPath === '/employee/reports' ? 'Reports' :
                       currentPath === '/employee/profile' ? 'Profile' : 'Dashboard';
@@ -77,7 +83,6 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
       case '/employee/attendance':
         return <EmployeeAttendancePage />;
       case '/employee/leads':
-        // Pass filters to Leads page (e.g. stage, status) if it supports it
         return <LeadsPage {...(routeFilters || {})} />;
       case '/employee/quotations':
         return <QuotationsPortalPage />;
@@ -85,6 +90,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         return <TasksPage onNavigate={handleNavigate} />;
       case '/employee/calendar':
         return <CalendarPage onNavigate={handleNavigate} />;
+      case '/employee/payments':
+        return <PaymentsPage onNavigate={handleNavigate} />;
       case '/employee/stock':
         return <StockPage />;
       case '/employee/profile':
@@ -141,7 +148,11 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
           </div>
         </header>
 
-        {renderPage()}
+        <ErrorBoundary fallbackTitle="Employee Workspace Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
+          <Suspense fallback={<RouteLoadingFallback message="Loading Employee Workspace..." subMessage="Mirror Solar Field Operations" />}>
+            {renderPage()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Floating Glassmorphic Mobile Bottom Navigation */}

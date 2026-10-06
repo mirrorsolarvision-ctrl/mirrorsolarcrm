@@ -1,23 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import DealerSidebar from './DealerSidebar';
-
 import DealerDashboard from './DealerDashboard';
-import DealerEmployeesPage from './DealerEmployeesPage';
-import DealerAttendancePage from './DealerAttendancePage';
-import QuotationsPortalPage from '../pages/QuotationsPortalPage';
-import DealerStockPage from './DealerStockPage';
-import ProfilePage from '../ProfilePage';
-import LeadsPage from '../LeadsPage';
-import AdminReportsPage from '../AdminReportsPage';
-import TasksPage from '../TasksPage';
-import CalendarPage from '../CalendarPage';
-import PaymentsPage from '../PaymentsPage';
 import { useStock } from '../context/StockContext';
 import MobileBottomNav from '../components/MobileBottomNav';
+import RouteLoadingFallback from '../components/RouteLoadingFallback';
+import ErrorBoundary from '../components/ErrorBoundary';
+
+// Lazy-loaded dealer sub-modules
+const DealerEmployeesPage = lazy(() => import('./DealerEmployeesPage'));
+const DealerAttendancePage = lazy(() => import('./DealerAttendancePage'));
+const QuotationsPortalPage = lazy(() => import('../pages/QuotationsPortalPage'));
+const DealerStockPage = lazy(() => import('./DealerStockPage'));
+const ProfilePage = lazy(() => import('../ProfilePage'));
+const LeadsPage = lazy(() => import('../LeadsPage'));
+const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
+const TasksPage = lazy(() => import('../TasksPage'));
+const CalendarPage = lazy(() => import('../CalendarPage'));
+const PaymentsPage = lazy(() => import('../PaymentsPage'));
 
 interface DealerAppProps {
   onSignOut: () => void;
@@ -152,7 +155,11 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
           </div>
         </header>
 
-        {renderPage()}
+        <ErrorBoundary fallbackTitle="Dealer Workspace Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
+          <Suspense fallback={<RouteLoadingFallback message="Loading Dealer Portal..." subMessage="Mirror Solar Partner Network" />}>
+            {renderPage()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Floating Glassmorphic Mobile Bottom Navigation */}

@@ -1,12 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import logoUrl from './assets/mirrorsolarlogo.png';
-import RoleSelection from './RoleSelection';
-import LoginScreen from './LoginScreen';
-import AdminDashboard from './AdminDashboard';
-import EmployeeApp from './employee/EmployeeApp';
-import DealerApp from './dealer/DealerApp';
 import './App.css';
+
+import RouteLoadingFallback from './components/RouteLoadingFallback';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Lazy-loaded top-level views for rapid initial startup
+const RoleSelection = lazy(() => import('./RoleSelection'));
+const LoginScreen = lazy(() => import('./LoginScreen'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const EmployeeApp = lazy(() => import('./employee/EmployeeApp'));
+const DealerApp = lazy(() => import('./dealer/DealerApp'));
 
 import { StockProvider } from './context/StockContext';
 import { CRMProvider } from './context/CRMContext';
@@ -163,75 +168,90 @@ function NotFound() {
 
 function AppContent() {
   const { setCurrentUser } = useCRM();
+  const { logoutUser } = useAuth();
   const navigate = useNavigate();
-
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
+    if (logoutUser) {
+      await logoutUser();
+    } else {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error("Error signing out:", error);
+      }
+      localStorage.removeItem('crm_session_user');
     }
     setCurrentUser(null);
     navigate('/role');
   };
 
   return (
-    <Routes>
-      <Route path="/" element={<SplashScreen />} />
-      <Route path="/role" element={<RoleSelectionWrapper />} />
-      <Route path="/login" element={<LoginScreenWrapper />} />
-      
-      <Route 
-        path="/admin/dashboard" 
-        element={
-          <ProtectedRoute allowedRoles={['Admin']}>
-            <AdminDashboard onSignOut={handleSignOut} />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/employee/dashboard" 
-        element={
-          <ProtectedRoute allowedRoles={['Employee']}>
-            <EmployeeApp onSignOut={handleSignOut} />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/dealer/dashboard" 
-        element={
-          <ProtectedRoute allowedRoles={['Dealer']}>
-            <DealerApp onSignOut={handleSignOut} />
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Suspense fallback={<RouteLoadingFallback message="Loading Mirror Solar CRM..." subMessage="Optimizing Solar Operations" />}>
+      <Routes>
+        <Route path="/" element={<SplashScreen />} />
+        <Route path="/role" element={<RoleSelectionWrapper />} />
+        <Route path="/login" element={<LoginScreenWrapper />} />
+        
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['Admin']}>
+              <ErrorBoundary fallbackTitle="Admin Dashboard Error" fallbackMessage="Could not load the Admin workspace. Try reloading or resetting.">
+                <AdminDashboard onSignOut={handleSignOut} />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/employee/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['Employee']}>
+              <ErrorBoundary fallbackTitle="Employee Portal Error" fallbackMessage="Could not load the Employee workspace. Try reloading or resetting.">
+                <EmployeeApp onSignOut={handleSignOut} />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/dealer/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['Dealer']}>
+              <ErrorBoundary fallbackTitle="Dealer Portal Error" fallbackMessage="Could not load the Dealer workspace. Try reloading or resetting.">
+                <DealerApp onSignOut={handleSignOut} />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AuditLogProvider>
-          <CRMProvider>
-            <StockProvider>
-              <QuotationProvider>
-                <AttendanceProvider>
-                  <MarketingProvider>
-                    <UIProvider>
-                      <AppContent />
-                    </UIProvider>
-                  </MarketingProvider>
-                </AttendanceProvider>
-              </QuotationProvider>
-            </StockProvider>
-          </CRMProvider>
-        </AuditLogProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary fallbackTitle="Mirror Solar CRM Application Error" fallbackMessage="An unhandled error occurred in the CRM shell. Your operations data is safe.">
+      <BrowserRouter>
+        <AuthProvider>
+          <AuditLogProvider>
+            <CRMProvider>
+              <StockProvider>
+                <QuotationProvider>
+                  <AttendanceProvider>
+                    <MarketingProvider>
+                      <UIProvider>
+                        <AppContent />
+                      </UIProvider>
+                    </MarketingProvider>
+                  </AttendanceProvider>
+                </QuotationProvider>
+              </StockProvider>
+            </CRMProvider>
+          </AuditLogProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

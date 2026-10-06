@@ -1,0 +1,115 @@
+.route-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  width: 100%;
+  padding: 3rem 1.5rem;
+  background: transparent;
+  color: #0b1f3a;
+  animation: routeFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.route-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem 3rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(11, 31, 58, 0.05), 0 8px 10px -6px rgba(11, 31, 58, 0.03);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+}
+
+.route-loading-solar-orb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.solar-orb-core {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #f59e0b 0%, #f4c430 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(244, 196, 48, 0.6);
+  animation: solarPulse 1.8s ease-in-out infinite alternate;
+}
+
+.solar-orb-ring {
+  position: absolute;
+  inset: 0;
+  border: 2.5px solid transparent;
+  border-top-color: #0b1f3a;
+  border-right-color: #f4c430;
+  border-radius: 50%;
+  animation: solarSpin 1.2s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+}
+
+.solar-orb-ring.secondary {
+  inset: -6px;
+  border-width: 1.5px;
+  border-top-color: transparent;
+  border-bottom-color: #3b82f6;
+  border-left-color: transparent;
+  animation: solarSpin 2s linear infinite reverse;
+}
+
+.route-loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.route-loading-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0b1f3a;
+  letter-spacing: -0.01em;
+}
+
+.route-loading-subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+@keyframes routeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes solarSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes solarPulse {
+  0% {
+    transform: scale(0.88);
+    box-shadow: 0 0 10px rgba(244, 196, 48, 0.4);
+  }
+  100% {
+    transform: scale(1.12);
+    box-shadow: 0 0 24px rgba(244, 196, 48, 0.8);
+  }
+}
