@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
-import { useCRM } from './context/CRMContext';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
-import { seedFirebaseUsers } from './seedFirebase';
 import './LoginScreen.css';
 
 interface LoginScreenProps {
@@ -20,9 +18,6 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [stage, setStage] = useState(0);
-  const [isSeeding, setIsSeeding] = useState(false);
-  
-  const { employees, dealers } = useCRM();
 
   useEffect(() => {
     // Entrance animations
@@ -77,22 +72,6 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       setErrorMsg("Invalid email or password.");
     } finally {
       setIsSigningIn(false);
-    }
-  };
-
-  const handleSeedDatabase = async () => {
-    setIsSeeding(true);
-    try {
-      const result = await seedFirebaseUsers(employees, dealers);
-      if (result.count === 0) {
-        alert(`Failed to seed users. Firebase Error: ${result.error}`);
-      } else {
-        alert(`Successfully seeded ${result.count} users into Firebase! You can now log in with their email and Password123!`);
-      }
-    } catch (err) {
-      alert("Error seeding database.");
-    } finally {
-      setIsSeeding(false);
     }
   };
 
@@ -235,17 +214,6 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           >
             <ArrowLeft className="back-arrow" size={16} /> Change account type
           </button>
-          
-          <button 
-            type="button" 
-            className={`btn-back ${stage >= 5 ? 'reveal' : ''}`} 
-            onClick={handleSeedDatabase}
-            disabled={isSeeding}
-            style={{ marginTop: '2rem', color: '#6366f1', background: '#e0e7ff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {isSeeding ? 'Seeding...' : 'One-Time Database Seed'}
-          </button>
-          
         </div>
       </div>
     </div>

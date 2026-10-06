@@ -656,6 +656,19 @@ interface CRMContextType {
   updateEmployeeFeatures: (employeeId: string, features: Partial<DealerFeatures>) => Promise<void>;
   updateUserPassword: (userId: string, role: 'Employee' | 'Dealer', newPassword: string) => Promise<void>;
   updateUserFeatures: (userId: string, role: 'Employee' | 'Dealer', features: Partial<DealerFeatures>) => Promise<void>;
+  updateUserCredentials: (
+    userId: string,
+    role: 'Employee' | 'Dealer' | 'Admin',
+    updates: {
+      name?: string;
+      email?: string;
+      password?: string;
+      phone?: string;
+      employeeCategory?: string;
+      status?: UserStatus;
+      address?: string;
+    }
+  ) => Promise<void>;
   addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => Promise<void>;
   updateDealerEmployee: (employeeId: string, dealerId: string, updates: Partial<Employee>) => Promise<void>;
 
@@ -1337,6 +1350,61 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateUserCredentials = async (
+    userId: string,
+    role: 'Employee' | 'Dealer' | 'Admin',
+    updates: {
+      name?: string;
+      email?: string;
+      password?: string;
+      phone?: string;
+      employeeCategory?: string;
+      status?: UserStatus;
+      address?: string;
+    }
+  ) => {
+    // Generate initials if name is updated
+    const initials = updates.name 
+      ? updates.name.split(' ').map(n => n[0]).filter(Boolean).join('').substring(0, 2).toUpperCase()
+      : undefined;
+
+    const fullUpdates = {
+      ...updates,
+      ...(initials ? { initials } : {})
+    };
+
+    if (role === 'Dealer') {
+      setDealers(prev => prev.map(d => d.id === userId ? { ...d, ...fullUpdates } : d));
+    } else if (role === 'Employee') {
+      setEmployees(prev => prev.map(e => e.id === userId ? { ...e, ...fullUpdates } : e));
+    } else if (role === 'Admin') {
+      setAdminUser(prev => ({ ...prev, ...fullUpdates }));
+    }
+
+    try {
+      const cleanUpdates: any = { ...fullUpdates };
+      Object.keys(cleanUpdates).forEach(key => {
+        if (cleanUpdates[key] === undefined) delete cleanUpdates[key];
+      });
+      cleanUpdates.updatedAt = new Date().toISOString();
+
+      // Find user to check if secondary doc key exists (e.g. employeeId)
+      const targetUser = employees.find(e => e.id === userId) || dealers.find(d => d.id === userId);
+
+      await updateDoc(doc(db, 'users', userId), cleanUpdates);
+
+      if (targetUser && (targetUser as any).employeeId && (targetUser as any).employeeId !== userId) {
+        try {
+          await updateDoc(doc(db, 'users', (targetUser as any).employeeId), cleanUpdates);
+        } catch (e) {
+          // secondary doc optional
+        }
+      }
+    } catch (err) {
+      console.warn("Error updating user credentials in Firestore:", err);
+    }
+  };
+
   const addDealerEmployee = async (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => {
     const newId = `EMP${Date.now()}`;
     const newEmployee: Employee = {
@@ -1581,6 +1649,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       attendances, markAttendance, removeAttendance, isEmployeePresent,
       getEmployeeAttendance, getAttendanceForDate, getEmployeeAttendanceHistory,
       updateDealerFeatures, updateEmployeeFeatures, updateUserFeatures, updateUserPassword,
+      updateUserCredentials,
       addDealerEmployee, updateDealerEmployee,
 
       // Responsibilities Management

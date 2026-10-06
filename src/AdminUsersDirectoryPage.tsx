@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { 
   Users, Briefcase, Search, Plus, X, Shield, Lock, Eye, EyeOff, 
   CheckCircle2, Key, Sliders, CheckSquare, Calendar, CreditCard, 
-  Package, FileText, UserCheck, TrendingUp, AlertTriangle, ArrowRight, UserPlus, Phone, Mail, MapPin, Zap
+  Package, FileText, UserCheck, TrendingUp, AlertTriangle, ArrowRight, UserPlus, Phone, Mail, MapPin, Zap, Edit3, Save
 } from 'lucide-react';
 import PageHero from './components/PageHero';
 import { useCRM, defaultDealerFeatures, defaultEmployeeFeatures } from './context/CRMContext';
 import { useUI } from './context/UIContext';
-import type { Employee, Dealer, DealerFeatures } from './context/CRMContext';
+import type { Employee, Dealer, DealerFeatures, UserStatus } from './context/CRMContext';
 import { DEALER_TARGET_KW } from './utils/dealerCalculations';
 import './AdminUsersDirectoryPage.css';
 
@@ -25,6 +25,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     updateDealer, 
     updateUserFeatures, 
     updateUserPassword,
+    updateUserCredentials,
     addActivity, 
     currentUser 
   } = useCRM();
@@ -43,10 +44,26 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
   const [featureModalUser, setFeatureModalUser] = useState<(Employee | Dealer) | null>(null);
   const [featureForm, setFeatureForm] = useState<DealerFeatures>({ ...defaultDealerFeatures });
 
-  // Password Management Modal (Admin Only)
+  // Full Edit Profile & Credentials Modal (Admin Master Control)
+  const [editModalUser, setEditModalUser] = useState<(Employee | Dealer) | null>(null);
+  const [editUserForm, setEditUserForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    employeeCategory: 'Marketing Employee',
+    address: '',
+    status: 'Active' as UserStatus
+  });
+  const [showEditPassword, setShowEditPassword] = useState(false);
+
+  // Quick Password Modal
   const [passwordModalUser, setPasswordModalUser] = useState<(Employee | Dealer) | null>(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [newPasswordInput, setNewPasswordInput] = useState('');
+
+  // Password peek tracking on cards
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
 
   // Add User Form State
   const [newUserForm, setNewUserForm] = useState({
@@ -56,7 +73,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     phone: '',
     address: '',
     password: 'Password123!',
-    status: 'Active' as 'Active' | 'Inactive',
+    employeeCategory: 'Marketing Employee',
+    status: 'Active' as UserStatus,
     dealerId: ''
   });
 
@@ -79,8 +97,9 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         const matches = 
           u.name.toLowerCase().includes(q) ||
           u.id.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q) ||
-          u.phone.includes(q);
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.phone && u.phone.includes(q)) ||
+          ((u as any).employeeCategory && (u as any).employeeCategory.toLowerCase().includes(q));
         if (!matches) return false;
       }
       return true;
@@ -95,6 +114,59 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     const targetQuota = totalDealers * DEALER_TARGET_KW;
     return { totalStaff, totalDealers, activeTotal, targetQuota };
   }, [employees, dealers, allUsers]);
+
+  // Toggle Password Card Peek
+  const togglePasswordPeek = (userId: string) => {
+    setRevealedPasswords(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }));
+  };
+
+  // Open Full Profile & Credential Edit Modal
+  const handleOpenEditModal = (user: Employee | Dealer) => {
+    setEditModalUser(user);
+    setEditUserForm({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      password: (user as any).password || 'Password123!',
+      employeeCategory: (user as any).employeeCategory || 'Marketing Employee',
+      address: (user as any).address || '',
+      status: user.status || 'Active'
+    });
+    setShowEditPassword(false);
+  };
+
+  // Save Full Profile & Credential Changes
+  const handleSaveEditCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalUser) return;
+
+    if (!editUserForm.name.trim() || !editUserForm.email.trim()) {
+      showToast('Name and Email are required.', 'error');
+      return;
+    }
+
+    await updateUserCredentials(editModalUser.id, editModalUser.role as 'Employee' | 'Dealer', {
+      name: editUserForm.name.trim(),
+      email: editUserForm.email.trim(),
+      phone: editUserForm.phone.trim(),
+      password: editUserForm.password.trim(),
+      employeeCategory: editModalUser.role === 'Employee' ? editUserForm.employeeCategory : undefined,
+      address: editModalUser.role === 'Dealer' ? editUserForm.address.trim() : undefined,
+      status: editUserForm.status
+    });
+
+    addActivity({
+      type: 'User Updated',
+      message: `Admin updated account profile, credentials & role info for ${editUserForm.name} (${editModalUser.role})`,
+      user: currentUser?.name || 'Admin'
+    });
+
+    showToast(`✓ Updated profile & credentials for ${editUserForm.name}!`, 'success');
+    setEditModalUser(null);
+  };
 
   // Open Feature Approval Modal
   const handleOpenFeatures = (user: Employee | Dealer) => {
@@ -186,28 +258,29 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         lastActive: 'Just now',
         initials: newUserForm.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
         dealerId: newUserForm.dealerId || null,
+        employeeCategory: newUserForm.employeeCategory,
         features: { ...defaultEmployeeFeatures },
         password: newUserForm.password || 'Password123!'
       });
-      showToast(`✓ Employee ${newUserForm.name} created successfully!`, 'success');
+      showToast(`✓ Employee ${newUserForm.name} created successfully (${newUserForm.employeeCategory})!`, 'success');
     }
 
     setIsAddUserModalOpen(false);
     setNewUserForm({
-      name: '', id: '', email: '', phone: '', address: '', password: 'Password123!', status: 'Active', dealerId: ''
+      name: '', id: '', email: '', phone: '', address: '', password: 'Password123!', employeeCategory: 'Marketing Employee', status: 'Active', dealerId: ''
     });
   };
 
   return (
     <div className="users-hub-container" style={{ padding: 0 }}>
       <PageHero
-        badge="Unified Administration Hub"
+        badge="Master Directory & Access Security"
         icon={<Users size={26} />}
-        title="Team & Dealer Access Management"
-        subtitle="Control portal module features, manage accounts, track dealership targets, and secure credentials in one place."
+        title="Employees & Dealers Directory"
+        subtitle="Admin Master Rights: View/edit credentials, usernames, email IDs, passwords, roles, and module access permissions."
         actions={
           <button className="btn-hero-primary" onClick={() => setIsAddUserModalOpen(true)}>
-            <UserPlus size={18} /> Add Employee or Dealer
+            <UserPlus size={18} /> Add Employee / Dealer
           </button>
         }
       />
@@ -220,14 +293,14 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             <div className="kpi-icon-box blue"><Users size={20} /></div>
             <div>
               <span className="kpi-val">{allUsers.length}</span>
-              <span className="kpi-lbl">Total Users</span>
+              <span className="kpi-lbl">Total Directory</span>
             </div>
           </div>
           <div className="users-kpi-card" onClick={() => setActiveSegment('employees')}>
             <div className="kpi-icon-box purple"><UserCheck size={20} /></div>
             <div>
               <span className="kpi-val">{metrics.totalStaff}</span>
-              <span className="kpi-lbl">Employees / Staff</span>
+              <span className="kpi-lbl">Staff & Engineers</span>
             </div>
           </div>
           <div className="users-kpi-card" onClick={() => setActiveSegment('dealers')}>
@@ -259,7 +332,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
               className={`segment-btn ${activeSegment === 'employees' ? 'active' : ''}`}
               onClick={() => setActiveSegment('employees')}
             >
-              Staff & Field Engineers ({metrics.totalStaff})
+              Employees ({metrics.totalStaff})
             </button>
             <button 
               className={`segment-btn ${activeSegment === 'dealers' ? 'active' : ''}`}
@@ -274,7 +347,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
               <Search size={16} color="#64748b" />
               <input 
                 type="text" 
-                placeholder="Search by name, ID, phone..." 
+                placeholder="Search name, ID, email, role..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -302,6 +375,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             const userFeatures: DealerFeatures = user.features || (isDealer ? defaultDealerFeatures : defaultEmployeeFeatures);
             const activeFeatureCount = Object.values(userFeatures).filter(Boolean).length;
             const currentPass = (user as any).password || 'Password123!';
+            const isRevealed = !!revealedPasswords[user.id];
+            const empCat = (user as any).employeeCategory || (isDealer ? 'Authorized Dealer' : 'Staff');
 
             return (
               <div key={`${user.role}-${user.id}`} className={`user-hub-card ${user.status === 'Inactive' ? 'inactive' : ''}`}>
@@ -312,7 +387,12 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     </div>
                     <div>
                       <h4 className="user-hub-name">{user.name}</h4>
-                      <span className="user-hub-id">{user.id}</span>
+                      <div className="user-id-role-row">
+                        <span className="user-hub-id">{user.id}</span>
+                        {!isDealer && empCat && (
+                          <span className="emp-category-pill">{empCat}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -326,24 +406,45 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                   </div>
                 </div>
 
-                {/* Contact details */}
+                {/* Contact & Credential details */}
                 <div className="user-contact-row">
-                  <div className="contact-item"><Phone size={14}/> <span>{user.phone || 'No phone'}</span></div>
-                  <div className="contact-item"><Mail size={14}/> <span>{user.email || 'No email'}</span></div>
+                  <div className="contact-item"><Mail size={14}/> <span>{user.email || 'No email registered'}</span></div>
+                  <div className="contact-item"><Phone size={14}/> <span>{user.phone || 'No phone registered'}</span></div>
                   {isDealer && user.address && (
                     <div className="contact-item"><MapPin size={14}/> <span>{user.address}</span></div>
                   )}
                 </div>
 
+                {/* Admin Password Peek Box */}
+                <div className="card-credential-box">
+                  <div className="cred-lbl-stack">
+                    <Lock size={13} color="#0284c7" />
+                    <span className="cred-lbl">Login Password:</span>
+                  </div>
+                  <div className="cred-val-stack">
+                    <code className="cred-pass-code">
+                      {isRevealed ? currentPass : '••••••••••••'}
+                    </code>
+                    <button 
+                      type="button" 
+                      className="cred-eye-btn" 
+                      onClick={() => togglePasswordPeek(user.id)}
+                      title={isRevealed ? 'Hide Password' : 'Show Password'}
+                    >
+                      {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Approved Features Snapshot */}
                 <div className="features-snapshot-section">
                   <div className="features-header-row">
-                    <span className="features-title">Approved Features ({activeFeatureCount})</span>
+                    <span className="features-title">Portal Modules ({activeFeatureCount})</span>
                     <button 
                       className="btn-feature-manage" 
                       onClick={() => handleOpenFeatures(user)}
                     >
-                      <Sliders size={13} /> Edit Access
+                      <Sliders size={13} /> Permissions
                     </button>
                   </div>
                   <div className="features-chips-wrap">
@@ -361,6 +462,22 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
                 {/* Card Actions Footer */}
                 <div className="card-actions-footer">
+                  <button 
+                    className="action-btn edit-btn"
+                    onClick={() => handleOpenEditModal(user)}
+                    title="Edit Name, Email, Password & Role"
+                  >
+                    <Edit3 size={15} /> Edit Info & Pass
+                  </button>
+
+                  <button 
+                    className="action-btn permissions-btn"
+                    onClick={() => handleOpenFeatures(user)}
+                    title="Configure module feature permissions"
+                  >
+                    <Sliders size={15} /> Modules
+                  </button>
+
                   {onNavigateToLeads && (
                     <button 
                       className="action-btn leads-btn"
@@ -370,22 +487,6 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                       <ArrowRight size={15} /> Leads
                     </button>
                   )}
-
-                  <button 
-                    className="action-btn password-btn"
-                    onClick={() => handleOpenPasswordModal(user)}
-                    title="Manage user login password"
-                  >
-                    <Key size={15} /> Password
-                  </button>
-
-                  <button 
-                    className="action-btn permissions-btn"
-                    onClick={() => handleOpenFeatures(user)}
-                    title="Configure module feature permissions"
-                  >
-                    <Sliders size={15} /> Module Access
-                  </button>
 
                   <button 
                     className={`action-btn toggle-btn ${user.status === 'Active' ? 'deactivate' : 'reactivate'}`}
@@ -409,7 +510,134 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
       </div>
 
-      {/* --- MODAL 1: FEATURE APPROVAL & ACCESS CONTROL --- */}
+      {/* --- MASTER MODAL: EDIT USER PROFILE & CREDENTIALS --- */}
+      {editModalUser && (
+        <div className="modal-overlay" onClick={() => setEditModalUser(null)}>
+          <div className="modal-card users-edit-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-stack">
+                <Shield size={22} className="text-blue" />
+                <div>
+                  <h3>Admin Master Control: Edit User Profile</h3>
+                  <p className="modal-sub">
+                    Directly update login email, username, password, role category, and phone for <strong>{editModalUser.name}</strong> ({editModalUser.id}).
+                  </p>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={() => setEditModalUser(null)}><X size={20}/></button>
+            </div>
+
+            <form onSubmit={handleSaveEditCredentials} className="edit-user-form">
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label>Full Name / Display Name *</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editUserForm.name}
+                    onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Login Email Address *</label>
+                  <input 
+                    type="email" 
+                    required 
+                    value={editUserForm.email}
+                    onChange={e => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label>Phone Number</label>
+                  <input 
+                    type="tel" 
+                    value={editUserForm.phone}
+                    onChange={e => setEditUserForm({ ...editUserForm, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Account Status</label>
+                  <select 
+                    value={editUserForm.status}
+                    onChange={e => setEditUserForm({ ...editUserForm, status: e.target.value as UserStatus })}
+                  >
+                    <option value="Active">Active (Full Access)</option>
+                    <option value="Inactive">Inactive (Suspended)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Password Direct Edit */}
+              <div className="form-group credential-edit-group">
+                <label>Login Password (Admin Editable)</label>
+                <div className="pass-input-row">
+                  <input 
+                    type={showEditPassword ? 'text' : 'password'}
+                    required 
+                    value={editUserForm.password}
+                    onChange={e => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                    placeholder="Enter login password"
+                  />
+                  <button 
+                    type="button" 
+                    className="pass-reveal-btn"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                  >
+                    {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <span>{showEditPassword ? 'Hide' : 'Show'}</span>
+                  </button>
+                </div>
+                <span className="form-helper-text">
+                  🔒 Only administrators have master permissions to view or change this user's login password.
+                </span>
+              </div>
+
+              {/* Employee Category Selection */}
+              {editModalUser.role === 'Employee' && (
+                <div className="form-group">
+                  <label>Employee Operational Category / Role</label>
+                  <select 
+                    value={editUserForm.employeeCategory}
+                    onChange={e => setEditUserForm({ ...editUserForm, employeeCategory: e.target.value })}
+                  >
+                    <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Field Surveys)</option>
+                    <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Dispatch, Inventory)</option>
+                    <option value="PM Surya Ghar Incharge">PM Surya Ghar Incharge (Subsidy Workflows, PM Portal, Lead Execution)</option>
+                    <option value="Field Service Engineer">Field Service Engineer</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Dealer Address */}
+              {editModalUser.role === 'Dealer' && (
+                <div className="form-group">
+                  <label>Dealership Location / Address</label>
+                  <input 
+                    type="text" 
+                    value={editUserForm.address}
+                    onChange={e => setEditUserForm({ ...editUserForm, address: e.target.value })}
+                    placeholder="City, State, Region"
+                  />
+                </div>
+              )}
+
+              <div className="modal-actions-row">
+                <button type="button" className="btn-cancel" onClick={() => setEditModalUser(null)}>Cancel</button>
+                <button type="submit" className="btn-save-primary">
+                  <Save size={16} /> Save Changes & Update Credentials
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: FEATURE APPROVAL & ACCESS CONTROL --- */}
       {featureModalUser && (
         <div className="modal-overlay" onClick={() => setFeatureModalUser(null)}>
           <div className="modal-card users-feature-modal" onClick={e => e.stopPropagation()}>
@@ -546,68 +774,6 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         </div>
       )}
 
-      {/* --- MODAL 2: ADMIN PASSWORD & CREDENTIAL MANAGEMENT --- */}
-      {passwordModalUser && (
-        <div className="modal-overlay" onClick={() => setPasswordModalUser(null)}>
-          <div className="modal-card users-password-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-stack">
-                <Lock size={20} className="text-amber" />
-                <div>
-                  <h3>Admin Credential Security</h3>
-                  <p className="modal-sub">
-                    Only administrators have permission to view or change passwords for <strong>{passwordModalUser.name}</strong>.
-                  </p>
-                </div>
-              </div>
-              <button className="modal-close-btn" onClick={() => setPasswordModalUser(null)}><X size={20}/></button>
-            </div>
-
-            <div className="password-modal-content">
-              {/* Current Password Peek Box */}
-              <div className="current-password-box">
-                <label className="pass-lbl">Registered Login Password:</label>
-                <div className="pass-display-row">
-                  <span className="pass-val">
-                    {showCurrentPassword ? (passwordModalUser.password || 'Password123!') : '••••••••••••'}
-                  </span>
-                  <button 
-                    type="button" 
-                    className="btn-eye-toggle"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  >
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    <span>{showCurrentPassword ? 'Hide' : 'Reveal Password'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Set New Password Input */}
-              <div className="new-password-section">
-                <label className="pass-lbl">Set New Password for User:</label>
-                <input 
-                  type="text" 
-                  placeholder="Enter new password (e.g. SolarPass2026!)"
-                  value={newPasswordInput}
-                  onChange={e => setNewPasswordInput(e.target.value)}
-                  className="new-pass-input"
-                />
-                <span className="pass-hint">
-                  The user will be able to log into their portal immediately with this new password.
-                </span>
-              </div>
-            </div>
-
-            <div className="modal-actions-row">
-              <button className="btn-cancel" onClick={() => setPasswordModalUser(null)}>Close</button>
-              <button className="btn-save-primary" disabled={!newPasswordInput.trim()} onClick={handleSavePassword}>
-                Save New Password
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* --- MODAL 3: ADD NEW USER MODAL --- */}
       {isAddUserModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddUserModalOpen(false)}>
@@ -627,7 +793,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                   className={`type-btn ${addUserType === 'Employee' ? 'active' : ''}`}
                   onClick={() => setAddUserType('Employee')}
                 >
-                  Company Employee / Staff
+                  Company Staff / Field Engineer
                 </button>
                 <button 
                   type="button" 
@@ -662,12 +828,27 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 </div>
               </div>
 
+              {addUserType === 'Employee' && (
+                <div className="form-group">
+                  <label>Employee Category / Functional Role *</label>
+                  <select 
+                    value={newUserForm.employeeCategory}
+                    onChange={e => setNewUserForm({ ...newUserForm, employeeCategory: e.target.value })}
+                  >
+                    <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Follow-ups)</option>
+                    <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Movements, Inventory)</option>
+                    <option value="PM Surya Ghar Incharge">PM Surya Ghar Incharge (Full Subsidy Workflows & Pipeline)</option>
+                    <option value="Field Service Engineer">Field Service Engineer</option>
+                  </select>
+                </div>
+              )}
+
               <div className="form-grid-2">
                 <div className="form-group">
                   <label>Login Email Address</label>
                   <input 
                     type="email" 
-                    placeholder="e.g. name@mirrorsolar.in" 
+                    placeholder={addUserType === 'Dealer' ? 'dealer@mirrorsolar.in' : 'name@mirrorsolar.in'} 
                     value={newUserForm.email}
                     onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
                   />
