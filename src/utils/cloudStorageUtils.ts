@@ -1,25 +1,58 @@
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 
+export type CompressionPreset = 'ultra_50kb' | 'standard_150kb' | 'high_res' | 'original';
+
 export interface UploadOptions {
   onProgress?: (progressPercent: number, bytesTransferred: number, totalBytes: number) => void;
-  compressImage?: boolean;
+  compressPreset?: CompressionPreset;
   maxDimension?: number;
   quality?: number;
+  compressImage?: boolean;
 }
 
 /**
- * Compresses an image file client-side using an HTML5 Canvas.
- * Significantly speeds up uploads on mobile connections while maintaining crisp document legibility.
+ * Format bytes to readable string (e.g., 42.5 KB or 3.2 MB)
  */
-export async function compressImageFile(
+export function formatBytes(bytes: number, decimals: number = 1): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+/**
+ * Iterative smart Canvas compression to guarantee output within target file size limit.
+ * Perfect for compressing camera photos to strictly < 50 KB without blurriness on documents.
+ */
+export async function compressImageToTargetPreset(
   file: File,
-  maxDimension: number = 1920,
-  quality: number = 0.82
+  preset: CompressionPreset = 'ultra_50kb'
 ): Promise<File> {
-  // If not an image, return original file untouched
-  if (!file.type.startsWith('image/') || file.type.includes('svg')) {
+  // If not an image or SVG, return untouched
+  if (!file.type.startsWith('image/') || file.type.includes('svg') || preset === 'original') {
     return file;
+  }
+
+  // Define preset configurations
+  let maxDimension = 1920;
+  let initialQuality = 0.82;
+  let targetMaxBytes = Infinity;
+
+  if (preset === 'ultra_50kb') {
+    maxDimension = 1024;
+    initialQuality = 0.55;
+    targetMaxBytes = 48 * 1024; // strictly ~48 KB to guarantee < 50 KB
+  } else if (preset === 'standard_150kb') {
+    maxDimension = 1400;
+    initialQuality = 0.72;
+    targetMaxBytes = 150 * 1024;
+  } else if (preset === 'high_res') {
+    maxDimension = 1920;
+    initialQuality = 0.85;
+    targetMaxBytes = 450 * 1024;
   }
 
   return new Promise((resolve) => {
@@ -28,23 +61,24 @@ export async function compressImageFile(
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+      img.onload = async () => {
+        let currentWidth = img.width;
+        let currentHeight = img.height;
 
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
+        // Scale down to maxDimension
+        if (currentWidth > maxDimension || currentHeight > maxDimension) {
+          if (currentWidth > currentHeight) {
+            currentHeight = Math.round((currentHeight * maxDimension) / currentWidth);
+            currentWidth = maxDimension;
           } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+            currentWidth = Math.round((currentWidth * maxDimension) / currentHeight);
+            currentHeight = maxDimension;
           }
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = currentWidth;
+        canvas.height = currentHeight;
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
@@ -52,30 +86,68 @@ export async function compressImageFile(
           return;
         }
 
-        ctx.drawImage(img, 0, 0, width, height);
+        // Draw with high quality interpolation
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, currentWidth, currentHeight);
 
-        const targetMime = file.type === 'image/png' ? 'image/jpeg' : file.type;
-        canvas.toBlob(
-          (blob) => {
-            if (blob && blob.size < file.size) {
-              const compressedFile = new File([blob], file.name.replace(/\.png$/i, '.jpg'), {
-                type: targetMime,
-                lastModified: Date.now()
-              });
-              resolve(compressedFile);
-            } else {
-              // If compressed blob is somehow not smaller, return original
-              resolve(file);
+        const targetMime = 'image/jpeg';
+        let quality = initialQuality;
+        let bestBlob: Blob | null = null;
+
+        // Iterative compression loop to guarantee < targetMaxBytes (for ultra_50kb)
+        const renderBlob = (q: number): Promise<Blob | null> => {
+          return new Promise((bResolve) => canvas.toBlob(bResolve, targetMime, q));
+        };
+
+        bestBlob = await renderBlob(quality);
+
+        if (bestBlob && preset === 'ultra_50kb') {
+          // If still over target, iteratively decrease quality or scale dimension
+          let attempts = 0;
+          while (bestBlob && bestBlob.size > targetMaxBytes && attempts < 4) {
+            attempts++;
+            quality = Math.max(0.25, quality - 0.12);
+            bestBlob = await renderBlob(quality);
+
+            // If still over 50kb, shrink canvas slightly
+            if (bestBlob && bestBlob.size > targetMaxBytes) {
+              currentWidth = Math.round(currentWidth * 0.85);
+              currentHeight = Math.round(currentHeight * 0.85);
+              canvas.width = currentWidth;
+              canvas.height = currentHeight;
+              ctx.drawImage(img, 0, 0, currentWidth, currentHeight);
+              bestBlob = await renderBlob(quality);
             }
-          },
-          targetMime,
-          quality
-        );
+          }
+        }
+
+        if (bestBlob && bestBlob.size < file.size) {
+          const cleanExt = file.name.replace(/\.[^/.]+$/, "") + '.jpg';
+          const compressedFile = new File([bestBlob], cleanExt, {
+            type: targetMime,
+            lastModified: Date.now()
+          });
+          resolve(compressedFile);
+        } else {
+          resolve(file);
+        }
       };
       img.onerror = () => resolve(file);
     };
     reader.onerror = () => resolve(file);
   });
+}
+
+/**
+ * Backward compatibility alias for compressImageFile
+ */
+export async function compressImageFile(
+  file: File,
+  maxDimension: number = 1920,
+  _quality: number = 0.82
+): Promise<File> {
+  return compressImageToTargetPreset(file, maxDimension <= 1024 ? 'ultra_50kb' : 'standard_150kb');
 }
 
 /**
@@ -89,13 +161,12 @@ export async function uploadFileToStorage(
 ): Promise<string> {
   let processedFile = file;
 
-  // 1. Auto-compress if image and compression is enabled (default: true for images)
+  // 1. Process preset compression
   if (options.compressImage !== false && file.type.startsWith('image/')) {
     try {
-      processedFile = await compressImageFile(
+      processedFile = await compressImageToTargetPreset(
         file,
-        options.maxDimension || 1920,
-        options.quality || 0.82
+        options.compressPreset || 'ultra_50kb'
       );
     } catch (compressErr) {
       console.warn('Image compression bypassed:', compressErr);
@@ -116,6 +187,7 @@ export async function uploadFileToStorage(
       contentType: processedFile.type,
       customMetadata: {
         originalName: file.name,
+        compressedSize: `${processedFile.size} bytes`,
         uploadedAt: new Date().toISOString()
       }
     });

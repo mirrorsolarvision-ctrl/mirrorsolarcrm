@@ -5,7 +5,8 @@ import {
   CheckCircle2, MapPin, Phone, Mail,
   FileText, Upload, User, Clock, CheckSquare, Download, Loader2,
   Eye, ExternalLink, Trash2, RefreshCw, AlertTriangle, ShieldCheck,
-  Camera, Check, Lock, CheckCircle, ShieldAlert, FolderCheck, Target
+  Camera, Check, Lock, CheckCircle, ShieldAlert, FolderCheck, Target,
+  Share2, Send, Copy, MessageSquare, CheckCheck, FolderDown, ArrowRight
 } from 'lucide-react';
 import PageHero from './components/PageHero';
 import { 
@@ -29,9 +30,21 @@ import type {
 import { useUI } from './context/UIContext';
 import { useStock } from './context/StockContext';
 import { canManageModule } from './utils/permissionCalculations';
+import { isLeadAssignedToEmployee, isSuryaGharEmployee } from './utils/employeeCalculations';
+import { 
+  downloadFileBlob, 
+  downloadMultipleDocuments, 
+  shareDocumentNativeOrFallback, 
+  getWhatsAppShareUrl, 
+  getEmailShareUrl, 
+  copyDocumentLink, 
+  formatDownloadFileName 
+} from './utils/documentUtils';
 import './LeadsPage.css';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
+import { uploadFileToStorage, type CompressionPreset } from './utils/cloudStorageUtils';
+import { DocumentUploadModal } from './components/DocumentUploadModal';
 import CustomerFinancialsCard from './components/CustomerFinancialsCard';
 import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
 import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
@@ -52,7 +65,8 @@ interface LeadsPageProps {
 export default function LeadsPage({ stage, status, action, filter }: LeadsPageProps) {
   const { 
     leads, employees, dealers, currentUser, activities, tasks,
-    updateLead, addActivity, addLead 
+    updateLead, addActivity, addLead,
+    assignLead, requestLeadReassignment, resolveLeadReassignment
   } = useCRM();
   
   const { showToast } = useUI();
@@ -65,8 +79,10 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const isEmployee = currentUser?.role === 'Employee';
   const isDealer = currentUser?.role === 'Dealer';
   const isAdmin = currentUser?.role === 'Admin';
+  const isSuryaGhar = isEmployee && isSuryaGharEmployee(currentUser);
+  const isCompanyWideManager = isAdmin || isSuryaGhar;
   
-  const [empFilter, setEmpFilter] = useState(isEmployee ? currentUser.name : 'All');
+  const [empFilter, setEmpFilter] = useState((isEmployee && !isSuryaGhar) ? currentUser.name : 'All');
   const [dlrFilter, setDlrFilter] = useState(isDealer ? currentUser.name : 'All');
   const [stageFilter, setStageFilter] = useState(stage || 'All');
   const [priorityFilter, setPriorityFilter] = useState('All');
@@ -91,14 +107,42 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   
   // Modals state
   const [showAddModal, setShowAddModal] = useState(action === 'add');
+  
+  useEffect(() => {
+    if (action === 'add') {
+      setShowAddModal(true);
+    }
+  }, [action]);
+
   const [newLeadForm, setNewLeadForm] = useState({
-    customer: '', phone: '', email: '', location: '', dealer: '', assignedEmployee: '', notes: '', leadType: 'tracking' as 'tracking' | 'project'
+    customer: '', phone: '', email: '', location: '', dealer: 'Direct (Company)', assignedEmployee: '', notes: '', leadType: 'project' as 'tracking' | 'project'
   });
   const [showStageModal, setShowStageModal] = useState(false);
   const [targetStage, setTargetStage] = useState<Stage | ''>('');
   
+  // Enhanced Lead Assignment (Admin Full Details Transfer)
   const [showChangeEmpModal, setShowChangeEmpModal] = useState(false);
-  const [newEmp, setNewEmp] = useState('');
+  const [assignModalForm, setAssignModalForm] = useState({
+    employeeName: '',
+    employeeId: '',
+    dealerName: 'Direct (Company)',
+    dealerId: '',
+    notes: ''
+  });
+
+  // Reassignment / Transfer Request (Non-Admin Employee/Dealer -> Requires Admin Approval)
+  const [showRequestTransferModal, setShowRequestTransferModal] = useState(false);
+  const [transferRequestForm, setTransferRequestForm] = useState({
+    targetEmployee: '',
+    targetEmployeeId: '',
+    targetDealer: '',
+    targetDealerId: '',
+    reason: ''
+  });
+
+  // Admin Reject Reassignment Modal
+  const [showRejectTransferModal, setShowRejectTransferModal] = useState(false);
+  const [rejectTransferReason, setRejectTransferReason] = useState('');
   
   const [showLostModal, setShowLostModal] = useState(false);
   const [lostReason, setLostReason] = useState('');
@@ -119,9 +163,30 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const [uploadForm, setUploadForm] = useState({ documentType: '', file: null as File | null, notes: '' });
   const [isReplacingDocId, setIsReplacingDocId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [smartUploadModal, setSmartUploadModal] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    documentType: string;
+    isReplacingDocId: string | null;
+    customCallback?: ((url: string, fileName: string) => Promise<void>) | null;
+  }>({
+    isOpen: false,
+    file: null,
+    documentType: '',
+    isReplacingDocId: null,
+    customCallback: null
+  });
+  const [smartUploadProgress, setSmartUploadProgress] = useState(0);
+  const [isSmartUploading, setIsSmartUploading] = useState(false);
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<LeadDocument | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareModalDoc, setShareModalDoc] = useState<LeadDocument | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Section-wise Downloading Indicator
+  const [isDownloadingSection, setIsDownloadingSection] = useState<string | null>(null);
 
   const [showDeleteDocModal, setShowDeleteDocModal] = useState(false);
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
@@ -239,24 +304,25 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     }
   };
 
-  const handleUploadEmailProof = async (file: File) => {
+  const handleUploadEmailProof = (file: File) => {
     if (!selectedLead) return;
-    try {
-      setIsUploadingEmailProof(true);
-      const fileUrl = await uploadToFirebase(file);
-      const updated = {
-        ...specsForm,
-        emailProofUrl: fileUrl,
-        emailProofFileName: file.name
-      };
-      setSpecsForm(updated);
-      await updateLead(selectedLead.id, { dealerSpecifications: updated });
-      showToast("Email ID photo proof uploaded!", 'success');
-    } catch (err: any) {
-      showToast(err.message || "Failed to upload email proof", 'error');
-    } finally {
-      setIsUploadingEmailProof(false);
-    }
+    setSmartUploadModal({
+      isOpen: true,
+      file,
+      documentType: 'Customer Email ID Proof Photo',
+      isReplacingDocId: null,
+      customCallback: async (fileUrl: string, fileName: string) => {
+        if (!selectedLead) return;
+        const updated = {
+          ...specsForm,
+          emailProofUrl: fileUrl,
+          emailProofFileName: fileName
+        };
+        setSpecsForm(updated);
+        await updateLead(selectedLead.id, { dealerSpecifications: updated });
+        showToast("Email ID photo proof uploaded!", 'success');
+      }
+    });
   };
 
   // Download Section Selector Modal State
@@ -269,7 +335,44 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     s5: true
   });
 
-  const handleDownloadSelectedSections = () => {
+  // Section-wise Batch Document Download
+  const handleDownloadSection = async (sectionName: string, docTypes: string[], sectionPrefix: string) => {
+    if (!selectedLead?.documents || selectedLead.documents.length === 0) {
+      showToast("No documents found for this project.", "error");
+      return;
+    }
+    const sectionDocs = selectedLead.documents.filter(d => docTypes.includes(d.documentType));
+    if (sectionDocs.length === 0) {
+      showToast(`No uploaded files found in ${sectionName}.`, "info");
+      return;
+    }
+
+    showToast(`⬇ Downloading ${sectionDocs.length} files from ${sectionName}...`, "info");
+    setIsDownloadingSection(sectionPrefix);
+
+    try {
+      const res = await downloadMultipleDocuments(
+        sectionDocs, 
+        selectedLead.customer, 
+        sectionPrefix
+      );
+      showToast(`✓ Downloaded ${res.successCount} files from ${sectionName} successfully!`, "success");
+      addActivity({
+        type: 'Documents Downloaded',
+        message: `${currentUser?.role || 'User'} downloaded ${res.successCount} files from ${sectionName} (${selectedLead.customer})`,
+        user: currentUser?.name || 'System',
+        dealer: selectedLead.dealer,
+        leadId: selectedLead.id
+      });
+    } catch (err) {
+      console.error("Section download error:", err);
+      showToast("Download failed. Please try again.", "error");
+    } finally {
+      setIsDownloadingSection(null);
+    }
+  };
+
+  const handleDownloadSelectedSections = async () => {
     if (!selectedLead?.documents || selectedLead.documents.length === 0) {
       showToast("No documents found for this project.", "error");
       return;
@@ -305,32 +408,82 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       return;
     }
 
-    showToast(`Downloading ${filesToDownload.length} files from selected sections...`, "info");
     setShowDownloadSectionModal(false);
+    showToast(`⬇ Downloading ${filesToDownload.length} files from selected sections...`, "info");
 
-    filesToDownload.forEach((doc, index) => {
-      if (doc.fileUrl) {
-        setTimeout(() => {
-          const downloadUrl = doc.fileUrl;
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = doc.fileName || `${doc.documentType}`;
-          link.target = '_blank';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            try { document.body.removeChild(link); } catch {}
-          }, 200);
-        }, index * 400);
+    try {
+      const res = await downloadMultipleDocuments(filesToDownload, selectedLead.customer, 'Selected_Sections');
+      showToast(`✓ Successfully downloaded ${res.successCount} files!`, "success");
+
+      addActivity({
+        type: 'Documents Downloaded',
+        message: `${currentUser?.role || 'User'} downloaded ${res.successCount} files from selected sections (${selectedLead.customer})`,
+        user: currentUser?.name || 'System',
+        dealer: selectedLead.dealer,
+        leadId: selectedLead.id
+      });
+    } catch (err) {
+      console.error("Batch download error:", err);
+      showToast("Error downloading some files.", "error");
+    }
+  };
+
+  const handleDownloadAllDocuments = async () => {
+    if (!selectedLead?.documents || selectedLead.documents.length === 0) {
+      showToast("No documents found for this project.", "error");
+      return;
+    }
+    showToast(`⬇ Downloading all ${selectedLead.documents.length} project documents...`, "info");
+    try {
+      const res = await downloadMultipleDocuments(selectedLead.documents, selectedLead.customer, 'All_Project_Docs');
+      showToast(`✓ Successfully downloaded ${res.successCount} files!`, "success");
+      addActivity({
+        type: 'Documents Downloaded',
+        message: `${currentUser?.role || 'User'} downloaded all ${res.successCount} documents (${selectedLead.customer})`,
+        user: currentUser?.name || 'System',
+        dealer: selectedLead.dealer,
+        leadId: selectedLead.id
+      });
+    } catch (err) {
+      console.error("Download all error:", err);
+      showToast("Error downloading project documents.", "error");
+    }
+  };
+
+  const handleDownloadDocument = async (docObj: LeadDocument) => {
+    if (!docObj.fileUrl) {
+      showToast('File preview is no longer available.', 'error');
+      return;
+    }
+    const safeFileName = formatDownloadFileName(docObj, selectedLead?.customer);
+    showToast(`⬇ Downloading ${docObj.documentType}...`, 'info');
+    const success = await downloadFileBlob(docObj.fileUrl, safeFileName);
+    if (success) {
+      showToast(`✓ ${docObj.documentType} downloaded successfully!`, 'success');
+      if (selectedLead) {
+        addActivity({
+          type: 'Document Downloaded',
+          message: `${currentUser?.role || 'User'} downloaded ${docObj.documentType} (${selectedLead.customer})`,
+          user: currentUser?.name || 'System',
+          dealer: selectedLead.dealer,
+          leadId: selectedLead.id
+        });
       }
-    });
+    } else {
+      showToast('Failed to download document.', 'error');
+    }
+  };
 
-    addActivity({
-      type: 'Documents Downloaded',
-      message: `${currentUser?.role || 'User'} downloaded ${filesToDownload.length} documents from selected sections`,
-      user: currentUser?.name || 'System',
-      dealer: selectedLead.dealer,
-      leadId: selectedLead.id
+  const handleShareDocument = async (docObj: LeadDocument) => {
+    if (!docObj.fileUrl) {
+      showToast("Document link is not available.", "error");
+      return;
+    }
+    const customer = selectedLead?.customer || 'Customer';
+    await shareDocumentNativeOrFallback(docObj, customer, (fallbackDoc) => {
+      setShareModalDoc(fallbackDoc);
+      setLinkCopied(false);
+      setShowShareModal(true);
     });
   };
 
@@ -344,16 +497,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const baseLeads = useMemo(() => {
     let result = leads;
     if (isEmployee && currentUser) {
-      const curName = (currentUser.name || '').trim().toLowerCase();
-      const curId = (currentUser.id || '').trim().toLowerCase();
-      result = result.filter(l => {
-        const empName = (l.assignedEmployee || '').trim().toLowerCase();
-        const empId = (l.assignedEmployeeId || '').trim().toLowerCase();
-        const createdBy = (l.createdBy || '').trim().toLowerCase();
-        return (empName && (empName === curName || empName.includes(curName) || curName.includes(empName))) ||
-               (empId && empId === curId) ||
-               (createdBy && (createdBy === curId || createdBy === curName));
-      });
+      result = result.filter(l => isLeadAssignedToEmployee(currentUser, l));
     } else if (isDealer && currentUser) {
       const curName = (currentUser.name || '').trim().toLowerCase();
       const curId = (currentUser.id || '').trim().toLowerCase();
@@ -401,8 +545,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       // Dealer & Employee
       if (dlrFilter !== 'All' && l.dealer !== dlrFilter) return false;
       if (empFilter !== 'All') {
-        if (isEmployee) {
-          // Employee already viewing their own scoped leads in baseLeads
+        if (isEmployee && !isSuryaGhar) {
+          // Regular Employee already viewing their own scoped leads in baseLeads
         } else if (empFilter === 'Unassigned') {
           if (l.assignedEmployee && l.assignedEmployee !== 'Unassigned' && l.assignedEmployee.trim() !== '') return false;
         } else {
@@ -455,14 +599,14 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   }, [baseLeads, statusFilter, stageFilter, dlrFilter, empFilter, priorityFilter, followupFilter, searchQuery, sortBy]);
 
   const unassignedLeads = useMemo(() => {
-    if (!isAdmin) return [];
+    if (!isCompanyWideManager) return [];
     return filteredLeads.filter(l => !l.assignedEmployee || l.assignedEmployee === 'Unassigned' || l.assignedEmployee.trim() === '');
-  }, [filteredLeads, isAdmin]);
+  }, [filteredLeads, isCompanyWideManager]);
 
   const mainLeads = useMemo(() => {
-    if (!isAdmin) return filteredLeads;
+    if (!isCompanyWideManager) return filteredLeads;
     return filteredLeads.filter(l => l.assignedEmployee && l.assignedEmployee !== 'Unassigned' && l.assignedEmployee.trim() !== '');
-  }, [filteredLeads, isAdmin]);
+  }, [filteredLeads, isCompanyWideManager]);
 
   const paginatedLeads = mainLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const totalPages = Math.ceil(mainLeads.length / PAGE_SIZE);
@@ -474,7 +618,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     setFollowupFilter('All');
     setLeadTypeFilter('All');
     setStatusFilter('Active');
-    if (!isEmployee) setEmpFilter('All');
+    if (!isEmployee || isSuryaGhar) setEmpFilter('All');
     if (!isDealer) setDlrFilter('All');
     setSearchQuery('');
   };
@@ -617,27 +761,141 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     setInstallationRejectReason('');
   };
 
-  const handleChangeEmployee = () => {
-    if (!selectedLead || !newEmp) return;
-    const oldEmp = selectedLead.assignedEmployee;
-    const isReassign = oldEmp && oldEmp !== 'Unassigned';
-    
-    updateLead(selectedLead.id, { assignedEmployee: newEmp });
-    
-    const message = isReassign 
-      ? `Admin reassigned Project Lead from ${oldEmp} to ${newEmp}`
-      : `Admin assigned ${newEmp} to this Project Lead`;
+  // Admin Direct Lead Assignment (Full Details Sent)
+  const handleAdminAssignLead = async () => {
+    if (!selectedLead) return;
+    try {
+      const emp = employees.find(e => e.name === assignModalForm.employeeName);
+      const dlr = dealers.find(d => d.name === assignModalForm.dealerName);
+
+      await assignLead(selectedLead.id, {
+        employeeName: assignModalForm.employeeName,
+        employeeId: emp?.id || '',
+        dealerName: assignModalForm.dealerName,
+        dealerId: dlr?.id || '',
+        notes: assignModalForm.notes
+      });
+
+      const targetLabel = [assignModalForm.employeeName, assignModalForm.dealerName].filter(Boolean).join(' / ');
+      showToast(`✓ Lead full details successfully assigned to ${targetLabel}!`, 'success');
       
-    addActivity({
-      type: 'Lead Assignment',
-      message: message,
-      user: currentUser?.name || 'System',
-      dealer: selectedLead.dealer
-    });
-    
-    showToast(`Assigned to ${newEmp}`);
-    setSelectedLead({ ...selectedLead, assignedEmployee: newEmp });
-    setShowChangeEmpModal(false);
+      setSelectedLead({
+        ...selectedLead,
+        assignedEmployee: assignModalForm.employeeName,
+        assignedEmployeeId: emp?.id || '',
+        dealer: assignModalForm.dealerName,
+        dealerId: dlr?.id || '',
+        reassignmentRequest: undefined
+      });
+      setShowChangeEmpModal(false);
+    } catch (err: any) {
+      console.error("Error in lead assignment:", err);
+      showToast(err.message || 'Failed to assign lead', 'error');
+    }
+  };
+
+  // Employee / Dealer Request Reassignment (Requires Admin Permission)
+  const handleRequestTransferSubmit = async () => {
+    if (!selectedLead) return;
+    if (!transferRequestForm.reason.trim()) {
+      showToast("Please provide a reason for the transfer request.", "error");
+      return;
+    }
+    if (!transferRequestForm.targetEmployee && !transferRequestForm.targetDealer) {
+      showToast("Please select a target Employee or Dealer.", "error");
+      return;
+    }
+    try {
+      const emp = employees.find(e => e.name === transferRequestForm.targetEmployee);
+      const dlr = dealers.find(d => d.name === transferRequestForm.targetDealer);
+
+      await requestLeadReassignment(selectedLead.id, {
+        targetEmployee: transferRequestForm.targetEmployee,
+        targetEmployeeId: emp?.id || '',
+        targetDealer: transferRequestForm.targetDealer,
+        targetDealerId: dlr?.id || '',
+        reason: transferRequestForm.reason
+      });
+
+      showToast("✓ Transfer request submitted to Admin for approval.", "success");
+      setSelectedLead({
+        ...selectedLead,
+        reassignmentRequest: {
+          requestedBy: currentUser?.name || 'Staff',
+          requestedByRole: currentUser?.role || 'Employee',
+          requestedByUserId: currentUser?.id || '',
+          targetEmployee: transferRequestForm.targetEmployee,
+          targetEmployeeId: emp?.id || '',
+          targetDealer: transferRequestForm.targetDealer,
+          targetDealerId: dlr?.id || '',
+          reason: transferRequestForm.reason,
+          requestedAt: new Date().toISOString(),
+          status: 'Pending'
+        }
+      });
+      setShowRequestTransferModal(false);
+      setTransferRequestForm({
+        targetEmployee: '',
+        targetEmployeeId: '',
+        targetDealer: '',
+        targetDealerId: '',
+        reason: ''
+      });
+    } catch (err: any) {
+      console.error("Error submitting transfer request:", err);
+      showToast(err.message || "Failed to submit transfer request", "error");
+    }
+  };
+
+  // Admin Approve Transfer Request
+  const handleApproveTransfer = async () => {
+    if (!selectedLead || !selectedLead.reassignmentRequest) return;
+    try {
+      const req = selectedLead.reassignmentRequest;
+      await resolveLeadReassignment(selectedLead.id, 'Approved');
+      showToast("✓ Lead transfer approved! Full details assigned.", "success");
+      setSelectedLead({
+        ...selectedLead,
+        assignedEmployee: req.targetEmployee || selectedLead.assignedEmployee,
+        assignedEmployeeId: req.targetEmployeeId || selectedLead.assignedEmployeeId,
+        dealer: req.targetDealer || selectedLead.dealer,
+        dealerId: req.targetDealerId || selectedLead.dealerId,
+        reassignmentRequest: {
+          ...req,
+          status: 'Approved',
+          resolvedAt: new Date().toISOString(),
+          resolvedBy: currentUser?.name || 'Admin'
+        }
+      });
+    } catch (err: any) {
+      console.error("Error approving transfer:", err);
+      showToast(err.message || "Failed to approve transfer", "error");
+    }
+  };
+
+  // Admin Reject Transfer Request
+  const handleRejectTransfer = async () => {
+    if (!selectedLead || !selectedLead.reassignmentRequest) return;
+    try {
+      const reason = rejectTransferReason.trim() || 'Transfer request rejected by Admin';
+      await resolveLeadReassignment(selectedLead.id, 'Rejected', reason);
+      showToast("Lead transfer request rejected.", "info");
+      setSelectedLead({
+        ...selectedLead,
+        reassignmentRequest: {
+          ...selectedLead.reassignmentRequest,
+          status: 'Rejected',
+          rejectionReason: reason,
+          resolvedAt: new Date().toISOString(),
+          resolvedBy: currentUser?.name || 'Admin'
+        }
+      });
+      setShowRejectTransferModal(false);
+      setRejectTransferReason('');
+    } catch (err: any) {
+      console.error("Error rejecting transfer:", err);
+      showToast(err.message || "Failed to reject transfer", "error");
+    }
   };
 
   const handleCompleteFollowUp = (leadId: string) => {
@@ -698,63 +956,68 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   };
 
   const uploadToFirebase = async (file: File): Promise<string> => {
-    try {
-      const fileRef = ref(storage, `leads/documents/${Date.now()}_${file.name}`);
-      await uploadBytes(fileRef, file);
-      const downloadUrl = await getDownloadURL(fileRef);
-      return downloadUrl;
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to upload document to Firebase Storage');
-    }
+    return uploadFileToStorage(file, 'leads/documents', {
+      compressPreset: 'ultra_50kb'
+    });
   };
 
-  const handleInlineUpload = async (docType: string, file: File) => {
+  const handleSmartUploadConfirm = async (
+    processedFile: File,
+    notes: string,
+    preset: CompressionPreset
+  ) => {
     if (!selectedLead) return;
-
-    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      alert(`File exceeds maximum size of ${MAX_FILE_SIZE_MB}MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`);
-      return;
-    }
-    if (!ALLOWED_FILE_TYPES.includes(file.type) && file.type !== '') {
-      alert(`Invalid file type (${file.type}). Only PDF, Word, JPG, and PNG are allowed.`);
-      return;
-    }
-
-    setIsUploading(true);
-    const newDocId = `DOC${Date.now()}`;
-    let detectedType = file.type;
-    let safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
-    if (!detectedType) {
-      if (safeFileName.match(/\.(jpg|jpeg)$/i)) detectedType = 'image/jpeg';
-      else if (safeFileName.match(/\.png$/i)) detectedType = 'image/png';
-      else if (safeFileName.match(/\.pdf$/i)) detectedType = 'application/pdf';
-      else detectedType = 'image/jpeg';
-    }
-    if (!safeFileName.includes('.')) {
-      if (detectedType.includes('png')) safeFileName += '.png';
-      else if (detectedType.includes('pdf')) safeFileName += '.pdf';
-      else safeFileName += '.jpg';
-    }
-
     try {
-      const fileUrl = await uploadToFirebase(file);
+      setIsSmartUploading(true);
+      setSmartUploadProgress(0);
+
+      const fileUrl = await uploadFileToStorage(processedFile, 'leads/documents', {
+        compressPreset: preset,
+        onProgress: (p) => setSmartUploadProgress(p)
+      });
+
+      if (smartUploadModal.customCallback) {
+        await smartUploadModal.customCallback(fileUrl, processedFile.name);
+        setSmartUploadModal({ isOpen: false, file: null, documentType: '', isReplacingDocId: null, customCallback: null });
+        return;
+      }
+
+      const docType = smartUploadModal.documentType || uploadForm.documentType || 'Customer Document';
+      const isReplacing = smartUploadModal.isReplacingDocId || isReplacingDocId;
+      const newDocId = isReplacing || `DOC${Date.now()}`;
+      let detectedType = processedFile.type || 'image/jpeg';
+      let safeFileName = processedFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+      if (!safeFileName.includes('.')) {
+        safeFileName += detectedType.includes('pdf') ? '.pdf' : '.jpg';
+      }
 
       const newDoc: LeadDocument = {
         id: newDocId,
         leadId: selectedLead.id,
         documentType: docType,
         fileName: safeFileName,
-        fileSize: file.size,
+        fileSize: processedFile.size,
         fileType: detectedType,
         fileUrl: fileUrl,
         uploadedByRole: currentUser?.role || 'User',
         uploadedByUserId: currentUser?.id || 'unknown',
         uploadedAt: new Date().toISOString(),
-        notes: '',
+        notes: notes || uploadForm.notes || '',
         status: 'Uploaded'
       };
 
-      const updatedDocs = [...(selectedLead.documents || []), newDoc];
+      let updatedDocs = selectedLead.documents || [];
+      let activityType = 'Document Uploaded';
+      let activityMessage = `${currentUser?.role || 'User'} uploaded ${docType}`;
+
+      if (isReplacing) {
+        updatedDocs = updatedDocs.map(d => d.id === isReplacing ? newDoc : d);
+        activityType = 'Document Replaced';
+        activityMessage = `${currentUser?.role || 'User'} replaced ${docType}`;
+      } else {
+        updatedDocs = [...updatedDocs, newDoc];
+      }
+
       const isAutoConverting = selectedLead.stage === 'Lead';
       const newStage: Stage = isAutoConverting ? 'Converted' : selectedLead.stage;
       const convertedAt = isAutoConverting ? new Date().toISOString() : selectedLead.convertedAt;
@@ -780,8 +1043,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         });
       } else {
         await addActivity({
-          type: 'Document Uploaded',
-          message: `${currentUser?.role || 'User'} uploaded ${docType}`,
+          type: activityType,
+          message: activityMessage,
           user: currentUser?.name || 'System',
           dealer: selectedLead.dealer,
           leadId: selectedLead.id
@@ -790,7 +1053,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       
       showToast(
         isAutoConverting 
-          ? `✓ ${docType} uploaded! Lead automatically converted to Converted stage.` 
+          ? `✓ ${docType} uploaded (<50KB optimized)! Lead converted.` 
           : `${docType} uploaded successfully!`
       );
       setSelectedLead({ 
@@ -799,12 +1062,39 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         stage: newStage,
         convertedAt
       });
-    } catch (err) {
-      console.error("Upload failed:", err);
-      showToast(`Upload failed: ${err instanceof Error ? err.message : (err as any)?.message || 'Unknown error'}`, "error");
+
+      setSmartUploadModal({ isOpen: false, file: null, documentType: '', isReplacingDocId: null, customCallback: null });
+      setShowUploadModal(false);
+      setUploadForm({ documentType: '', file: null, notes: '' });
+      setIsReplacingDocId(null);
+    } catch (err: any) {
+      console.error("Smart upload failed:", err);
+      showToast(`Upload failed: ${err.message || 'Unknown error'}`, "error");
     } finally {
-      setIsUploading(false);
+      setIsSmartUploading(false);
+      setSmartUploadProgress(0);
     }
+  };
+
+  const handleInlineUpload = async (docType: string, file: File) => {
+    if (!selectedLead) return;
+
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      alert(`File exceeds maximum size of ${MAX_FILE_SIZE_MB}MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`);
+      return;
+    }
+    if (!ALLOWED_FILE_TYPES.includes(file.type) && file.type !== '') {
+      alert(`Invalid file type (${file.type}). Only PDF, Word, JPG, and PNG are allowed.`);
+      return;
+    }
+
+    setSmartUploadModal({
+      isOpen: true,
+      file,
+      documentType: docType,
+      isReplacingDocId: null,
+      customCallback: null
+    });
   };
 
   const openReplaceModal = (docId: string) => {
@@ -825,103 +1115,13 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       return;
     }
 
-    setIsUploading(true);
-    const newDocId = isReplacingDocId || `DOC${Date.now()}`;
-    let detectedType = uploadForm.file.type;
-    let safeFileName = uploadForm.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
-    if (!detectedType) {
-      if (safeFileName.match(/\.(jpg|jpeg)$/i)) detectedType = 'image/jpeg';
-      else if (safeFileName.match(/\.png$/i)) detectedType = 'image/png';
-      else if (safeFileName.match(/\.pdf$/i)) detectedType = 'application/pdf';
-      else detectedType = 'image/jpeg';
-    }
-    if (!safeFileName.includes('.')) {
-      if (detectedType.includes('png')) safeFileName += '.png';
-      else if (detectedType.includes('pdf')) safeFileName += '.pdf';
-      else safeFileName += '.jpg';
-    }
-
-    try {
-      const fileUrl = await uploadToFirebase(uploadForm.file);
-
-      const newDoc: LeadDocument = {
-        id: newDocId,
-        leadId: selectedLead.id,
-        documentType: uploadForm.documentType,
-        fileName: safeFileName,
-        fileSize: uploadForm.file.size,
-        fileType: detectedType,
-        fileUrl: fileUrl,
-        uploadedByRole: currentUser?.role || 'User',
-        uploadedByUserId: currentUser?.id || 'unknown',
-        uploadedAt: new Date().toISOString(),
-        notes: uploadForm.notes,
-        status: 'Uploaded'
-      };
-
-      let updatedDocs = selectedLead.documents || [];
-      let activityType = 'Document Uploaded';
-      let activityMessage = `${currentUser?.role || 'User'} uploaded ${uploadForm.documentType}`;
-
-      if (isReplacingDocId) {
-        updatedDocs = updatedDocs.map(d => d.id === isReplacingDocId ? newDoc : d);
-        activityType = 'Document Replaced';
-        activityMessage = `${currentUser?.role || 'User'} replaced ${uploadForm.documentType}`;
-      } else {
-        updatedDocs = [...updatedDocs, newDoc];
-      }
-
-      const isAutoConverting = selectedLead.stage === 'Lead';
-      const newStage: Stage = isAutoConverting ? 'Converted' : selectedLead.stage;
-      const convertedAt = isAutoConverting ? new Date().toISOString() : selectedLead.convertedAt;
-
-      const leadUpdates: Partial<MockLead> = { 
-        documents: updatedDocs,
-        stage: newStage,
-        updatedAt: new Date().toISOString()
-      };
-      if (isAutoConverting) {
-        leadUpdates.convertedAt = convertedAt;
-      }
-
-      await updateLead(selectedLead.id, leadUpdates);
-
-      if (isAutoConverting) {
-        await addActivity({
-          type: 'Lead Converted',
-          message: `Lead ${selectedLead.customer} automatically CONVERTED to Converted stage upon document upload (${uploadForm.documentType})`,
-          user: currentUser?.name || 'System',
-          dealer: selectedLead.dealer,
-          leadId: selectedLead.id
-        });
-      } else {
-        await addActivity({
-          type: activityType,
-          message: activityMessage,
-          user: currentUser?.name || 'System',
-          dealer: selectedLead.dealer,
-          leadId: selectedLead.id
-        });
-      }
-      
-      showToast(
-        isAutoConverting 
-          ? `✓ ${uploadForm.documentType} uploaded! Lead automatically converted to Converted stage.`
-          : (isReplacingDocId ? 'Document replaced successfully' : 'Document uploaded successfully')
-      );
-      setSelectedLead({ 
-        ...selectedLead, 
-        documents: updatedDocs,
-        stage: newStage,
-        convertedAt
-      });
-      setShowUploadModal(false);
-    } catch (err) {
-      console.error("Upload failed:", err);
-      showToast(`Upload failed: ${err instanceof Error ? err.message : (err as any)?.message || 'Unknown error'}`, "error");
-    } finally {
-      setIsUploading(false);
-    }
+    setSmartUploadModal({
+      isOpen: true,
+      file: uploadForm.file,
+      documentType: uploadForm.documentType,
+      isReplacingDocId: isReplacingDocId,
+      customCallback: null
+    });
   };
 
   const confirmDeleteDocument = async () => {
@@ -954,72 +1154,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     }
   };
 
-  const getCloudinaryDownloadUrl = (url: string) => {
-    if (!url) return '';
-    if (url.includes('cloudinary.com') && url.includes('/upload/')) {
-      // Use fl_attachment to force direct browser download
-      return url.replace('/upload/', '/upload/fl_attachment/');
-    }
-    return url;
-  };
 
-  const handleDownloadDocument = (docObj: LeadDocument) => {
-    if (!docObj.fileUrl) {
-      showToast('File preview is no longer available in this frontend session.');
-      return;
-    }
-
-    const downloadUrl = getCloudinaryDownloadUrl(docObj.fileUrl);
-    
-    // Creating link without target="_blank" triggers direct save/download in Chrome
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = docObj.fileName || `${docObj.documentType || 'document'}`;
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      try { document.body.removeChild(link); } catch {}
-    }, 200);
-
-    if (selectedLead) {
-      addActivity({
-        type: 'Document Downloaded',
-        message: `${currentUser?.role || 'User'} downloaded ${docObj.documentType}`,
-        user: currentUser?.name || 'System',
-        dealer: selectedLead.dealer,
-        leadId: selectedLead.id
-      });
-    }
-  };
-
-  const handleDownloadAllDocuments = () => {
-    if (!selectedLead?.documents || selectedLead.documents.length === 0) return;
-    showToast(`Downloading ${selectedLead.documents.length} documents...`);
-    
-    selectedLead.documents.forEach((doc, index) => {
-      if (doc.fileUrl) {
-        setTimeout(() => {
-          const downloadUrl = getCloudinaryDownloadUrl(doc.fileUrl);
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = doc.fileName || `${doc.documentType}`;
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            try { document.body.removeChild(link); } catch {}
-          }, 200);
-        }, index * 400);
-      }
-    });
-
-    addActivity({
-      type: 'Documents Downloaded',
-      message: `${currentUser?.role || 'User'} downloaded all project documents`,
-      user: currentUser?.name || 'System',
-      dealer: selectedLead.dealer,
-      leadId: selectedLead.id
-    });
-  };
 
   const handleMarkPendingDocument = (docObj: LeadDocument) => {
     if (!selectedLead) return;
@@ -1249,16 +1384,16 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            {/* Dealer Filter - Locked if Dealer */}
-            {isAdmin && (
+            {/* Dealer Filter - Visible to Admin & PM Surya Ghar */}
+            {isCompanyWideManager && (
               <select className="filter-select" value={dlrFilter} onChange={e => setDlrFilter(e.target.value)}>
                 <option value="All">All Dealers</option>
                 {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
               </select>
             )}
 
-            {/* Employee Filter - Locked if Employee */}
-            {isAdmin && (
+            {/* Employee Filter - Visible to Admin & PM Surya Ghar */}
+            {isCompanyWideManager && (
               <select className="filter-select" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
                 <option value="All">All Employees</option>
                 <option value="Unassigned">Unassigned</option>
@@ -1289,23 +1424,23 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             {stageFilter !== 'All' && (
               <div className="filter-chip">Stage: {stageFilter} <button onClick={() => setStageFilter('All')}><X size={14} /></button></div>
             )}
-            {dlrFilter !== 'All' && isAdmin && (
+            {dlrFilter !== 'All' && isCompanyWideManager && (
               <div className="filter-chip">Dealer: {dlrFilter} <button onClick={() => setDlrFilter('All')}><X size={14} /></button></div>
             )}
-            {empFilter !== 'All' && isAdmin && (
+            {empFilter !== 'All' && isCompanyWideManager && (
               <div className="filter-chip">Employee: {empFilter} <button onClick={() => setEmpFilter('All')}><X size={14} /></button></div>
             )}
             {priorityFilter !== 'All' && (
               <div className="filter-chip">Priority: {priorityFilter} <button onClick={() => setPriorityFilter('All')}><X size={14} /></button></div>
             )}
-            {(leadTypeFilter !== 'All' || stageFilter !== 'All' || priorityFilter !== 'All' || (dlrFilter !== 'All' && isAdmin) || (empFilter !== 'All' && isAdmin)) && (
+            {(leadTypeFilter !== 'All' || stageFilter !== 'All' || priorityFilter !== 'All' || (dlrFilter !== 'All' && isCompanyWideManager) || (empFilter !== 'All' && isCompanyWideManager)) && (
               <button className="clear-filters" onClick={handleClearFilters}>Clear All</button>
             )}
           </div>
         </div>
 
-        {/* UNASSIGNED LEADS TABLE (Admin Only) */}
-        {isAdmin && unassignedLeads.length > 0 && (
+        {/* UNASSIGNED LEADS TABLE (Admin & PM Surya Ghar) */}
+        {isCompanyWideManager && unassignedLeads.length > 0 && (
           <div className="leads-table-container" style={{marginBottom: '2rem', border: '2px solid #f59e0b'}}>
             <div style={{padding: '1rem', background: '#fef3c7', borderBottom: '1px solid #fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <h3 style={{margin: 0, color: '#b45309'}}>Unassigned Leads ({unassignedLeads.length})</h3>
@@ -1314,7 +1449,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <table className="leads-table">
               <thead>
                 <tr>
-                  <th>Customer</th>
+                  <th>Customer & Origin</th>
                   <th>Dealer</th>
                   <th>Stage</th>
                   <th>Priority</th>
@@ -1328,7 +1463,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       <div className="customer-cell" onClick={() => setSelectedLead(lead)} style={{cursor: 'pointer'}}>
                         <div className="customer-avatar">{lead.customer.charAt(0)}</div>
                         <div className="customer-info">
-                          <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                          <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
                             {lead.customer}
                             <span style={{
                               fontSize: '0.65rem', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 600,
@@ -1339,6 +1474,26 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                             </span>
                           </span>
                           <span className="customer-phone">{lead.phone}</span>
+                          {/* Origin Attribution */}
+                          <div style={{display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.2rem', flexWrap: 'wrap'}}>
+                            {lead.marketingEmployee || lead.sourceMarketingEmployee ? (
+                              <span style={{fontSize: '0.72rem', color: '#b45309', background: '#fef3c7', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #fde68a'}}>
+                                🧑‍💼 Sent by: {lead.marketingEmployee || lead.sourceMarketingEmployee} (Marketer)
+                              </span>
+                            ) : lead.sourceDealer || (lead.dealer && lead.dealer !== 'Direct (Company)') ? (
+                              <span style={{fontSize: '0.72rem', color: '#4338ca', background: '#e0e7ff', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #c7d2fe'}}>
+                                🏢 Sent by: {lead.sourceDealer || lead.dealer} (Dealer)
+                              </span>
+                            ) : lead.createdByName && lead.createdByName !== 'User' ? (
+                              <span style={{fontSize: '0.72rem', color: '#334155', background: '#f1f5f9', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #e2e8f0'}}>
+                                👤 Sent by: {lead.createdByName} ({lead.createdByRole || 'Staff'})
+                              </span>
+                            ) : (
+                              <span style={{fontSize: '0.72rem', color: '#64748b', background: '#f8fafc', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 500}}>
+                                🏛 Direct Mirror Solar
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -1351,16 +1506,22 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                           className="filter-select" 
                           style={{padding: '0.25rem 0.5rem', fontSize: '0.85rem'}}
                           value=""
-                          onChange={e => {
-                            if (e.target.value) {
-                              updateLead(lead.id, { assignedEmployee: e.target.value });
-                              addActivity({
-                                type: 'Lead Assignment',
-                                message: `${lead.customer} assigned to ${e.target.value}`,
-                                user: currentUser?.name || 'System',
-                                dealer: lead.dealer
-                              });
-                              showToast(`Assigned to ${e.target.value}`);
+                          onChange={async (e) => {
+                            const empName = e.target.value;
+                            if (empName) {
+                              const empObj = employees.find(emp => emp.name === empName);
+                              try {
+                                await assignLead(lead.id, {
+                                  employeeName: empName,
+                                  employeeId: empObj?.id || '',
+                                  dealerName: lead.dealer || 'Direct (Company)',
+                                  dealerId: lead.dealerId || '',
+                                  notes: `Quick assigned by ${currentUser?.name || 'Staff'}`
+                                });
+                                showToast(`✓ Full lead details assigned to ${empName}!`, 'success');
+                              } catch (err: any) {
+                                showToast(err.message || 'Failed to assign lead', 'error');
+                              }
                             }
                           }}
                         >
@@ -1381,9 +1542,9 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           <table className="leads-table">
             <thead>
               <tr>
-                <th>Customer</th>
+                <th>Customer & Origin</th>
                 {!isDealer && <th>Dealer</th>}
-                {!isEmployee && <th>Employee</th>}
+                {(!isEmployee || isSuryaGhar) && <th>Employee</th>}
                 <th>Stage</th>
                 <th>Priority</th>
                 <th>Follow-up</th>
@@ -1397,7 +1558,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     <div className="customer-cell">
                       <div className="customer-avatar">{lead.customer.charAt(0)}</div>
                       <div className="customer-info">
-                        <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                        <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
                           {lead.customer}
                           <span style={{
                             fontSize: '0.65rem', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 600,
@@ -1408,11 +1569,31 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                           </span>
                         </span>
                         <span className="customer-phone">{lead.phone}</span>
+                        {/* Origin Source Attribution */}
+                        <div style={{display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.2rem', flexWrap: 'wrap'}}>
+                          {lead.marketingEmployee || lead.sourceMarketingEmployee ? (
+                            <span style={{fontSize: '0.72rem', color: '#b45309', background: '#fef3c7', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #fde68a'}}>
+                              🧑‍💼 Sent by: {lead.marketingEmployee || lead.sourceMarketingEmployee} (Marketer)
+                            </span>
+                          ) : lead.sourceDealer || (lead.dealer && lead.dealer !== 'Direct (Company)') ? (
+                            <span style={{fontSize: '0.72rem', color: '#4338ca', background: '#e0e7ff', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #c7d2fe'}}>
+                              🏢 Sent by: {lead.sourceDealer || lead.dealer} (Dealer)
+                            </span>
+                          ) : lead.createdByName && lead.createdByName !== 'User' ? (
+                            <span style={{fontSize: '0.72rem', color: '#334155', background: '#f1f5f9', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600, border: '1px solid #e2e8f0'}}>
+                              👤 Sent by: {lead.createdByName} ({lead.createdByRole || 'Staff'})
+                            </span>
+                          ) : (
+                            <span style={{fontSize: '0.72rem', color: '#64748b', background: '#f8fafc', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 500}}>
+                              🏛 Direct Mirror Solar
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  {!isDealer && <td>{lead.dealer}</td>}
-                  {!isEmployee && <td>{lead.assignedEmployee}</td>}
+                  {!isDealer && <td>{lead.dealer || 'Direct (Company)'}</td>}
+                  {(!isEmployee || isSuryaGhar) && <td>{lead.assignedEmployee || 'Unassigned'}</td>}
                   <td>
                     <span className={`stage-badge ${getStageBadgeClass(lead.stage)}`}>{lead.stage}</span>
                   </td>
@@ -1548,6 +1729,83 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 </div>
               </div>
             )}
+
+            {/* Lead Reassignment / Transfer Request Alert Banner */}
+            {selectedLead.reassignmentRequest && selectedLead.reassignmentRequest.status === 'Pending' && (
+              <div style={{
+                background: '#eff6ff',
+                border: '1.5px solid #93c5fd',
+                padding: '0.85rem 1.25rem',
+                borderRadius: '10px',
+                margin: '0.75rem 1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                  <div style={{width: 36, height: 36, borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8'}}>
+                    <ArrowRight size={18} />
+                  </div>
+                  <div>
+                    <strong style={{color: '#1e40af', fontSize: '0.92rem', display: 'block'}}>
+                      🔄 Reassignment Request from {selectedLead.reassignmentRequest.requestedBy} ({selectedLead.reassignmentRequest.requestedByRole})
+                    </strong>
+                    <div style={{fontSize: '0.82rem', color: '#3b82f6', marginTop: '2px'}}>
+                      Target: <strong>{[selectedLead.reassignmentRequest.targetEmployee, selectedLead.reassignmentRequest.targetDealer].filter(Boolean).join(' / ')}</strong>
+                      {selectedLead.reassignmentRequest.reason && (
+                        <span> • Reason: "<em>{selectedLead.reassignmentRequest.reason}</em>"</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {isAdmin ? (
+                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                    <button 
+                      className="btn-primary" 
+                      style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#16a34a', borderColor: '#16a34a'}}
+                      onClick={handleApproveTransfer}
+                    >
+                      <Check size={14} /> Approve Transfer
+                    </button>
+                    <button 
+                      className="btn-outline" 
+                      style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5'}}
+                      onClick={() => setShowRejectTransferModal(true)}
+                    >
+                      Reject Request
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 700, background: '#dbeafe', padding: '0.3rem 0.75rem', borderRadius: '8px'}}>
+                    ⏳ Awaiting Admin Approval
+                  </span>
+                )}
+              </div>
+            )}
+
+            {selectedLead.reassignmentRequest && selectedLead.reassignmentRequest.status === 'Rejected' && (
+              <div style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                padding: '0.85rem 1.25rem',
+                borderRadius: '10px',
+                margin: '0.75rem 1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <ShieldAlert size={20} color="#dc2626" />
+                <div>
+                  <strong style={{color: '#991b1b', fontSize: '0.9rem', display: 'block'}}>Transfer Request Rejected by Admin</strong>
+                  <span style={{fontSize: '0.8rem', color: '#b91c1c'}}>
+                    Reason: {selectedLead.reassignmentRequest.rejectionReason || 'Transfer request was reviewed and rejected by Admin'}
+                  </span>
+                </div>
+              </div>
+            )}
             
             <div className="drawer-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
               {(() => {
@@ -1578,11 +1836,46 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <button className="btn-outline" style={{padding: '0.5rem 1rem'}} onClick={() => setShowStageModal(true)}>
                 Jump Stage
               </button>
+              
+              {/* Role-Scoped Assignment Actions (Admin & PM Surya Ghar direct assign, others request transfer) */}
+              {isCompanyWideManager ? (
+                <button 
+                  className="btn-primary" 
+                  style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#2563eb', borderColor: '#2563eb'}} 
+                  onClick={() => {
+                    setAssignModalForm({
+                      employeeName: selectedLead.assignedEmployee || '',
+                      employeeId: selectedLead.assignedEmployeeId || '',
+                      dealerName: selectedLead.dealer || 'Direct (Company)',
+                      dealerId: selectedLead.dealerId || '',
+                      notes: ''
+                    });
+                    setShowChangeEmpModal(true);
+                  }}
+                >
+                  <Send size={15} /> Assign / Send Details
+                </button>
+              ) : (
+                <button 
+                  className="btn-outline" 
+                  style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} 
+                  onClick={() => {
+                    setTransferRequestForm({
+                      targetEmployee: '',
+                      targetEmployeeId: '',
+                      targetDealer: '',
+                      targetDealerId: '',
+                      reason: ''
+                    });
+                    setShowRequestTransferModal(true);
+                  }}
+                >
+                  <ArrowRight size={15} /> Request Transfer
+                </button>
+              )}
+
               {canManageModule(currentUser, 'leads') && (
                 <>
-                  <button className="btn-outline" style={{padding: '0.5rem 1rem'}} onClick={() => setShowChangeEmpModal(true)}>
-                    Assign
-                  </button>
                   <button className="btn-outline" style={{padding: '0.5rem 1rem'}} onClick={() => setShowAddFollowupModal(true)}>
                     Follow-up
                   </button>
@@ -1617,6 +1910,76 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Lead Origin & Sourcing Attribution Card */}
+              <div className="detail-section" style={{
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
+                border: '1.5px solid #bae6fd',
+                borderRadius: '12px',
+                padding: '1.15rem 1.25rem',
+                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
+              }}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                  <h4 style={{margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
+                    <Share2 size={16} color="#0284c7" /> Lead Sourcing & Origin Attribution
+                  </h4>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '20px',
+                    backgroundColor: selectedLead.marketingEmployee ? '#fef3c7' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#e0e7ff' : '#f1f5f9',
+                    color: selectedLead.marketingEmployee ? '#b45309' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#4338ca' : '#475569',
+                    border: '1px solid currentColor'
+                  }}>
+                    {selectedLead.source || (selectedLead.marketingEmployee ? `Marketing Staff: ${selectedLead.marketingEmployee}` : selectedLead.dealer ? `Dealer: ${selectedLead.dealer}` : 'Direct Mirror Solar')}
+                  </span>
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem'}}>
+                  {/* Originator / Sent By */}
+                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                      Originator / Sent By
+                    </span>
+                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem'}}>
+                      {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee ? (
+                        <span style={{color: '#b45309'}}>🧑‍💼 {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee} (Marketer)</span>
+                      ) : selectedLead.sourceDealer || (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? (
+                        <span style={{color: '#4338ca'}}>🏢 {selectedLead.sourceDealer || selectedLead.dealer} (Dealer)</span>
+                      ) : selectedLead.createdByName ? (
+                        <span style={{color: '#0f172a'}}>👤 {selectedLead.createdByName} ({selectedLead.createdByRole || 'Staff'})</span>
+                      ) : (
+                        <span style={{color: '#64748b'}}>🏛 Direct (Mirror Solar HQ)</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Dealership */}
+                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                      Associated Dealer
+                    </span>
+                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'block'}}>
+                      🏢 {selectedLead.dealer || 'Direct (Company)'}
+                    </span>
+                  </div>
+
+                  {/* Assigned Employee / PM Surya Ghar Desk */}
+                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                      Operational Assignee / Desk
+                    </span>
+                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? '#0369a1' : '#d97706', marginTop: '0.2rem', display: 'block'}}>
+                      {selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? (
+                        `⚡ ${selectedLead.assignedEmployee}`
+                      ) : (
+                        `⚠️ Unassigned (PM Surya Ghar Desk)`
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1656,7 +2019,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   </div>
                   <div className="detail-field">
                     <span className="detail-label">Dealer</span>
-                    <span className="detail-value" style={{cursor: 'pointer', color: 'var(--color-navy)', textDecoration: 'underline'}} onClick={() => showToast('Navigating to Dealer...')}>{selectedLead.dealer}</span>
+                    <span className="detail-value">{selectedLead.dealer || 'Direct (Company)'}</span>
                   </div>
                   <div className="detail-field">
                     <span className="detail-label">Employee</span>
@@ -1677,10 +2040,9 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 />
               </div>
 
-              {/* --- PROJECT LEAD SECTIONS --- */}
-              {selectedLead.leadType === 'project' && (
-                <>
-                  {/* Documents & Specifications Section */}
+              {/* --- PROJECT DOCUMENTS & SPECIFICATIONS (Visible for all leads) --- */}
+              <>
+                {/* Documents & Specifications Section */}
                   <div className="detail-section">
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
                       <div>
@@ -2071,9 +2433,9 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                             background: '#ffffff', 
                             boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)'
                           }}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem'}}>
                               <div>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
                                   <h4 style={{margin: 0, fontSize: '1.1rem', color: '#0b1f3a', fontWeight: 800}}>{title}</h4>
                                   <span style={{fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: badgeColor, color: '#0b1f3a', fontWeight: 700}}>
                                     {badgeText}
@@ -2081,16 +2443,33 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                                 </div>
                                 <p style={{margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b'}}>{subtitle}</p>
                               </div>
-                              <span style={{
-                                fontSize: '0.85rem', 
-                                fontWeight: 700, 
-                                color: uploadedTypesCount === totalTypes ? '#16a34a' : '#475569', 
-                                background: uploadedTypesCount === totalTypes ? '#dcfce7' : '#f1f5f9', 
-                                padding: '0.3rem 0.75rem', 
-                                borderRadius: '8px'
-                              }}>
-                                {uploadedTypesCount} / {totalTypes} Completed
-                              </span>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                                <span style={{
+                                  fontSize: '0.85rem', 
+                                  fontWeight: 700, 
+                                  color: uploadedTypesCount === totalTypes ? '#16a34a' : '#475569', 
+                                  background: uploadedTypesCount === totalTypes ? '#dcfce7' : '#f1f5f9', 
+                                  padding: '0.3rem 0.75rem', 
+                                  borderRadius: '8px'
+                                }}>
+                                  {uploadedTypesCount} / {totalTypes} Completed
+                                </span>
+                                {selectedLead.documents && selectedLead.documents.some(d => docTypes.includes(d.documentType)) && (
+                                  <button 
+                                    className="btn-outline" 
+                                    style={{padding: '0.3rem 0.65rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600}}
+                                    onClick={() => handleDownloadSection(title, docTypes, badgeText.replace(/[^a-zA-Z0-9]/g, '_'))}
+                                    disabled={isDownloadingSection !== null}
+                                    title={`Download all files in ${title}`}
+                                  >
+                                    {isDownloadingSection === badgeText.replace(/[^a-zA-Z0-9]/g, '_') ? (
+                                      <><Loader2 size={13} style={{animation: 'spin 1s linear infinite'}} /> Downloading...</>
+                                    ) : (
+                                      <><FolderDown size={14} color="#2563eb" /> Download Section ({selectedLead.documents.filter(d => docTypes.includes(d.documentType)).length})</>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {sectionBannerNotice && (
@@ -2189,9 +2568,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                                                 className="btn-outline" 
                                                 style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
                                                 onClick={() => handleDownloadDocument(doc)}
-                                                title="Download Document"
+                                                title="Download Document directly to device"
                                               >
                                                 <Download size={12} /> Download
+                                              </button>
+                                              <button 
+                                                className="btn-outline" 
+                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#0284c7', borderColor: '#bae6fd'}} 
+                                                onClick={() => handleShareDocument(doc)}
+                                                title="Share via WhatsApp, Email, or Link"
+                                              >
+                                                <Share2 size={12} /> Share
                                               </button>
                                               {currentUser?.id === doc.uploadedByUserId && (
                                                 <button 
@@ -2412,8 +2799,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     </div>
                   )}
                 </>
-              )}
-              {/* --- END PROJECT LEAD SECTIONS --- */}
+              {/* --- END PROJECT SECTIONS --- */}
 
               {/* Follow ups */}
               {selectedLead.followUp && (
@@ -2653,23 +3039,303 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         </div>
       )}
 
+      {/* Admin Assign / Send Lead Full Details Modal */}
       {showChangeEmpModal && selectedLead && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '400px'}}>
-            <h2>Reassign Employee</h2>
-            <p style={{marginBottom: '1rem', color: '#64748b'}}>Change the employee handling <strong>{selectedLead.customer}</strong>.</p>
-            <select 
-              className="filter-select" 
-              style={{width: '100%', marginBottom: '1.5rem'}}
-              value={newEmp} 
-              onChange={e => setNewEmp(e.target.value)}
-            >
-              <option value="">Select Employee...</option>
-              {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-            </select>
-            <div className="modal-actions">
+        <div className="modal-overlay" style={{zIndex: 1100}}>
+          <div className="modal-content" style={{maxWidth: '540px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
+              <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                <Send size={20} color="#2563eb" /> Assign / Send Full Lead Details
+              </h2>
+              <button onClick={() => setShowChangeEmpModal(false)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b'}}>
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{marginBottom: '1rem', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.45'}}>
+              Assign <strong>{selectedLead.customer}</strong> ({selectedLead.phone}) directly from the Admin Portal. Full details including technical specifications, documents, and customer location will be instantly assigned.
+            </p>
+            
+            <div className="form-group" style={{marginBottom: '1rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Assign Employee
+              </label>
+              <select 
+                className="filter-select" 
+                style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
+                value={assignModalForm.employeeName} 
+                onChange={e => {
+                  const empObj = employees.find(emp => emp.name === e.target.value);
+                  setAssignModalForm({
+                    ...assignModalForm, 
+                    employeeName: e.target.value,
+                    employeeId: empObj?.id || ''
+                  });
+                }}
+              >
+                <option value="">-- Select Employee --</option>
+                {employees.map(e => <option key={e.id} value={e.name}>{e.name} ({e.email || e.role})</option>)}
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom: '1rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Assign Dealer
+              </label>
+              <select 
+                className="filter-select" 
+                style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
+                value={assignModalForm.dealerName} 
+                onChange={e => {
+                  const dlrObj = dealers.find(d => d.name === e.target.value);
+                  setAssignModalForm({
+                    ...assignModalForm, 
+                    dealerName: e.target.value,
+                    dealerId: dlrObj?.id || ''
+                  });
+                }}
+              >
+                <option value="Direct (Company)">Direct (Company)</option>
+                {dealers.map(d => <option key={d.id} value={d.name}>{d.name} ({(d as any).location || d.phone || d.email || 'Dealer'})</option>)}
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom: '1.25rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Assignment Remarks / Instructions
+              </label>
+              <textarea 
+                value={assignModalForm.notes}
+                onChange={e => setAssignModalForm({...assignModalForm, notes: e.target.value})}
+                placeholder="E.g. High priority project. Please schedule site inspection and verify solar quotation immediately..."
+                style={{width: '100%', minHeight: '80px', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', boxSizing: 'border-box'}}
+              />
+            </div>
+
+            <div className="modal-actions" style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem'}}>
               <button className="btn-outline" onClick={() => setShowChangeEmpModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleChangeEmployee} disabled={!newEmp}>Confirm Assignment</button>
+              <button 
+                className="btn-primary" 
+                onClick={handleAdminAssignLead} 
+                disabled={!assignModalForm.employeeName && !assignModalForm.dealerName}
+                style={{display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#2563eb', borderColor: '#2563eb'}}
+              >
+                <Check size={16} /> Confirm & Send Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Lead Transfer Request Modal (Requires Admin Permission) */}
+      {showRequestTransferModal && selectedLead && (
+        <div className="modal-overlay" style={{zIndex: 1100}}>
+          <div className="modal-content" style={{maxWidth: '540px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
+              <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                <ArrowRight size={20} color="#3b82f6" /> Request Lead Transfer
+              </h2>
+              <button onClick={() => setShowRequestTransferModal(false)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b'}}>
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{marginBottom: '1rem', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.45'}}>
+              Staff members cannot directly transfer leads to other employees or dealers without permission. Submitting this request sends it to <strong>Admin for approval</strong>.
+            </p>
+            
+            <div className="form-group" style={{marginBottom: '1rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Target Employee (Optional)
+              </label>
+              <select 
+                className="filter-select" 
+                style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
+                value={transferRequestForm.targetEmployee} 
+                onChange={e => {
+                  const empObj = employees.find(emp => emp.name === e.target.value);
+                  setTransferRequestForm({
+                    ...transferRequestForm, 
+                    targetEmployee: e.target.value,
+                    targetEmployeeId: empObj?.id || ''
+                  });
+                }}
+              >
+                <option value="">-- Select Target Employee --</option>
+                {employees.filter(e => e.name !== currentUser?.name).map(e => (
+                  <option key={e.id} value={e.name}>{e.name} ({e.email || e.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom: '1rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Target Dealer (Optional)
+              </label>
+              <select 
+                className="filter-select" 
+                style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
+                value={transferRequestForm.targetDealer} 
+                onChange={e => {
+                  const dlrObj = dealers.find(d => d.name === e.target.value);
+                  setTransferRequestForm({
+                    ...transferRequestForm, 
+                    targetDealer: e.target.value,
+                    targetDealerId: dlrObj?.id || ''
+                  });
+                }}
+              >
+                <option value="">-- Select Target Dealer --</option>
+                <option value="Direct (Company)">Direct (Company)</option>
+                {dealers.map(d => <option key={d.id} value={d.name}>{d.name} ({(d as any).location || d.phone || d.email || 'Dealer'})</option>)}
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom: '1.25rem'}}>
+              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+                Reason for Reassignment Request *
+              </label>
+              <textarea 
+                value={transferRequestForm.reason}
+                onChange={e => setTransferRequestForm({...transferRequestForm, reason: e.target.value})}
+                placeholder="E.g. Customer requested a local visit in Guntur region; please reassign to local staff..."
+                style={{width: '100%', minHeight: '90px', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', boxSizing: 'border-box'}}
+                required
+              />
+            </div>
+
+            <div className="modal-actions" style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem'}}>
+              <button className="btn-outline" onClick={() => setShowRequestTransferModal(false)}>Cancel</button>
+              <button 
+                className="btn-primary" 
+                onClick={handleRequestTransferSubmit} 
+                disabled={!transferRequestForm.reason.trim() || (!transferRequestForm.targetEmployee && !transferRequestForm.targetDealer)}
+                style={{display: 'flex', alignItems: 'center', gap: '0.4rem'}}
+              >
+                <Send size={15} /> Submit Transfer Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Reject Reassignment Modal */}
+      {showRejectTransferModal && selectedLead && (
+        <div className="modal-overlay" style={{zIndex: 1150}}>
+          <div className="modal-content" style={{maxWidth: '460px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+            <h2 style={{fontSize: '1.25rem', color: '#991b1b', marginBottom: '0.5rem'}}>Reject Transfer Request</h2>
+            <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem'}}>
+              Please specify the reason for rejecting the transfer request for <strong>{selectedLead.customer}</strong>.
+            </p>
+            <textarea 
+              value={rejectTransferReason} 
+              onChange={e => setRejectTransferReason(e.target.value)}
+              placeholder="E.g. Current assignee is already handling this zone; please continue..."
+              style={{width: '100%', minHeight: '90px', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '1.25rem', boxSizing: 'border-box'}}
+            />
+            <div className="modal-actions" style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem'}}>
+              <button className="btn-outline" onClick={() => { setShowRejectTransferModal(false); setRejectTransferReason(''); }}>Cancel</button>
+              <button className="btn-primary" style={{background: '#dc2626', borderColor: '#dc2626'}} onClick={handleRejectTransfer}>Confirm Rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Document Modal (Native / WhatsApp / Email / Copy Link) */}
+      {showShareModal && shareModalDoc && (
+        <div className="modal-overlay" style={{zIndex: 1200}}>
+          <div className="modal-content" style={{maxWidth: '480px', width: '95%', padding: '1.75rem', borderRadius: '16px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
+              <h2 style={{margin: 0, fontSize: '1.2rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                <Share2 size={20} color="#2563eb" /> Share Project Document
+              </h2>
+              <button onClick={() => setShowShareModal(false)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b'}}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem'}}>
+              <strong style={{color: '#0f172a', fontSize: '0.95rem', display: 'block'}}>{shareModalDoc.documentType}</strong>
+              <span style={{fontSize: '0.8rem', color: '#64748b'}}>{shareModalDoc.fileName} • Customer: {selectedLead?.customer}</span>
+            </div>
+
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem'}}>
+              {/* WhatsApp Share Button */}
+              <a 
+                href={getWhatsAppShareUrl(shareModalDoc, selectedLead?.customer || 'Customer')}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '0.8rem 1rem',
+                  background: '#25d366',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.3)'
+                }}
+              >
+                <MessageSquare size={20} /> Share via WhatsApp
+              </a>
+
+              {/* Email Share Button */}
+              <a 
+                href={getEmailShareUrl(shareModalDoc, selectedLead?.customer || 'Customer')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '0.8rem 1rem',
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
+                }}
+              >
+                <Mail size={20} /> Share via Email
+              </a>
+
+              {/* Direct Link Copy Button */}
+              <button 
+                type="button"
+                onClick={async () => {
+                  const ok = await copyDocumentLink(shareModalDoc.fileUrl);
+                  if (ok) {
+                    setLinkCopied(true);
+                    showToast("✓ File link copied to clipboard!", "success");
+                    setTimeout(() => setLinkCopied(false), 3000);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '0.8rem 1rem',
+                  background: linkCopied ? '#dcfce7' : '#f8fafc',
+                  color: linkCopied ? '#16a34a' : '#1e293b',
+                  border: `1.5px solid ${linkCopied ? '#86efac' : '#cbd5e1'}`,
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {linkCopied ? <><CheckCheck size={18} /> Link Copied to Clipboard!</> : <><Copy size={18} /> Copy Direct Download Link</>}
+              </button>
+            </div>
+
+            <div className="modal-actions" style={{display: 'flex', justifyContent: 'flex-end'}}>
+              <button className="btn-outline" style={{width: '100%', padding: '0.65rem'}} onClick={() => setShowShareModal(false)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -2725,68 +3391,58 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 <input type="text" placeholder="+91..." value={newLeadForm.phone} onChange={e => setNewLeadForm({...newLeadForm, phone: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Email</label>
+                <label>Email Address</label>
                 <input type="email" placeholder="customer@example.com" value={newLeadForm.email} onChange={e => setNewLeadForm({...newLeadForm, email: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Location</label>
+                <label>Location / City</label>
                 <input type="text" placeholder="City or Region" value={newLeadForm.location} onChange={e => setNewLeadForm({...newLeadForm, location: e.target.value})} />
               </div>
-              <div className="form-group">
-                <label>Dealer *</label>
-                <select disabled={isDealer} value={isDealer && currentUser ? currentUser.name : newLeadForm.dealer} onChange={e => setNewLeadForm({...newLeadForm, dealer: e.target.value})}>
-                  <option value="">Select Dealer</option>
-                  {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                </select>
-              </div>
-              {/* Assigned Employee (Hidden for Dealers) */}
-              {!isDealer && (
-                <div className="form-group">
-                  <label>Assigned Employee *</label>
-                  <select disabled={isEmployee} value={isEmployee && currentUser ? currentUser.name : newLeadForm.assignedEmployee} onChange={e => setNewLeadForm({...newLeadForm, assignedEmployee: e.target.value})}>
-                    <option value="">Select Employee</option>
-                    {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-                  </select>
-                </div>
-              )}
               <div className="form-group" style={{gridColumn: '1 / -1'}}>
-                <label>Initial Notes</label>
-                <textarea placeholder="Any requirements or details..." value={newLeadForm.notes} onChange={e => setNewLeadForm({...newLeadForm, notes: e.target.value})}></textarea>
+                <label>Initial Requirements / Notes</label>
+                <textarea placeholder="Solar capacity requirements, site address, or customer remarks..." value={newLeadForm.notes} onChange={e => setNewLeadForm({...newLeadForm, notes: e.target.value})}></textarea>
               </div>
             </div>
 
             <div className="modal-actions" style={{marginTop: '1rem'}}>
               <button type="button" className="btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button type="button" className="btn-primary" onClick={() => {
+              <button type="button" className="btn-primary" onClick={async () => {
                 if (!newLeadForm.customer || !newLeadForm.phone) {
-                  showToast("Please fill in required fields.");
+                  showToast("Please fill in required fields (Customer Name & Phone).");
                   return;
                 }
-                const actualDealer = isDealer && currentUser ? currentUser.name : newLeadForm.dealer;
-                const actualEmployee = isDealer ? '' : (isEmployee ? (currentUser?.name || 'Kumari') : newLeadForm.assignedEmployee);
-                const actualEmployeeId = isEmployee ? (currentUser?.id || '') : undefined;
-                
-                addLead({
-                  customer: newLeadForm.customer,
-                  phone: newLeadForm.phone,
-                  email: newLeadForm.email,
-                  location: newLeadForm.location,
-                  dealer: actualDealer,
-                  assignedEmployee: actualEmployee,
-                  assignedEmployeeId: actualEmployeeId,
-                  notes: newLeadForm.notes,
-                  stage: 'Lead',
-                  priority: 'Medium',
-                  leadType: newLeadForm.leadType,
-                  followUp: { date: '', time: '', type: 'Other', status: 'No Follow-up' },
-                  createdAt: new Date().toISOString(),
-                  updatedAt: 'Just now',
-                  archived: false
-                });
-                
-                showToast("Lead created successfully");
-                setShowAddModal(false);
-                setNewLeadForm({ customer: '', phone: '', email: '', location: '', dealer: '', assignedEmployee: '', notes: '', leadType: 'tracking' });
+                try {
+                  const actualDealer = isDealer && currentUser ? currentUser.name : 'Direct (Company)';
+                  const actualEmployee = isDealer ? '' : (isEmployee ? (currentUser?.name || 'Sunkara Siva') : (currentUser?.name || 'Direct (Company)'));
+                  const actualEmployeeId = isEmployee ? (currentUser?.id || (currentUser as any)?.employeeId || (currentUser as any)?.employeeCode || 'MSV-SIVA-001') : '';
+                  
+                  await addLead({
+                    customer: newLeadForm.customer,
+                    phone: newLeadForm.phone,
+                    email: newLeadForm.email,
+                    location: newLeadForm.location,
+                    dealer: actualDealer,
+                    assignedEmployee: actualEmployee,
+                    assignedEmployeeId: actualEmployeeId,
+                    createdBy: currentUser?.id || currentUser?.name || 'Employee',
+                    createdByName: currentUser?.name || 'Employee',
+                    notes: newLeadForm.notes,
+                    stage: 'Lead',
+                    priority: 'Medium',
+                    leadType: 'project',
+                    followUp: { date: '', time: '', type: 'Other', status: 'No Follow-up' },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: 'Just now',
+                    archived: false
+                  });
+                  
+                  showToast("Lead created successfully", "success");
+                  setShowAddModal(false);
+                  setNewLeadForm({ customer: '', phone: '', email: '', location: '', dealer: 'Direct (Company)', assignedEmployee: '', notes: '', leadType: 'project' });
+                } catch (err: any) {
+                  console.error("Failed to create lead:", err);
+                  showToast(`Failed to create lead: ${err.message || String(err)}`);
+                }
               }}>Create Lead</button>
             </div>
           </div>
@@ -2963,6 +3619,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         </div>
       )}
 
+      {/* Smart Compression Upload Modal */}
+      <DocumentUploadModal
+        isOpen={smartUploadModal.isOpen}
+        file={smartUploadModal.file}
+        documentType={smartUploadModal.documentType}
+        onClose={() => setSmartUploadModal({ isOpen: false, file: null, documentType: '', isReplacingDocId: null, customCallback: null })}
+        onConfirmUpload={handleSmartUploadConfirm}
+        isUploading={isSmartUploading}
+        uploadProgress={smartUploadProgress}
+      />
+
       {showPreviewModal && previewDoc && (() => {
         const isPdf = previewDoc.fileType === 'application/pdf' || previewDoc.fileName?.toLowerCase().endsWith('.pdf') || previewDoc.fileUrl?.toLowerCase().includes('.pdf');
         const isImage = !isPdf && (
@@ -2987,8 +3654,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     className="btn-outline" 
                     style={{padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem'}} 
                     onClick={() => handleDownloadDocument(previewDoc)}
+                    title="Download to device"
                   >
                     <Download size={14} /> Download
+                  </button>
+                  <button 
+                    className="btn-outline" 
+                    style={{padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#0284c7', borderColor: '#bae6fd'}} 
+                    onClick={() => handleShareDocument(previewDoc)}
+                    title="Share Document"
+                  >
+                    <Share2 size={14} /> Share
                   </button>
                   <a 
                     href={previewDoc.fileUrl} 
@@ -3009,13 +3685,22 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 {isImage ? (
                   <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%'}}>
                     <img src={previewDoc.fileUrl} alt={previewDoc.fileName} style={{maxWidth: '100%', maxHeight: '550px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}} />
-                    <button 
-                      className="btn-primary" 
-                      style={{padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} 
-                      onClick={() => handleDownloadDocument(previewDoc)}
-                    >
-                      <Download size={16} /> Save / Download Image
-                    </button>
+                    <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.25rem'}}>
+                      <button 
+                        className="btn-primary" 
+                        style={{padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} 
+                        onClick={() => handleDownloadDocument(previewDoc)}
+                      >
+                        <Download size={16} /> Save / Download Image
+                      </button>
+                      <button 
+                        className="btn-outline" 
+                        style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0284c7', borderColor: '#bae6fd'}} 
+                        onClick={() => handleShareDocument(previewDoc)}
+                      >
+                        <Share2 size={16} /> Share Image
+                      </button>
+                    </div>
                   </div>
                 ) : isPdf ? (
                   <iframe 
@@ -3032,6 +3717,9 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       <button className="btn-primary" style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => handleDownloadDocument(previewDoc)}>
                         <Download size={16} /> Download Document
                       </button>
+                      <button className="btn-outline" style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0284c7', borderColor: '#bae6fd'}} onClick={() => handleShareDocument(previewDoc)}>
+                        <Share2 size={16} /> Share Document
+                      </button>
                     </div>
                   </div>
                 )}
@@ -3047,6 +3735,13 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '0.5rem'}}>
                 <span style={{fontSize: '0.85rem', color: '#64748b'}}>{previewDoc.documentType} ({previewDoc.fileName})</span>
                 <div style={{display: 'flex', gap: '0.5rem'}}>
+                  <button 
+                    className="btn-outline" 
+                    style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#0284c7', borderColor: '#bae6fd', fontWeight: 600, cursor: 'pointer'}} 
+                    onClick={() => handleShareDocument(previewDoc)}
+                  >
+                    <Share2 size={16} /> Share
+                  </button>
                   <button 
                     className="btn-primary" 
                     style={{padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer'}} 
