@@ -161,6 +161,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         activeTab={currentPath}
         onSelectTab={handleNavigate}
         onOpenMenu={toggleMobileMenu}
+        employeeCategory={currentUser?.employeeCategory}
       />
     </div>
   );

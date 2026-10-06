@@ -19,6 +19,7 @@ interface MobileBottomNavProps {
   onOpenMenu: () => void;
   stockBadge?: number;
   leadsBadge?: number;
+  employeeCategory?: string;
 }
 
 export default function MobileBottomNav({
@@ -27,7 +28,8 @@ export default function MobileBottomNav({
   onSelectTab,
   onOpenMenu,
   stockBadge = 0,
-  leadsBadge = 0
+  leadsBadge = 0,
+  employeeCategory
 }: MobileBottomNavProps) {
   
   // Custom items per role
@@ -47,10 +49,13 @@ export default function MobileBottomNav({
         { id: '/dealer/stock', label: 'Stock', icon: <Package size={20} />, badge: stockBadge },
       ];
     } else {
+      const isStockIncharge = employeeCategory === 'Stock Incharge';
       return [
         { id: '/employee/dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },
         { id: '/employee/attendance', label: 'Attendance', icon: <UserCheck size={20} /> },
-        { id: '/employee/leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
+        isStockIncharge
+          ? { id: '/employee/stock', label: 'Stock', icon: <Package size={20} />, badge: stockBadge }
+          : { id: '/employee/leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
         { id: '/employee/tasks', label: 'Tasks', icon: <CheckSquare size={20} /> },
       ];
     }

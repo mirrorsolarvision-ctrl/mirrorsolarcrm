@@ -12,6 +12,20 @@ export interface EmployeePerformance {
   performanceLevel: 'High' | 'Medium' | 'Low';
 }
 
+export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead): boolean => {
+  const name = typeof employee === 'string' ? employee : (employee?.name || '');
+  const id = typeof employee === 'object' ? (employee?.id || '') : '';
+  return (
+    lead.assignedEmployee === name ||
+    (Boolean(id) && lead.assignedEmployeeId === id)
+  );
+};
+
+export const isSuryaGharEmployee = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  return user.employeeCategory === 'Surya Ghar Incharge' || user.role === 'Employee';
+};
+
 export const getEmployeeLeads = (employeeName: string, leads: MockLead[]) => {
   return leads.filter(l => l.assignedEmployee === employeeName && !l.archived);
 };

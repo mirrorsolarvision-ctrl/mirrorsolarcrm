@@ -10,14 +10,20 @@ const defaultAdminPermissions: UserPermissions = {
   dashboard: 'full', leads: 'full', employees: 'full', dealers: 'full', stock: 'full', reports: 'full', access: 'full', profile: 'full'
 };
 
+import { signOut } from 'firebase/auth';
+
 interface AuthContextType {
   currentUser: CRMUser | null;
   loading: boolean;
+  loginUser?: (user: CRMUser) => void;
+  logoutUser?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   loading: true,
+  loginUser: () => {},
+  logoutUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -25,6 +31,19 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<CRMUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loginUser = (user: CRMUser) => {
+    setCurrentUser(user);
+  };
+
+  const logoutUser = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn("Sign out warning:", e);
+    }
+    setCurrentUser(null);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -96,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading }}>
+    <AuthContext.Provider value={{ currentUser, loading, loginUser, logoutUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

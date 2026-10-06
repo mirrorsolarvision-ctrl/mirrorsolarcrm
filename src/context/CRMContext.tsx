@@ -266,6 +266,29 @@ export interface MockLead {
   payments?: LeadPayments;
   dealerSpecifications?: DealerProjectSpecifications;
   createdBy?: string;
+  createdByName?: string;
+  createdByRole?: string;
+  source?: string;
+  marketingEmployee?: string;
+  sourceMarketingEmployee?: string;
+  sourceDealer?: string;
+  reassignmentRequest?: LeadReassignmentRequest;
+}
+
+export interface LeadReassignmentRequest {
+  requestedBy?: string;
+  requestedByRole?: string;
+  requestedByUserId?: string;
+  reason?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  requestedAt: string;
+  targetEmployee?: string;
+  targetEmployeeId?: string;
+  targetDealer?: string;
+  targetDealerId?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  rejectionReason?: string;
 }
 
 export type PermissionLevel = 'full' | 'edit' | 'view' | 'none';
@@ -431,6 +454,8 @@ export interface User {
   address?: string; // specific to dealers
   features?: DealerFeatures;
   password?: string; // Stored securely for Admin credential management
+  employeeCategory?: 'Surya Ghar Incharge' | 'Commercial Project Incharge' | 'Stock Incharge' | string;
+  employeeId?: string;
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -647,6 +672,11 @@ interface CRMContextType {
   updateQuotationStatus: (id: string, status: QuotationStatus) => Promise<void>;
   getDealerQuotations: (dealerId: string) => Quotation[];
   getLeadQuotations: (leadId: string, dealerId: string) => Quotation[];
+
+  // Lead Reassignment Helpers
+  assignLead: (leadId: string, assignment: any, employeeId?: string) => Promise<void>;
+  requestLeadReassignment: (leadId: string, request: any, reason?: string) => Promise<void>;
+  resolveLeadReassignment: (leadId: string, status: any, rejectionReason?: string) => Promise<void>;
 
   // Seed Helper
   seedSampleLeads: () => Promise<number>;
@@ -1451,6 +1481,91 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
+  const assignLead = async (leadId: string, assignment: any, employeeId?: string) => {
+    try {
+      let updates: any = { updatedAt: new Date().toISOString() };
+      if (typeof assignment === 'string') {
+        let targetName = assignment;
+        let targetId = employeeId || '';
+        const matchedEmp = employees.find(e => e.id === assignment || e.name === assignment);
+        if (matchedEmp) {
+          targetName = matchedEmp.name;
+          targetId = matchedEmp.id;
+        }
+        updates.assignedEmployee = targetName;
+        updates.assignedEmployeeId = targetId;
+      } else if (assignment && typeof assignment === 'object') {
+        if (assignment.employeeName) updates.assignedEmployee = assignment.employeeName;
+        if (assignment.employeeId) updates.assignedEmployeeId = assignment.employeeId;
+        if (assignment.dealerName) updates.dealer = assignment.dealerName;
+        if (assignment.dealerId) updates.dealerId = assignment.dealerId;
+      }
+      await updateDoc(doc(db, 'leads', leadId), updates);
+      addActivity({
+        type: 'Lead Assigned',
+        message: `Lead assignment updated`,
+        user: currentUser?.name || 'Admin',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error assigning lead in Firestore:", err);
+    }
+  };
+
+  const requestLeadReassignment = async (
+    leadId: string, 
+    requestOrUser: any, 
+    reason?: string
+  ) => {
+    try {
+      const payload: LeadReassignmentRequest = typeof requestOrUser === 'string'
+        ? {
+            requestedBy: requestOrUser,
+            reason: reason || '',
+            status: 'Pending',
+            requestedAt: new Date().toISOString()
+          }
+        : {
+            requestedBy: currentUser?.name || 'User',
+            ...requestOrUser,
+            status: 'Pending',
+            requestedAt: new Date().toISOString()
+          };
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        reassignmentRequest: payload,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn("Error requesting lead reassignment in Firestore:", err);
+    }
+  };
+
+  const resolveLeadReassignment = async (
+    leadId: string, 
+    statusOrApproved: any, 
+    rejectionReason?: string
+  ) => {
+    try {
+      const status: 'Approved' | 'Rejected' = typeof statusOrApproved === 'boolean'
+        ? (statusOrApproved ? 'Approved' : 'Rejected')
+        : (statusOrApproved || 'Approved');
+
+      const updates: any = {
+        'reassignmentRequest.status': status,
+        'reassignmentRequest.resolvedAt': new Date().toISOString(),
+        'reassignmentRequest.resolvedBy': currentUser?.name || 'Admin',
+        updatedAt: new Date().toISOString()
+      };
+      if (rejectionReason) {
+        updates['reassignmentRequest.rejectionReason'] = rejectionReason;
+      }
+      await updateDoc(doc(db, 'leads', leadId), updates);
+    } catch (err) {
+      console.warn("Error resolving lead reassignment in Firestore:", err);
+    }
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
@@ -1474,6 +1589,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Products & Quotations
       approvedProducts, quotations, createQuotation, updateQuotationStatus,
       getDealerQuotations, getLeadQuotations,
+
+      // Reassignment Helpers
+      assignLead, requestLeadReassignment, resolveLeadReassignment,
 
       // Seed Helper
       seedSampleLeads
