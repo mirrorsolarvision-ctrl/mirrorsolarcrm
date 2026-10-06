@@ -151,23 +151,25 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   if (isStockIncharge) {
     return (
       <div className="employee-dashboard fade-in">
-        {/* Header */}
-        <div className="emp-dash-header">
-          <div className="emp-welcome">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-              <h1>Stock & Warehouse Hub</h1>
-              <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontWeight: 700, padding: '4px 10px', borderRadius: '16px' }}>
-                📦 Stock Incharge
-              </span>
-            </div>
-            <p>Central inventory balance, incoming replenishment needs, and outbound dealer dispatches.</p>
+        {/* Welcome Header */}
+        <div className="emp-welcome">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0 }}>Stock & Warehouse Hub</h1>
+            <span className="badge" style={{ background: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700, padding: '4px 12px', borderRadius: '16px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
+              📦 Stock Incharge
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="btn-primary" onClick={() => onNavigate('/employee/stock')} style={{ background: '#0284c7', borderColor: '#0284c7' }}>
-              <Package size={16} /> Central Stock
+          <p style={{ margin: 0, opacity: 0.9 }}>Central inventory balance, incoming replenishment needs, and outbound dealer dispatches.</p>
+          
+          <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={() => onNavigate('/employee/stock')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: '#0284c7', borderColor: '#0284c7', color: '#fff', borderRadius: '8px' }}>
+              <Package size={15} style={{ marginRight: '5px' }} /> Central Stock
             </button>
-            <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')}>
-              <FileText size={16} /> Day End Report
+            <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+              <FileText size={15} style={{ marginRight: '5px' }} /> Day End Report
+            </button>
+            <button className="btn-outline" onClick={() => onNavigate('/employee/attendance')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+              <UserCheck size={15} style={{ marginRight: '5px' }} /> Attendance
             </button>
           </div>
         </div>
@@ -384,23 +386,25 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   if (isSuryaGhar) {
     return (
       <div className="employee-dashboard fade-in">
-        {/* Header */}
-        <div className="emp-dash-header">
-          <div className="emp-welcome">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-              <h1>PM Surya Ghar Operations Hub</h1>
-              <span className="badge" style={{ background: '#fef3c7', color: '#b45309', fontWeight: 700, padding: '4px 10px', borderRadius: '16px' }}>
-                ☀️ Central Surya Ghar Incharge
-              </span>
-            </div>
-            <p>Master central visibility across all marketing executives and dealer networks for PM Surya Ghar / DISCOM processing.</p>
+        {/* Welcome Header */}
+        <div className="emp-welcome">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0 }}>PM Surya Ghar Operations Hub</h1>
+            <span className="badge" style={{ background: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700, padding: '4px 12px', borderRadius: '16px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
+              ☀️ Central Surya Ghar Incharge
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="btn-primary" onClick={() => onNavigate('/employee/leads')} style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff' }}>
-              <Users size={16} /> All Company Leads & KYC
+          <p style={{ margin: 0, opacity: 0.9 }}>Master central visibility across all marketing executives and dealer networks for PM Surya Ghar & DISCOM processing.</p>
+          
+          <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={() => onNavigate('/employee/leads')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', borderRadius: '8px' }}>
+              <Users size={15} style={{ marginRight: '5px' }} /> All Leads & KYC
             </button>
-            <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')}>
-              <FileText size={16} /> Day End Report
+            <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+              <FileText size={15} style={{ marginRight: '5px' }} /> Day End Report
+            </button>
+            <button className="btn-outline" onClick={() => onNavigate('/employee/attendance')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+              <UserCheck size={15} style={{ marginRight: '5px' }} /> Attendance
             </button>
           </div>
         </div>
@@ -562,23 +566,25 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   // ==========================================================================
   return (
     <div className="employee-dashboard fade-in">
-      {/* Header */}
-      <div className="emp-dash-header">
-        <div className="emp-welcome">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-            <h1>Good Morning, {currentUser?.name?.split(' ')[0] || 'Employee'}</h1>
-            <span className="badge" style={{ background: '#dcfce7', color: '#166534', fontWeight: 700, padding: '4px 10px', borderRadius: '16px' }}>
-              💼 Marketing Executive
-            </span>
-          </div>
-          <p>Here is your active sales pipeline, customer follow-ups, and read-only warehouse inventory.</p>
+      {/* Welcome Header */}
+      <div className="emp-welcome">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0 }}>Good Morning, {currentUser?.name?.split(' ')[0] || 'Employee'}</h1>
+          <span className="badge" style={{ background: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700, padding: '4px 12px', borderRadius: '16px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
+            💼 Marketing Executive
+          </span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn-primary" onClick={() => onNavigate('/employee/leads', { action: 'add' })}>
-            <Plus size={16} /> New Lead
+        <p style={{ margin: 0, opacity: 0.9 }}>Here is your active sales pipeline, customer follow-ups, and read-only warehouse inventory.</p>
+        
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+          <button className="btn-primary" onClick={() => onNavigate('/employee/leads', { action: 'add' })} style={{ padding: '7px 14px', fontSize: '0.85rem', background: '#16a34a', borderColor: '#16a34a', color: '#fff', borderRadius: '8px' }}>
+            <Plus size={15} style={{ marginRight: '5px' }} /> New Lead
           </button>
-          <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')}>
-            <FileText size={16} /> Day End Report
+          <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+            <FileText size={15} style={{ marginRight: '5px' }} /> Day End Report
+          </button>
+          <button className="btn-outline" onClick={() => onNavigate('/employee/attendance')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
+            <UserCheck size={15} style={{ marginRight: '5px' }} /> Attendance
           </button>
         </div>
       </div>
