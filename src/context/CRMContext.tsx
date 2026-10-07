@@ -737,12 +737,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    // 1. Listen for Live Users (Employees & Dealers)
+    // 1. Listen for Live Users (Employees & Dealers) with automatic deduplication
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const allUsers: User[] = [];
-      snapshot.forEach(doc => {
-        allUsers.push(doc.data() as User);
+      const userMap = new Map<string, User>();
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data() as User;
+        const key = (data.email || data.id || docSnap.id).toLowerCase().trim();
+        // Prefer document whose ID matches the Auth UID or has higher detail
+        if (!userMap.has(key) || data.id === docSnap.id) {
+          userMap.set(key, { ...data, id: data.id || docSnap.id });
+        }
       });
+      const allUsers = Array.from(userMap.values());
       setEmployees(allUsers.filter(u => u.role === 'Employee') as Employee[]);
       setDealers(allUsers.filter(u => u.role === 'Dealer') as Dealer[]);
     });
