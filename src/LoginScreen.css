@@ -571,35 +571,200 @@
   to { transform: rotate(360deg); }
 }
 
-/* Back Button */
-.btn-back {
+.login-role-subtext {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 4px 0 0 0;
+  font-weight: 500;
+}
+
+.login-error-banner {
+  color: #ef4444;
+  margin-bottom: 1rem;
+  font-size: 0.88rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  line-height: 1.4;
+}
+
+/* Phone input with prefix */
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  transition: all 0.2s;
+}
+
+.phone-input-wrapper:focus-within {
+  border-color: var(--color-navy);
+  box-shadow: 0 0 0 2px rgba(11, 31, 58, 0.12);
+}
+
+.phone-prefix {
+  padding: 12px 14px;
+  background: #f1f5f9;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+  border-right: 1px solid #cbd5e1;
+}
+
+.phone-input-wrapper input {
+  border: none !important;
+  outline: none !important;
+  padding: 12px 14px !important;
+  width: 100%;
+  font-size: 1rem;
+  background: transparent;
+}
+
+.input-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Quick Select Presets */
+.quick-presets-box {
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.presets-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-chip {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* OTP Info Card */
+.otp-info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.otp-info-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.btn-change-phone {
   background: transparent;
   border: none;
-  color: var(--color-navy);
-  font-size: 0.95rem;
-  font-weight: 600;
-  font-family: inherit;
+  color: #0284c7;
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0.5rem 0;
-  margin-top: 1rem;
-  align-self: flex-start;
-  transition: color 0.2s ease;
-  opacity: 0;
+}
+.btn-change-phone:hover {
+  text-decoration: underline;
 }
 
-.back-arrow {
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+.otp-simulated-badge {
+  background: #eff6ff;
+  border: 1px dashed #93c5fd;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.btn-back:hover {
-  color: var(--color-yellow);
+.otp-input-field {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 6px !important;
+  text-align: center !important;
+  padding: 10px !important;
 }
 
-.btn-back:hover .back-arrow {
-  transform: translateX(-5px);
+.otp-resend-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.resend-countdown {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.btn-resend-otp {
+  background: transparent;
+  border: none;
+  color: #0284c7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-resend-otp:hover {
+  text-decoration: underline;
+}
+
+/* Password eye button */
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+.password-toggle-btn:hover {
+  color: #475569;
 }
 
 /* --- Responsive --- */

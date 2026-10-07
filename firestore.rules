@@ -10,7 +10,7 @@ service cloud.firestore {
     function getUserRole() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role 
-        : (request.auth.token.email in ['mirrorsolarvision@gmail.com', 'admin@mirrorsolar.in'] ? 'Admin' : 'Employee');
+        : (request.auth.token.email in ['mirroraquaro@gmail.com', 'balajiperuri09@gmail.com', 'admin@mirrorsolar.in'] ? 'Admin' : 'Employee');
     }
     
     function getUserName() {
@@ -21,25 +21,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'admin@mirrorsolar.in'] ||
+        request.auth.token.email in ['mirroraquaro@gmail.com', 'balajiperuri09@gmail.com', 'admin@mirrorsolar.in', 'mirrorsolarvision@gmail.com'] ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
       );
     }
 
     // USERS COLLECTION
     match /users/{userId} {
-      // Anyone authenticated can read user data (needed for directories and assignment lists)
-      allow read: if isAuthenticated();
-      
-      // Users can update their own status/profile, BUT cannot change their own role or permissions
-      allow update: if isAuthenticated() && 
-                    (isAdmin() || 
-                    (request.auth.uid == userId && 
-                     !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions'])));
-                     
-      // Only admins can create or delete users (or users initializing their profile document with matching uid)
-      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
-      allow delete: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     // LEADS COLLECTION
