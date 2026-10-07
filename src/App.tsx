@@ -5,6 +5,7 @@ import './App.css';
 
 import RouteLoadingFallback from './components/RouteLoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
+import WhatsAppBuddy from './components/WhatsAppBuddy';
 
 // Lazy-loaded top-level views for rapid initial startup
 const RoleSelection = lazy(() => import('./RoleSelection'));
@@ -168,7 +169,7 @@ function NotFound() {
 
 function AppContent() {
   const { setCurrentUser } = useCRM();
-  const { logoutUser } = useAuth();
+  const { currentUser: authUser, logoutUser } = useAuth();
   const navigate = useNavigate();
   const handleSignOut = async () => {
     if (logoutUser) {
@@ -186,46 +187,51 @@ function AppContent() {
   };
 
   return (
-    <Suspense fallback={<RouteLoadingFallback message="Loading Mirror Solar CRM..." subMessage="Optimizing Solar Operations" />}>
-      <Routes>
-        <Route path="/" element={<SplashScreen />} />
-        <Route path="/role" element={<RoleSelectionWrapper />} />
-        <Route path="/login" element={<LoginScreenWrapper />} />
-        
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['Admin']}>
-              <ErrorBoundary fallbackTitle="Admin Dashboard Error" fallbackMessage="Could not load the Admin workspace. Try reloading or resetting.">
-                <AdminDashboard onSignOut={handleSignOut} />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/employee/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['Employee']}>
-              <ErrorBoundary fallbackTitle="Employee Portal Error" fallbackMessage="Could not load the Employee workspace. Try reloading or resetting.">
-                <EmployeeApp onSignOut={handleSignOut} />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/dealer/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['Dealer']}>
-              <ErrorBoundary fallbackTitle="Dealer Portal Error" fallbackMessage="Could not load the Dealer workspace. Try reloading or resetting.">
-                <DealerApp onSignOut={handleSignOut} />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+    <>
+      <Suspense fallback={<RouteLoadingFallback message="Loading Mirror Solar CRM..." subMessage="Optimizing Solar Operations" />}>
+        <Routes>
+          <Route path="/" element={<SplashScreen />} />
+          <Route path="/role" element={<RoleSelectionWrapper />} />
+          <Route path="/login" element={<LoginScreenWrapper />} />
+          
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <ErrorBoundary fallbackTitle="Admin Dashboard Error" fallbackMessage="Could not load the Admin workspace. Try reloading or resetting.">
+                  <AdminDashboard onSignOut={handleSignOut} />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/employee/dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['Employee']}>
+                <ErrorBoundary fallbackTitle="Employee Portal Error" fallbackMessage="Could not load the Employee workspace. Try reloading or resetting.">
+                  <EmployeeApp onSignOut={handleSignOut} />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dealer/dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['Dealer']}>
+                <ErrorBoundary fallbackTitle="Dealer Portal Error" fallbackMessage="Could not load the Dealer workspace. Try reloading or resetting.">
+                  <DealerApp onSignOut={handleSignOut} />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+
+      {/* Persistent WhatsApp Buddy Floating Copilot */}
+      {authUser && <WhatsAppBuddy />}
+    </>
   );
 }
 

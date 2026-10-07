@@ -161,6 +161,127 @@ export function generatePaymentReminderWhatsAppMessage(data: WhatsAppPaymentRemi
 }
 
 /**
+ * 6. PM Surya Ghar KYC & Subsidy Document Checklist Template
+ */
+export function generateDocChecklistWhatsAppMessage(data: {
+  customerName: string;
+  portalName?: string;
+}): string {
+  return (
+    `📋 *PM SURYA GHAR YOJANA - REQUIRED DOCUMENTS CHECKLIST* 📋\n\n` +
+    `Dear *${data.customerName}*,\n\n` +
+    `To process your Central Government Solar Subsidy (up to ₹78,000 DBT), please keep the following documents ready for our verification:\n\n` +
+    `1️⃣ *Electricity Bill:* Latest copy (name must match consumer registration)\n` +
+    `2️⃣ *Aadhaar Card:* Customer Aadhaar (Front & Back)\n` +
+    `3️⃣ *Bank Passbook / Cancelled Cheque:* With clear Account No. & IFSC Code (for direct DBT subsidy transfer)\n` +
+    `4️⃣ *House Tax Receipt / Proof of Ownership*\n` +
+    `5️⃣ *Rooftop & Meter Photos:* Clear view of roof space and current meter box\n\n` +
+    `You can simply reply and attach these photos directly here on WhatsApp, and our team will initiate the portal registration right away! 🚀\n\n` +
+    `*Mirror Solar Vision Operations*\n` +
+    `📞 Support: +91 98765 43210`
+  );
+}
+
+/**
+ * 7. Site Survey & Installation Appointment Template
+ */
+export function generateSiteSurveyWhatsAppMessage(data: {
+  customerName: string;
+  surveyDate: string;
+  surveyTime?: string;
+  engineerName?: string;
+  engineerPhone?: string;
+}): string {
+  return (
+    `📅 *MIRROR SOLAR - SITE SURVEY APPOINTMENT CONFIRMATION* 📅\n\n` +
+    `Hello *${data.customerName}*,\n\n` +
+    `Your rooftop solar site survey and shadow analysis has been scheduled:\n\n` +
+    `🗓️ *Date:* ${data.surveyDate}\n` +
+    (data.surveyTime ? `⏰ *Time:* ${data.surveyTime}\n` : '') +
+    (data.engineerName ? `👷‍♂️ *Solar Engineer:* ${data.engineerName} ${data.engineerPhone ? `(${data.engineerPhone})` : ''}\n` : '') +
+    `\nOur engineer will assess roof orientation, shadow-free area, and inverter-meter cabling pathway to maximize your solar generation.\n\n` +
+    `See you soon!\n*Mirror Solar Technical Team*`
+  );
+}
+
+/**
+ * 8. Friendly Follow-up & Subsidy Urgency Nudge
+ */
+export function generateFollowUpWhatsAppMessage(data: {
+  customerName: string;
+  capacityKw?: number;
+  lastDiscussionTopic?: string;
+}): string {
+  const capText = data.capacityKw ? `for your *${data.capacityKw} kW system*` : 'for your rooftop solar';
+  return (
+    `👋 *HELLO FROM MIRROR SOLAR VISION!* ☀️\n\n` +
+    `Dear *${data.customerName}*,\n\n` +
+    `Hope you are having a wonderful day!\n\n` +
+    `We wanted to check in regarding your rooftop solar proposal ${capText}. As you know, the *PM Surya Ghar Muft Bijli Yojana* offers a direct government subsidy of up to *₹78,000* right now.\n\n` +
+    `⚡ Locking in your solar installation this month protects your home from upcoming peak summer tariff hikes and gives you free electricity for 25+ years.\n\n` +
+    `Would you have 5 minutes today for a quick call to address any questions or finalize the installation dates?\n\n` +
+    `Best regards,\n*Mirror Solar Vision*\n🌐 www.mirrorsolar.in`
+  );
+}
+
+/**
+ * 9. Hinglish / Regional Persuasive Pitch
+ */
+export function generateHinglishPitchMessage(data: {
+  customerName: string;
+  capacityKw: number;
+  monthlyBill?: number;
+  monthlySavings: number;
+}): string {
+  return (
+    `☀️ *MIRROR SOLAR - BIJLI BILL ZERO KAREIN!* ☀️\n\n` +
+    `Namaste *${data.customerName}* ji,\n\n` +
+    `Kripya dekhein aapka *${data.capacityKw} kW* Rooftop Solar System se kitna fayda hoga:\n\n` +
+    (data.monthlyBill ? `⚡ *Abhi ka Monthly Bill:* ~₹${data.monthlyBill.toLocaleString()}/mahina\n` : '') +
+    `💰 *Solar Lagane Ke Baad Monthly Bachat:* ₹${data.monthlySavings.toLocaleString()}/mahina\n` +
+    `🏛️ *PM Surya Ghar Sarkari Subsidy:* Direct Bank Account me ₹78,000 tak DBT!\n` +
+    `⏳ *Payback:* Sirf 3 se 4 saal me poora paisa vasool, agle 20+ saal tak FREE Bijli!\n\n` +
+    `Kripya batayein kab hum aapke ghar free rooftop inspection aur quotation handover kar sakte hain?\n\n` +
+    `*Mirror Solar Vision*\n📞 Phone: +91 98765 43210`
+  );
+}
+
+/**
+ * Estimate solar capacity and savings from monthly electricity bill
+ */
+export function estimateSolarFromBill(monthlyBill: number) {
+  const safeBill = Math.max(500, Number(monthlyBill) || 3000);
+  const tariffPerUnit = 7.5;
+  const unitsPerMonth = safeBill / tariffPerUnit;
+  // 1 kW generates approx 120-130 units per month
+  const rawKw = unitsPerMonth / 125;
+  const capacityKw = Math.max(1, Math.min(20, Math.round(rawKw * 2) / 2)); // Round to nearest 0.5 kW
+  
+  // PM Surya Ghar Subsidy
+  let subsidy = 0;
+  if (capacityKw <= 1) subsidy = 30000;
+  else if (capacityKw <= 2) subsidy = 60000;
+  else subsidy = 78000;
+
+  const costPerKw = capacityKw <= 3 ? 65000 : 58000;
+  const totalCost = capacityKw * costPerKw;
+  const netInvestment = Math.max(0, totalCost - subsidy);
+  const monthlySavings = Math.round(capacityKw * 4.3 * 30 * tariffPerUnit);
+  const annualSavings = monthlySavings * 12;
+  const paybackYears = Number((netInvestment / annualSavings).toFixed(1));
+
+  return {
+    capacityKw,
+    totalCost,
+    subsidy,
+    netInvestment,
+    monthlySavings,
+    annualSavings,
+    paybackYears,
+  };
+}
+
+/**
  * Generates an openable WhatsApp Web / App intent URL
  */
 export function getWhatsAppDirectUrl(phone: string, text: string): string {
