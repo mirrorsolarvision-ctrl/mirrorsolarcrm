@@ -737,68 +737,110 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    // 1. Listen for Live Users (Employees & Dealers) with automatic deduplication
+    // 1. Listen for Live Users (Employees & Dealers)
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       const userMap = new Map<string, User>();
       snapshot.forEach(docSnap => {
         const data = docSnap.data() as User;
         const key = (data.email || data.id || docSnap.id).toLowerCase().trim();
-        // Prefer document whose ID matches the Auth UID or has higher detail
         if (!userMap.has(key) || data.id === docSnap.id) {
           userMap.set(key, { ...data, id: data.id || docSnap.id });
         }
       });
       const allUsers = Array.from(userMap.values());
-      setEmployees(allUsers.filter(u => u.role === 'Employee') as Employee[]);
-      setDealers(allUsers.filter(u => u.role === 'Dealer') as Dealer[]);
+      const empList = allUsers.filter(u => u.role === 'Employee') as Employee[];
+      const dealerList = allUsers.filter(u => u.role === 'Dealer') as Dealer[];
+      setEmployees(empList);
+      setDealers(dealerList);
+    }, (err) => {
+      console.warn("Users listener error:", err);
     });
 
-    // 2. Listen for Live Leads - SCOPED BY ROLE
-    let leadsQuery = collection(db, 'leads');
-    if (authUser.role === 'Dealer') {
-      leadsQuery = query(collection(db, 'leads'), where('dealer', '==', authUser.name)) as any;
-    } else if (authUser.role === 'Employee') {
-      leadsQuery = query(collection(db, 'leads'), where('assignedEmployee', '==', authUser.name)) as any;
-    }
-    
-    const unsubscribeLeads = onSnapshot(leadsQuery, (snapshot) => {
+    // 2. Listen for Live Leads
+    const unsubscribeLeads = onSnapshot(collection(db, 'leads'), (snapshot) => {
       const allLeads: MockLead[] = [];
-      snapshot.forEach(doc => {
-        allLeads.push({ id: doc.id, ...doc.data() } as MockLead);
+      snapshot.forEach(docSnap => {
+        allLeads.push({ id: docSnap.id, ...docSnap.data() } as MockLead);
       });
-      allLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setLeads(allLeads);
+      allLeads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+      if (authUser.role === 'Admin') {
+        setLeads(allLeads);
+      } else if (authUser.role === 'Dealer') {
+        const dName = (authUser.name || '').toLowerCase().trim();
+        setLeads(allLeads.filter(l => 
+          (l.dealer && l.dealer.toLowerCase().includes(dName)) ||
+          (l.sourceDealer && l.sourceDealer.toLowerCase().includes(dName)) ||
+          (l.dealerId && l.dealerId === authUser.id)
+        ));
+      } else if (authUser.role === 'Employee') {
+        const eName = (authUser.name || '').toLowerCase().trim();
+        const eId = (authUser.id || '').toLowerCase().trim();
+        
+        setLeads(allLeads.filter(l => {
+          const assigned = (l.assignedEmployee || '').toLowerCase();
+          const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
+          const created = (l.createdByName || '').toLowerCase();
+          const creatorId = (l.createdBy || '').toLowerCase();
+          const assignedId = (l.assignedEmployeeId || '').toLowerCase();
+
+          if (eName.includes('siva') || eName.includes('sunkara')) {
+            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
+          }
+          if (eName.includes('kumari')) {
+            return assigned.includes('kumari') || marketing.includes('kumari') || created.includes('kumari') || l.leadType === 'project';
+          }
+          if (eName.includes('gopal')) {
+            return true; // Stock incharge monitors all plant inventory & material stages
+          }
+          return (
+            (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
+            (eId && (creatorId === eId || assignedId === eId))
+          );
+        }));
+      } else {
+        setLeads(allLeads);
+      }
+    }, (err) => {
+      console.warn("Leads listener error:", err);
     });
 
-    // 3. Listen for Live Activities - SCOPED BY ROLE
-    let activitiesQuery = collection(db, 'activities');
-    if (authUser.role === 'Dealer') {
-      activitiesQuery = query(collection(db, 'activities'), where('dealer', '==', authUser.name)) as any;
-    } else if (authUser.role === 'Employee') {
-      activitiesQuery = query(collection(db, 'activities'), where('assignedEmployee', '==', authUser.name)) as any;
-    }
+    // 3. Listen for Live Quotations
+    const unsubscribeQuotations = onSnapshot(collection(db, 'quotations'), (snapshot) => {
+      const allQuotes: Quotation[] = [];
+      snapshot.forEach(docSnap => {
+        allQuotes.push({ id: docSnap.id, ...docSnap.data() } as Quotation);
+      });
+      setQuotations(allQuotes);
+    }, (err) => {
+      console.warn("Quotations listener error:", err);
+    });
 
-    const unsubscribeActivities = onSnapshot(activitiesQuery, (snapshot) => {
+    // 4. Listen for Live Activities
+    const unsubscribeActivities = onSnapshot(collection(db, 'activities'), (snapshot) => {
       const allActivities: Activity[] = [];
       snapshot.forEach(doc => {
         allActivities.push({ id: doc.id, ...doc.data() } as Activity);
       });
       allActivities.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
       setActivities(allActivities);
+    }, (err) => {
+      console.warn("Activities listener error:", err);
     });
 
-    // 4. Listen for Live Tasks - SCOPED BY ROLE
-    let tasksQuery = collection(db, 'tasks');
-    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+    // 5. Listen for Live Tasks
+    const unsubscribeTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       const allTasks: Task[] = [];
       snapshot.forEach(doc => {
         allTasks.push({ id: doc.id, ...doc.data() } as Task);
       });
       allTasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       setTasks(allTasks);
+    }, (err) => {
+      console.warn("Tasks listener error:", err);
     });
 
-    // 5. Listen for Live Attendance Records
+    // 6. Listen for Live Attendance Records
     const unsubscribeAttendance = onSnapshot(collection(db, 'attendance'), (snapshot) => {
       const allRecords: AttendanceRecord[] = [];
       snapshot.forEach(doc => {
@@ -806,12 +848,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       setAttendances(allRecords);
     }, (err) => {
-      console.warn("Attendance collection listener fallback to local state:", err);
+      console.warn("Attendance listener error:", err);
     });
 
     return () => {
       unsubscribeUsers();
       unsubscribeLeads();
+      unsubscribeQuotations();
       unsubscribeActivities();
       unsubscribeTasks();
       unsubscribeAttendance();
