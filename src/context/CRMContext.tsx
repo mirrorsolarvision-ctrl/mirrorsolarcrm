@@ -776,9 +776,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (authUser.role === 'Employee') {
         const eName = (authUser.name || '').toLowerCase().trim();
         const eId = (authUser.id || '').toLowerCase().trim();
-        const empCategory = (authUser as any).employeeCategory || (authUser as any).category || '';
-        const isSuryaGhar = empCategory === 'Surya Ghar Incharge' || empCategory === 'PM Surya Ghar Incharge' || eName.includes('kumari');
-        const isStockIncharge = empCategory === 'Stock Incharge' || eName.includes('gopal');
+        const empCategory = ((authUser as any).employeeCategory || (authUser as any).category || '').toLowerCase();
+        const isSuryaGhar = empCategory.includes('surya') || empCategory.includes('pm surya') || empCategory.includes('surya ghar') || eName.includes('kumari');
+        const isStockIncharge = empCategory.includes('stock') || eName.includes('gopal');
 
         if (isSuryaGhar || isStockIncharge) {
           // PM Surya Ghar Incharge and Stock Incharge monitor company-wide leads & technical/inventory processing

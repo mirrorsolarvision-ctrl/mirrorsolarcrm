@@ -35,9 +35,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
 
   // User details & category detection
   const userName = currentUser?.name || 'Employee';
-  const empCategory = currentUser?.employeeCategory || 'Marketing Employee';
+  const isSuryaGhar = isSuryaGharEmployee(currentUser);
+  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : 'Marketing Employee');
   const isStockIncharge = empCategory === 'Stock Incharge';
-  const isSuryaGhar = empCategory === 'Surya Ghar Incharge' || empCategory === 'PM Surya Ghar Incharge';
   const isMarketing = !isStockIncharge && !isSuryaGhar;
 
   // --------------------------------------------------------------------------

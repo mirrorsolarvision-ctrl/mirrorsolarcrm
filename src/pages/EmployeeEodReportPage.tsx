@@ -9,6 +9,7 @@ import PageHero from '../components/PageHero';
 import type { EodReport } from '../types/eod';
 import { db } from '../firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { isSuryaGharEmployee } from '../utils/employeeCalculations';
 import './EmployeeEodReportPage.css';
 
 export default function EmployeeEodReportPage() {
@@ -34,9 +35,9 @@ export default function EmployeeEodReportPage() {
   const [subsidyVerified, setSubsidyVerified] = useState<number>(0);
   const [dispatchesDone, setDispatchesDone] = useState<number>(0);
 
-  const empCategory = currentUser?.employeeCategory || 'Marketing Employee';
-  const isMarketing = empCategory === 'Marketing Employee' || empCategory === 'Commercial Project Incharge';
-  const isSuryaGhar = empCategory === 'Surya Ghar Incharge' || empCategory === 'PM Surya Ghar Incharge';
+  const isSuryaGhar = isSuryaGharEmployee(currentUser);
+  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : 'Marketing Employee');
+  const isMarketing = !isSuryaGhar && (empCategory === 'Marketing Employee' || empCategory === 'Commercial Project Incharge');
   const isStock = empCategory === 'Stock Incharge';
 
   useEffect(() => {

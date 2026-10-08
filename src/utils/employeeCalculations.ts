@@ -23,8 +23,12 @@ export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead
 
 export const isSuryaGharEmployee = (user: User | null | undefined): boolean => {
   if (!user) return false;
-  return user.employeeCategory === 'Surya Ghar Incharge' || 
-         user.employeeCategory === 'PM Surya Ghar Incharge' || 
+  const cat = (user.employeeCategory || (user as any).category || '').toLowerCase();
+  const name = (user.name || '').toLowerCase();
+  return cat.includes('surya') || 
+         cat.includes('pm surya') || 
+         cat.includes('surya ghar') || 
+         name.includes('kumari') ||
          user.role === 'Admin';
 };
 

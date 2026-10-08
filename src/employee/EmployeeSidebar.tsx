@@ -17,6 +17,7 @@ import {
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
 import { canAccessRoute } from '../utils/permissionCalculations';
+import { isSuryaGharEmployee } from '../utils/employeeCalculations';
 
 interface EmployeeSidebarProps {
   isSidebarCollapsed: boolean;
@@ -41,7 +42,7 @@ export default function EmployeeSidebar({
 }: EmployeeSidebarProps) {
   const { currentUser } = useCRM();
   const isStockIncharge = currentUser?.employeeCategory === 'Stock Incharge';
-  const isSuryaGhar = currentUser?.employeeCategory === 'Surya Ghar Incharge' || currentUser?.employeeCategory === 'PM Surya Ghar Incharge';
+  const isSuryaGhar = isSuryaGharEmployee(currentUser);
 
   const allNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
