@@ -261,20 +261,25 @@ export default function DealersPage() {
           <h2 className="dp-section-title" style={{ margin: 0 }}>Dealer Directory</h2>
           <div className="dp-dir-filters">
             <div className="dp-search">
+              <label htmlFor="dealer-search-input" className="sr-only">Search dealers</label>
               <Search className="search-icon" size={16} />
               <input 
+                id="dealer-search-input"
+                name="dealerSearch"
                 type="text" 
                 placeholder="Search dealers..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
-            <select className="dp-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <label htmlFor="dealer-status-filter" className="sr-only">Filter by Status</label>
+            <select id="dealer-status-filter" name="dealerStatusFilter" className="dp-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <select className="dp-select" value={perfFilter} onChange={e => setPerfFilter(e.target.value)}>
+            <label htmlFor="dealer-perf-filter" className="sr-only">Filter by Performance</label>
+            <select id="dealer-perf-filter" name="dealerPerfFilter" className="dp-select" value={perfFilter} onChange={e => setPerfFilter(e.target.value)}>
               <option value="All">All Performance</option>
               <option value="High">High (&gt;50%)</option>
               <option value="Medium">Medium (25-50%)</option>
@@ -509,24 +514,24 @@ export default function DealersPage() {
             <h2 style={{ margin: 0, color: 'var(--color-navy)', fontSize: '1.25rem', fontWeight: 800 }}>Add Dealer</h2>
             <form onSubmit={handleAddDealer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="dp-form-group">
-                <label>Dealer Name</label>
-                <input required type="text" placeholder="e.g. Sri Solar Dealers" value={newDlr.name} onChange={e => setNewDlr({...newDlr, name: e.target.value})} />
+                <label htmlFor="add-dealer-name">Dealer Name</label>
+                <input id="add-dealer-name" name="dealerName" required type="text" placeholder="e.g. Sri Solar Dealers" value={newDlr.name} onChange={e => setNewDlr({...newDlr, name: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Phone Number</label>
-                <input type="text" placeholder="+91" value={newDlr.phone} onChange={e => setNewDlr({...newDlr, phone: e.target.value})} />
+                <label htmlFor="add-dealer-phone">Phone Number</label>
+                <input id="add-dealer-phone" name="dealerPhone" type="text" placeholder="+91" value={newDlr.phone} onChange={e => setNewDlr({...newDlr, phone: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Email</label>
-                <input type="email" placeholder="contact@domain.com" value={newDlr.email} onChange={e => setNewDlr({...newDlr, email: e.target.value})} />
+                <label htmlFor="add-dealer-email">Email</label>
+                <input id="add-dealer-email" name="dealerEmail" type="email" placeholder="contact@domain.com" value={newDlr.email} onChange={e => setNewDlr({...newDlr, email: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Location / Address</label>
-                <input type="text" placeholder="e.g. Hyderabad, TS" value={newDlr.address} onChange={e => setNewDlr({...newDlr, address: e.target.value})} />
+                <label htmlFor="add-dealer-address">Location / Address</label>
+                <input id="add-dealer-address" name="dealerAddress" type="text" placeholder="e.g. Hyderabad, TS" value={newDlr.address} onChange={e => setNewDlr({...newDlr, address: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Status</label>
-                <select value={newDlr.status} onChange={e => setNewDlr({...newDlr, status: e.target.value})}>
+                <label htmlFor="add-dealer-status">Status</label>
+                <select id="add-dealer-status" name="dealerStatus" value={newDlr.status} onChange={e => setNewDlr({...newDlr, status: e.target.value})}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
@@ -547,24 +552,24 @@ export default function DealersPage() {
             <h2 style={{ margin: 0, color: 'var(--color-navy)', fontSize: '1.25rem', fontWeight: 800 }}>Edit Dealer</h2>
             <form onSubmit={handleEditDealer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="dp-form-group">
-                <label>Dealer Name</label>
-                <input required type="text" value={editDealerData.name || ''} onChange={e => setEditDealerData({...editDealerData, name: e.target.value})} />
+                <label htmlFor="edit-dealer-name">Dealer Name</label>
+                <input id="edit-dealer-name" name="editDealerName" required type="text" value={editDealerData.name || ''} onChange={e => setEditDealerData({...editDealerData, name: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Phone Number</label>
-                <input type="text" value={editDealerData.phone || ''} onChange={e => setEditDealerData({...editDealerData, phone: e.target.value})} />
+                <label htmlFor="edit-dealer-phone">Phone Number</label>
+                <input id="edit-dealer-phone" name="editDealerPhone" type="text" value={editDealerData.phone || ''} onChange={e => setEditDealerData({...editDealerData, phone: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Email</label>
-                <input type="email" value={editDealerData.email || ''} onChange={e => setEditDealerData({...editDealerData, email: e.target.value})} />
+                <label htmlFor="edit-dealer-email">Email</label>
+                <input id="edit-dealer-email" name="editDealerEmail" type="email" value={editDealerData.email || ''} onChange={e => setEditDealerData({...editDealerData, email: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Location / Address</label>
-                <input type="text" value={editDealerData.address || ''} onChange={e => setEditDealerData({...editDealerData, address: e.target.value})} />
+                <label htmlFor="edit-dealer-address">Location / Address</label>
+                <input id="edit-dealer-address" name="editDealerAddress" type="text" value={editDealerData.address || ''} onChange={e => setEditDealerData({...editDealerData, address: e.target.value})} />
               </div>
               <div className="dp-form-group">
-                <label>Status</label>
-                <select value={editDealerData.status || 'Active'} onChange={e => setEditDealerData({...editDealerData, status: e.target.value as 'Active'|'Inactive'})}>
+                <label htmlFor="edit-dealer-status">Status</label>
+                <select id="edit-dealer-status" name="editDealerStatus" value={editDealerData.status || 'Active'} onChange={e => setEditDealerData({...editDealerData, status: e.target.value as 'Active'|'Inactive'})}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>

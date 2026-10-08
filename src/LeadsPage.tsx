@@ -94,6 +94,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const [sortBy, setSortBy] = useState('Updated');
   
   const [selectedLead, setSelectedLead] = useState<MockLead | null>(null);
+  const [leadDetailTab, setLeadDetailTab] = useState<'overview' | 'specs' | 'docs' | 'financials' | 'activity'>('overview');
 
   // Auto-sync open lead details drawer with live real-time Firestore updates
   useEffect(() => {
@@ -1378,20 +1379,41 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               )}
             </div>
             
-            <select className="filter-select" value={leadTypeFilter} onChange={e => setLeadTypeFilter(e.target.value)}>
+            <select 
+              id="leads-filter-leadType"
+              name="leadTypeFilter"
+              aria-label="Filter by Lead Type"
+              className="filter-select" 
+              value={leadTypeFilter} 
+              onChange={e => setLeadTypeFilter(e.target.value)}
+            >
               <option value="All">All Lead Types</option>
               <option value="tracking">Tracking Leads</option>
               <option value="project">Project / Document Leads</option>
             </select>
 
-            <select className="filter-select" value={stageFilter} onChange={e => setStageFilter(e.target.value)}>
+            <select 
+              id="leads-filter-stage"
+              name="stageFilter"
+              aria-label="Filter by Stage"
+              className="filter-select" 
+              value={stageFilter} 
+              onChange={e => setStageFilter(e.target.value)}
+            >
               <option value="All">All Stages</option>
               {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
             {/* Dealer Filter - Visible to Admin & PM Surya Ghar */}
             {isCompanyWideManager && (
-              <select className="filter-select" value={dlrFilter} onChange={e => setDlrFilter(e.target.value)}>
+              <select 
+                id="leads-filter-dealer"
+                name="dealerFilter"
+                aria-label="Filter by Dealer"
+                className="filter-select" 
+                value={dlrFilter} 
+                onChange={e => setDlrFilter(e.target.value)}
+              >
                 <option value="All">All Dealers</option>
                 {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
               </select>
@@ -1399,21 +1421,42 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
             {/* Employee Filter - Visible to Admin & PM Surya Ghar */}
             {isCompanyWideManager && (
-              <select className="filter-select" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
+              <select 
+                id="leads-filter-employee"
+                name="employeeFilter"
+                aria-label="Filter by Employee"
+                className="filter-select" 
+                value={empFilter} 
+                onChange={e => setEmpFilter(e.target.value)}
+              >
                 <option value="All">All Employees</option>
                 <option value="Unassigned">Unassigned</option>
                 {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
               </select>
             )}
 
-            <select className="filter-select" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+            <select 
+              id="leads-filter-priority"
+              name="priorityFilter"
+              aria-label="Filter by Priority"
+              className="filter-select" 
+              value={priorityFilter} 
+              onChange={e => setPriorityFilter(e.target.value)}
+            >
               <option value="All">All Priorities</option>
               <option value="High">High</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
             
-            <select className="filter-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <select 
+              id="leads-filter-sortBy"
+              name="sortBy"
+              aria-label="Sort Leads By"
+              className="filter-select" 
+              value={sortBy} 
+              onChange={e => setSortBy(e.target.value)}
+            >
               <option value="Updated">Recently Updated</option>
               <option value="Newest">Newest</option>
               <option value="Oldest">Oldest</option>
@@ -1650,43 +1693,93 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           </div>
         )}
       </div>
-{/* LEAD DETAIL DRAWER */}
+
+      {/* LEAD DETAIL DRAWER */}
       {selectedLead && (
         <>
           <div className="lead-detail-overlay" onClick={() => setSelectedLead(null)}></div>
           <div className="lead-detail-drawer">
+            {/* 1. COMPACT TOP HEADER */}
             <div className="drawer-header">
               <div className="drawer-title-area">
-                <div className="customer-avatar" style={{width: 48, height: 48, fontSize: '1.2rem'}}>{selectedLead.customer.charAt(0)}</div>
-                <div>
-                  <h2 style={{fontSize: '1.2rem', fontWeight: 800}}>{selectedLead.customer}</h2>
-                  <span className="lead-id">{selectedLead.id}</span>
+                <div className="customer-avatar" style={{width: 44, height: 44, fontSize: '1.15rem', flexShrink: 0}}>
+                  {selectedLead.customer.charAt(0)}
+                </div>
+                <div style={{minWidth: 0}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                    <h2 style={{fontSize: '1.15rem', fontWeight: 800, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#0f172a'}}>
+                      {selectedLead.customer}
+                    </h2>
+                    <span className={`stage-badge ${getStageBadgeClass(selectedLead.stage)}`} style={{fontSize: '0.72rem', padding: '0.15rem 0.5rem'}}>
+                      {selectedLead.stage}
+                    </span>
+                  </div>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '2px', fontSize: '0.8rem', color: '#64748b'}}>
+                    <span className="lead-id">{selectedLead.id}</span>
+                    {selectedLead.phone && (
+                      <span style={{display: 'flex', alignItems: 'center', gap: '0.2rem'}}>
+                        • <Phone size={12} /> {selectedLead.phone}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedLead(null)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b'}}>
-                <X size={24} />
-              </button>
+
+              {/* Quick Contact & Close Header Toolbar */}
+              <div className="drawer-header-actions">
+                {selectedLead.phone && (
+                  <>
+                    <a 
+                      href={`tel:${selectedLead.phone}`}
+                      className="btn-outline drawer-quick-btn"
+                      style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#0284c7', textDecoration: 'none'}}
+                      title="Call Customer"
+                    >
+                      <Phone size={14} /> <span className="hide-on-mobile">Call</span>
+                    </a>
+                    <a 
+                      href={`https://wa.me/${selectedLead.phone.replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-outline drawer-quick-btn"
+                      style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#16a34a', borderColor: '#86efac', textDecoration: 'none'}}
+                      title="WhatsApp Customer"
+                    >
+                      <MessageSquare size={14} /> <span className="hide-on-mobile">WhatsApp</span>
+                    </a>
+                  </>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedLead(null)} 
+                  style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.4rem', display: 'flex', alignItems: 'center'}}
+                  aria-label="Close details"
+                >
+                  <X size={22} />
+                </button>
+              </div>
             </div>
 
+            {/* 2. ALERTS (Installation Approval / Reassignment Request) */}
             {/* Installation Approval Alert Banner */}
             {selectedLead.installationApprovalStatus === 'Pending' && (
               <div style={{
                 background: '#fffbeb',
                 border: '1px solid #fde68a',
-                padding: '0.85rem 1rem',
+                padding: '0.65rem 1rem',
                 borderRadius: '8px',
-                margin: '0.75rem 1.5rem',
+                margin: '0.5rem 1rem',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '0.75rem'
+                gap: '0.5rem'
               }}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
-                  <AlertTriangle size={20} color="#d97706" />
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                  <AlertTriangle size={18} color="#d97706" />
                   <div>
-                    <strong style={{color: '#92400e', fontSize: '0.9rem', display: 'block'}}>Installation Approval Requested</strong>
-                    <span style={{fontSize: '0.8rem', color: '#b45309'}}>
+                    <strong style={{color: '#92400e', fontSize: '0.85rem', display: 'block'}}>Installation Approval Requested</strong>
+                    <span style={{fontSize: '0.78rem', color: '#b45309'}}>
                       {isAdmin 
                         ? 'Dealer/Employee has requested to move this project into the Installation stage.' 
                         : 'Waiting for Admin approval before starting Installation stage.'}
@@ -1694,17 +1787,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   </div>
                 </div>
                 {isAdmin && (
-                  <div style={{display: 'flex', gap: '0.5rem'}}>
+                  <div style={{display: 'flex', gap: '0.4rem'}}>
                     <button 
+                      type="button"
                       className="btn-primary" 
-                      style={{padding: '0.35rem 0.85rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#16a34a', borderColor: '#16a34a'}}
+                      style={{padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#16a34a', borderColor: '#16a34a'}}
                       onClick={() => handleAdminApproveInstallation(selectedLead.id)}
                     >
-                      <Check size={14} /> Approve Installation
+                      <Check size={13} /> Approve
                     </button>
                     <button 
+                      type="button"
                       className="btn-outline" 
-                      style={{padding: '0.35rem 0.85rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5'}}
+                      style={{padding: '0.3rem 0.75rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5'}}
                       onClick={() => setShowRejectInstallationModal(true)}
                     >
                       Reject
@@ -1718,17 +1813,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <div style={{
                 background: '#fef2f2',
                 border: '1px solid #fecaca',
-                padding: '0.85rem 1rem',
+                padding: '0.65rem 1rem',
                 borderRadius: '8px',
-                margin: '0.75rem 1.5rem',
+                margin: '0.5rem 1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.6rem'
+                gap: '0.5rem'
               }}>
-                <ShieldAlert size={20} color="#dc2626" />
+                <ShieldAlert size={18} color="#dc2626" />
                 <div>
-                  <strong style={{color: '#991b1b', fontSize: '0.9rem', display: 'block'}}>Installation Stage Rejected by Admin</strong>
-                  <span style={{fontSize: '0.8rem', color: '#b91c1c'}}>
+                  <strong style={{color: '#991b1b', fontSize: '0.85rem', display: 'block'}}>Installation Stage Rejected by Admin</strong>
+                  <span style={{fontSize: '0.78rem', color: '#b91c1c'}}>
                     Reason: {selectedLead.installationRejectionReason || 'Requirements not fulfilled. Please review documents and retry.'}
                   </span>
                 </div>
@@ -1740,51 +1835,51 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <div style={{
                 background: '#eff6ff',
                 border: '1.5px solid #93c5fd',
-                padding: '0.85rem 1.25rem',
-                borderRadius: '10px',
-                margin: '0.75rem 1.5rem',
+                padding: '0.65rem 1rem',
+                borderRadius: '8px',
+                margin: '0.5rem 1rem',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '0.75rem'
+                gap: '0.5rem'
               }}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
-                  <div style={{width: 36, height: 36, borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8'}}>
-                    <ArrowRight size={18} />
-                  </div>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
+                  <ArrowRight size={16} color="#1d4ed8" />
                   <div>
-                    <strong style={{color: '#1e40af', fontSize: '0.92rem', display: 'block'}}>
+                    <strong style={{color: '#1e40af', fontSize: '0.85rem', display: 'block'}}>
                       🔄 Reassignment Request from {selectedLead.reassignmentRequest.requestedBy} ({selectedLead.reassignmentRequest.requestedByRole})
                     </strong>
-                    <div style={{fontSize: '0.82rem', color: '#3b82f6', marginTop: '2px'}}>
+                    <div style={{fontSize: '0.78rem', color: '#3b82f6'}}>
                       Target: <strong>{[selectedLead.reassignmentRequest.targetEmployee, selectedLead.reassignmentRequest.targetDealer].filter(Boolean).join(' / ')}</strong>
                       {selectedLead.reassignmentRequest.reason && (
-                        <span> • Reason: "<em>{selectedLead.reassignmentRequest.reason}</em>"</span>
+                        <span> • "{selectedLead.reassignmentRequest.reason}"</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {isAdmin ? (
-                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                  <div style={{display: 'flex', gap: '0.4rem', alignItems: 'center'}}>
                     <button 
+                      type="button"
                       className="btn-primary" 
-                      style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#16a34a', borderColor: '#16a34a'}}
+                      style={{padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#16a34a', borderColor: '#16a34a'}}
                       onClick={handleApproveTransfer}
                     >
-                      <Check size={14} /> Approve Transfer
+                      <Check size={13} /> Approve
                     </button>
                     <button 
+                      type="button"
                       className="btn-outline" 
-                      style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5'}}
+                      style={{padding: '0.3rem 0.75rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5'}}
                       onClick={() => setShowRejectTransferModal(true)}
                     >
-                      Reject Request
+                      Reject
                     </button>
                   </div>
                 ) : (
-                  <span style={{fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 700, background: '#dbeafe', padding: '0.3rem 0.75rem', borderRadius: '8px'}}>
+                  <span style={{fontSize: '0.75rem', color: '#1d4ed8', fontWeight: 700, background: '#dbeafe', padding: '0.2rem 0.6rem', borderRadius: '6px'}}>
                     ⏳ Awaiting Admin Approval
                   </span>
                 )}
@@ -1795,833 +1890,1031 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <div style={{
                 background: '#fef2f2',
                 border: '1px solid #fecaca',
-                padding: '0.85rem 1.25rem',
-                borderRadius: '10px',
-                margin: '0.75rem 1.5rem',
+                padding: '0.65rem 1rem',
+                borderRadius: '8px',
+                margin: '0.5rem 1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem'
+                gap: '0.5rem'
               }}>
-                <ShieldAlert size={20} color="#dc2626" />
+                <ShieldAlert size={18} color="#dc2626" />
                 <div>
-                  <strong style={{color: '#991b1b', fontSize: '0.9rem', display: 'block'}}>Transfer Request Rejected by Admin</strong>
-                  <span style={{fontSize: '0.8rem', color: '#b91c1c'}}>
+                  <strong style={{color: '#991b1b', fontSize: '0.85rem', display: 'block'}}>Transfer Request Rejected by Admin</strong>
+                  <span style={{fontSize: '0.78rem', color: '#b91c1c'}}>
                     Reason: {selectedLead.reassignmentRequest.rejectionReason || 'Transfer request was reviewed and rejected by Admin'}
                   </span>
                 </div>
               </div>
             )}
             
-            <div className="drawer-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+            {/* 3. SLIM STAGE CONTROLLER & ACTIONS TOOLBAR */}
+            <div className="drawer-stage-bar">
               {(() => {
                 const currentIndex = STAGES.indexOf(selectedLead.stage);
                 const hasPrev = currentIndex > 0;
                 const hasNext = currentIndex < STAGES.length - 1;
                 return (
-                  <>
+                  <div className="drawer-stage-controls">
                     <button 
-                      className="btn-outline" 
-                      style={{padding: '0.5rem 1rem'}} 
+                      type="button"
+                      className="stage-nav-btn" 
                       disabled={!hasPrev}
                       onClick={() => hasPrev && handleQuickStageChange(STAGES[currentIndex - 1])}
+                      title="Previous Stage"
                     >
-                      &larr; Prev Stage
+                      ◀ Prev
                     </button>
                     <button 
-                      className="btn-primary" 
-                      style={{padding: '0.5rem 1rem'}} 
+                      type="button"
+                      className="stage-current-pill"
+                      onClick={() => setShowStageModal(true)}
+                      title="Click to jump to another stage"
+                    >
+                      <span className="stage-current-name">{selectedLead.stage}</span>
+                      <span className="stage-step-count">({currentIndex + 1}/{STAGES.length}) ▾</span>
+                    </button>
+                    <button 
+                      type="button"
+                      className="stage-nav-btn primary" 
                       disabled={!hasNext}
                       onClick={() => hasNext && handleQuickStageChange(STAGES[currentIndex + 1])}
+                      title="Advance to Next Stage"
                     >
-                      Next Stage &rarr;
+                      Next ▶
                     </button>
-                  </>
+                  </div>
                 );
               })()}
-              <button className="btn-outline" style={{padding: '0.5rem 1rem'}} onClick={() => setShowStageModal(true)}>
-                Jump Stage
-              </button>
               
-              {/* Role-Scoped Assignment Actions (Admin & PM Surya Ghar direct assign, others request transfer) */}
-              {isCompanyWideManager ? (
-                <button 
-                  className="btn-primary" 
-                  style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#2563eb', borderColor: '#2563eb'}} 
-                  onClick={() => {
-                    setAssignModalForm({
-                      employeeName: selectedLead.assignedEmployee || '',
-                      employeeId: selectedLead.assignedEmployeeId || '',
-                      dealerName: selectedLead.dealer || 'Direct (Company)',
-                      dealerId: selectedLead.dealerId || '',
-                      notes: ''
-                    });
-                    setShowChangeEmpModal(true);
-                  }}
-                >
-                  <Send size={15} /> Assign / Send Details
-                </button>
-              ) : (
-                <button 
-                  className="btn-outline" 
-                  style={{padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} 
-                  onClick={() => {
-                    setTransferRequestForm({
-                      targetEmployee: '',
-                      targetEmployeeId: '',
-                      targetDealer: '',
-                      targetDealerId: '',
-                      reason: ''
-                    });
-                    setShowRequestTransferModal(true);
-                  }}
-                >
-                  <ArrowRight size={15} /> Request Transfer
-                </button>
-              )}
-
-              {canManageModule(currentUser, 'leads') && (
-                <>
-                  <button className="btn-outline" style={{padding: '0.5rem 1rem'}} onClick={() => setShowAddFollowupModal(true)}>
-                    Follow-up
+              {/* Quick Assignment & Management Buttons */}
+              <div className="drawer-management-actions">
+                {isCompanyWideManager ? (
+                  <button 
+                    type="button"
+                    className="drawer-action-chip primary"
+                    onClick={() => {
+                      setAssignModalForm({
+                        employeeName: selectedLead.assignedEmployee || '',
+                        employeeId: selectedLead.assignedEmployeeId || '',
+                        dealerName: selectedLead.dealer || 'Direct (Company)',
+                        dealerId: selectedLead.dealerId || '',
+                        notes: ''
+                      });
+                      setShowChangeEmpModal(true);
+                    }}
+                    title="Assign or send lead details"
+                  >
+                    <Send size={13} /> Assign
                   </button>
-                  {selectedLead.archived ? (
-                    <button className="btn-outline" style={{padding: '0.5rem 1rem', color: '#16a34a', borderColor: '#16a34a'}} onClick={handleRestore}>
-                      Restore
+                ) : (
+                  <button 
+                    type="button"
+                    className="drawer-action-chip"
+                    onClick={() => {
+                      setTransferRequestForm({
+                        targetEmployee: '',
+                        targetEmployeeId: '',
+                        targetDealer: '',
+                        targetDealerId: '',
+                        reason: ''
+                      });
+                      setShowRequestTransferModal(true);
+                    }}
+                    title="Request transfer"
+                  >
+                    <ArrowRight size={13} /> Transfer
+                  </button>
+                )}
+
+                {canManageModule(currentUser, 'leads') && (
+                  <>
+                    <button 
+                      type="button"
+                      className="drawer-action-chip" 
+                      onClick={() => setShowAddFollowupModal(true)}
+                      title="Schedule Follow-up"
+                    >
+                      <Calendar size={13} /> +Follow-up
                     </button>
-                  ) : (
-                    <button className="btn-outline" style={{padding: '0.5rem 1rem', color: '#ef4444', borderColor: '#ef4444'}} onClick={() => setShowLostModal(true)}>
-                      Lost
-                    </button>
-                  )}
-                </>
-              )}
+                    {selectedLead.archived ? (
+                      <button 
+                        type="button"
+                        className="drawer-action-chip success" 
+                        onClick={handleRestore}
+                        title="Restore active lead"
+                      >
+                        Restore
+                      </button>
+                    ) : (
+                      <button 
+                        type="button"
+                        className="drawer-action-chip danger" 
+                        onClick={() => setShowLostModal(true)}
+                        title="Mark lead as lost"
+                      >
+                        Lost
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
+            {/* 4. SEGMENTED TABS BAR */}
+            <div className="drawer-tab-bar">
+              <button 
+                type="button"
+                className={`drawer-tab-btn ${leadDetailTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setLeadDetailTab('overview')}
+              >
+                📋 Overview
+              </button>
+              <button 
+                type="button"
+                className={`drawer-tab-btn ${leadDetailTab === 'specs' ? 'active' : ''}`}
+                onClick={() => setLeadDetailTab('specs')}
+              >
+                📐 Tech Specs
+              </button>
+              <button 
+                type="button"
+                className={`drawer-tab-btn ${leadDetailTab === 'docs' ? 'active' : ''}`}
+                onClick={() => setLeadDetailTab('docs')}
+              >
+                📁 Documents {selectedLead.documents && selectedLead.documents.length > 0 && `(${selectedLead.documents.length})`}
+              </button>
+              <button 
+                type="button"
+                className={`drawer-tab-btn ${leadDetailTab === 'financials' ? 'active' : ''}`}
+                onClick={() => setLeadDetailTab('financials')}
+              >
+                💰 Financials
+              </button>
+              <button 
+                type="button"
+                className={`drawer-tab-btn ${leadDetailTab === 'activity' ? 'active' : ''}`}
+                onClick={() => setLeadDetailTab('activity')}
+              >
+                ⚡ Activity & Work
+              </button>
+            </div>
+
+            {/* 5. DRAWER BODY (100% Focused Active Tab Content) */}
             <div className="drawer-body">
-              {/* Detail Pipeline */}
-              <div className="detail-section">
-                <h3>Pipeline Progress</h3>
-                <div className="detail-pipeline">
-                  {STAGES.map((s, idx) => {
-                    const currentIndex = STAGES.indexOf(selectedLead.stage);
-                    const isCompleted = idx < currentIndex;
-                    const isCurrent = idx === currentIndex;
-                    return (
-                      <div key={s} className="detail-pipe-stage">
-                        <div className={`pipe-dot ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}>
-                          {isCompleted ? <CheckCircle2 size={14} /> : ''}
-                        </div>
-                        <span className={`pipe-label ${isCurrent ? 'current' : ''}`}>{s}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Lead Origin & Sourcing Attribution Card */}
-              <div className="detail-section" style={{
-                background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
-                border: '1.5px solid #bae6fd',
-                borderRadius: '12px',
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
-              }}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem'}}>
-                  <h4 style={{margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
-                    <Share2 size={16} color="#0284c7" /> Lead Sourcing & Origin Attribution
-                  </h4>
-                  <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '20px',
-                    backgroundColor: selectedLead.marketingEmployee ? '#fef3c7' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#e0e7ff' : '#f1f5f9',
-                    color: selectedLead.marketingEmployee ? '#b45309' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#4338ca' : '#475569',
-                    border: '1px solid currentColor'
-                  }}>
-                    {selectedLead.source || (selectedLead.marketingEmployee ? `Marketing Staff: ${selectedLead.marketingEmployee}` : selectedLead.dealer ? `Dealer: ${selectedLead.dealer}` : 'Direct Mirror Solar')}
-                  </span>
-                </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem'}}>
-                  {/* Originator / Sent By */}
-                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
-                      Originator / Sent By
-                    </span>
-                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem'}}>
-                      {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee ? (
-                        <span style={{color: '#b45309'}}>🧑‍💼 {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee} (Marketer)</span>
-                      ) : selectedLead.sourceDealer || (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? (
-                        <span style={{color: '#4338ca'}}>🏢 {selectedLead.sourceDealer || selectedLead.dealer} (Dealer)</span>
-                      ) : selectedLead.createdByName ? (
-                        <span style={{color: '#0f172a'}}>👤 {selectedLead.createdByName} ({selectedLead.createdByRole || 'Staff'})</span>
-                      ) : (
-                        <span style={{color: '#64748b'}}>🏛 Direct (Mirror Solar HQ)</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Dealership */}
-                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
-                      Associated Dealer
-                    </span>
-                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'block'}}>
-                      🏢 {selectedLead.dealer || 'Direct (Company)'}
-                    </span>
-                  </div>
-
-                  {/* Assigned Employee / PM Surya Ghar Desk */}
-                  <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                    <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
-                      Operational Assignee / Desk
-                    </span>
-                    <span style={{fontSize: '0.92rem', fontWeight: 700, color: selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? '#0369a1' : '#d97706', marginTop: '0.2rem', display: 'block'}}>
-                      {selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? (
-                        `⚡ ${selectedLead.assignedEmployee}`
-                      ) : (
-                        `⚠️ Unassigned (PM Surya Ghar Desk)`
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer Info */}
-              <div className="detail-section">
-                <h3>Customer Information</h3>
-                <div className="detail-grid">
-                  <div className="detail-field">
-                    <span className="detail-label">Phone</span>
-                    <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
-                      <Phone size={14} color="#64748b"/> {selectedLead.phone}
-                    </span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Email</span>
-                    <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
-                      <Mail size={14} color="#64748b"/> {selectedLead.email}
-                    </span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Location</span>
-                    <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
-                      <MapPin size={14} color="#64748b"/> {selectedLead.location}
-                    </span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Lead Type</span>
-                    <span className="detail-value" style={{fontWeight: 600, color: (selectedLead.leadType || 'tracking') === 'project' ? '#4f46e5' : '#64748b'}}>
-                      {(selectedLead.leadType || 'tracking') === 'project' ? 'Project / Document Lead' : 'Tracking Lead'}
-                    </span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Priority</span>
-                    <span className={`detail-value ${getPriorityClass(selectedLead.priority)}`}>
-                      {selectedLead.priority}
-                    </span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Dealer</span>
-                    <span className="detail-value">{selectedLead.dealer || 'Direct (Company)'}</span>
-                  </div>
-                  <div className="detail-field">
-                    <span className="detail-label">Employee</span>
-                    <span className="detail-value" style={{cursor: 'pointer', color: 'var(--color-navy)', textDecoration: 'underline'}} onClick={() => showToast('Navigating to Employee...')}>{selectedLead.assignedEmployee}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer Financials & Commission Tracking (Dual Payment Section) */}
-              <div className="detail-section" style={{ padding: 0, background: 'transparent', border: 'none' }}>
-                <CustomerFinancialsCard
-                  lead={selectedLead}
-                  onOpenRecordModal={(type) => {
-                    setRecordPaymentModalType(type);
-                    setRecordPaymentModalLeadId(selectedLead.id);
-                    setShowRecordPaymentModal(true);
-                  }}
-                />
-              </div>
-
-              {/* --- PROJECT DOCUMENTS & SPECIFICATIONS (Visible for all leads) --- */}
-              <>
-                {/* Documents & Specifications Section */}
+              {/* ========================================================= */}
+              {/* TAB 1: OVERVIEW                                           */}
+              {/* ========================================================= */}
+              {leadDetailTab === 'overview' && (
+                <>
+                  {/* Detail Pipeline */}
                   <div className="detail-section">
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
-                      <div>
-                        <h3 style={{margin: 0, fontSize: '1.2rem', color: '#0b1f3a'}}>Project Documents & Specifications</h3>
-                        <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0'}}>
-                          5-Stage lifecycle documentation, dealer technical sizing, and linked bank/grid paperwork
-                        </p>
+                    <h3>Pipeline Progress</h3>
+                    <div className="detail-pipeline">
+                      {STAGES.map((s, idx) => {
+                        const currentIndex = STAGES.indexOf(selectedLead.stage);
+                        const isCompleted = idx < currentIndex;
+                        const isCurrent = idx === currentIndex;
+                        return (
+                          <div key={s} className="detail-pipe-stage">
+                            <div className={`pipe-dot ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}>
+                              {isCompleted ? <CheckCircle2 size={14} /> : ''}
+                            </div>
+                            <span className={`pipe-label ${isCurrent ? 'current' : ''}`}>{s}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Lead Origin & Sourcing Attribution Card */}
+                  <div className="detail-section" style={{
+                    background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
+                    border: '1.5px solid #bae6fd',
+                    borderRadius: '12px',
+                    padding: '1.15rem 1.25rem',
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.06)'
+                  }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                      <h4 style={{margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
+                        <Share2 size={16} color="#0284c7" /> Lead Sourcing & Origin Attribution
+                      </h4>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '20px',
+                        backgroundColor: selectedLead.marketingEmployee ? '#fef3c7' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#e0e7ff' : '#f1f5f9',
+                        color: selectedLead.marketingEmployee ? '#b45309' : (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? '#4338ca' : '#475569',
+                        border: '1px solid currentColor'
+                      }}>
+                        {selectedLead.source || (selectedLead.marketingEmployee ? `Marketing Staff: ${selectedLead.marketingEmployee}` : selectedLead.dealer ? `Dealer: ${selectedLead.dealer}` : 'Direct Mirror Solar')}
+                      </span>
+                    </div>
+
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem'}}>
+                      {/* Originator / Sent By */}
+                      <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                        <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                          Originator / Sent By
+                        </span>
+                        <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem'}}>
+                          {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee ? (
+                            <span style={{color: '#b45309'}}>🧑‍💼 {selectedLead.marketingEmployee || selectedLead.sourceMarketingEmployee} (Marketer)</span>
+                          ) : selectedLead.sourceDealer || (selectedLead.dealer && selectedLead.dealer !== 'Direct (Company)') ? (
+                            <span style={{color: '#4338ca'}}>🏢 {selectedLead.sourceDealer || selectedLead.dealer} (Dealer)</span>
+                          ) : selectedLead.createdByName ? (
+                            <span style={{color: '#0f172a'}}>👤 {selectedLead.createdByName} ({selectedLead.createdByRole || 'Staff'})</span>
+                          ) : (
+                            <span style={{color: '#64748b'}}>🏛 Direct (Mirror Solar HQ)</span>
+                          )}
+                        </span>
                       </div>
-                      {selectedLead.documents && selectedLead.documents.length > 0 && (
-                        <button className="btn-outline" style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} onClick={() => setShowDownloadSectionModal(true)}>
-                          <Download size={15} /> Download Files ({selectedLead.documents.length})
-                        </button>
+
+                      {/* Dealership */}
+                      <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                        <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                          Associated Dealer
+                        </span>
+                        <span style={{fontSize: '0.92rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem', display: 'block'}}>
+                          🏢 {selectedLead.dealer || 'Direct (Company)'}
+                        </span>
+                      </div>
+
+                      {/* Assigned Employee / PM Surya Ghar Desk */}
+                      <div style={{background: 'rgba(255,255,255,0.92)', padding: '0.7rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                        <span style={{fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block'}}>
+                          Operational Assignee / Desk
+                        </span>
+                        <span style={{fontSize: '0.92rem', fontWeight: 700, color: selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? '#0369a1' : '#d97706', marginTop: '0.2rem', display: 'block'}}>
+                          {selectedLead.assignedEmployee && selectedLead.assignedEmployee !== 'Unassigned' ? (
+                            `⚡ ${selectedLead.assignedEmployee}`
+                          ) : (
+                            `⚠️ Unassigned (PM Surya Ghar Desk)`
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="detail-section">
+                    <h3>Customer Information</h3>
+                    <div className="detail-grid">
+                      <div className="detail-field">
+                        <span className="detail-label">Phone</span>
+                        <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+                          <Phone size={14} color="#64748b"/> {selectedLead.phone}
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Email</span>
+                        <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+                          <Mail size={14} color="#64748b"/> {selectedLead.email || '-'}
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Location</span>
+                        <span className="detail-value" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+                          <MapPin size={14} color="#64748b"/> {selectedLead.location || '-'}
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Lead Type</span>
+                        <span className="detail-value" style={{fontWeight: 600, color: (selectedLead.leadType || 'tracking') === 'project' ? '#4f46e5' : '#64748b'}}>
+                          {(selectedLead.leadType || 'tracking') === 'project' ? 'Project / Document Lead' : 'Tracking Lead'}
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Priority</span>
+                        <span className={`detail-value ${getPriorityClass(selectedLead.priority)}`}>
+                          {selectedLead.priority}
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Dealer</span>
+                        <span className="detail-value">{selectedLead.dealer || 'Direct (Company)'}</span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="detail-label">Employee</span>
+                        <span className="detail-value" style={{cursor: 'pointer', color: 'var(--color-navy)', textDecoration: 'underline'}} onClick={() => showToast('Navigating to Employee...')}>{selectedLead.assignedEmployee || 'Unassigned'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Follow ups */}
+                  {selectedLead.followUp && (
+                    <div className="detail-section">
+                      <h3>Next Follow-up</h3>
+                      <div className="fu-item">
+                        <div>
+                          <div style={{fontWeight: 700, fontSize: '0.95rem'}}>{selectedLead.followUp.type}</div>
+                          <div style={{fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem'}}>
+                            <Calendar size={12} style={{display:'inline', marginRight:'0.25rem'}}/> {selectedLead.followUp.date} at {selectedLead.followUp.time}
+                          </div>
+                        </div>
+                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem'}}>
+                          <span className={`stage-badge ${selectedLead.followUp.status === 'Overdue' ? 'pmsurvey' : (selectedLead.followUp.status === 'Completed' ? 'completed' : 'lead')}`}>
+                            {selectedLead.followUp.status}
+                          </span>
+                          {selectedLead.followUp.status !== 'Completed' && (
+                            <button className="btn-outline" style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem'}} onClick={() => handleCompleteFollowUp(selectedLead.id)}>
+                              Complete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Related Tasks */}
+                  <div className="detail-section">
+                    <h3>Related Tasks</h3>
+                    <div className="notes-list">
+                      {tasks.filter(t => t.leadId === selectedLead.id).length > 0 ? tasks.filter(t => t.leadId === selectedLead.id).map(task => (
+                        <div key={task.id} className="note-item" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                            <CheckSquare size={16} color={task.status === 'Completed' ? '#16a34a' : '#0284c7'} />
+                            <div>
+                              <div style={{fontWeight: 600, color: '#1e293b'}}>{task.title}</div>
+                              <div style={{fontSize: '0.8rem', color: '#64748b'}}>
+                                {task.status} {task.dueDate && `• Due: ${task.dueDate}`}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`stage-badge lead`} style={{background: task.priority === 'High' ? '#fee2e2' : task.priority === 'Medium' ? '#fef3c7' : '#e0e7ff', color: task.priority === 'High' ? '#b91c1c' : task.priority === 'Medium' ? '#b45309' : '#3730a3'}}>
+                            {task.priority}
+                          </span>
+                        </div>
+                      )) : (
+                        <div style={{fontSize: '0.9rem', color: '#64748b', fontStyle: 'italic', padding: '0.5rem'}}>No tasks related to this lead.</div>
                       )}
                     </div>
+                  </div>
 
-                    {/* 5-Section Category Navigation Pills */}
-                    <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.35rem'}}>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'all' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'all' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'all' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('all')}
-                      >
-                        🌐 All Stages ({ALL_DOCUMENT_TYPES.length})
-                      </button>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'section1' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('section1')}
-                      >
-                        📁 1. Dealer KYC & Tech Specs ({SECTION_1_DEALER_KYC_DOCS.length})
-                      </button>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'section2' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('section2')}
-                      >
-                        🏦 2. Bank 1st Payment ({SECTION_2_BANK_FIRST_PAYMENT_DOCS.length})
-                      </button>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'section3' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('section3')}
-                      >
-                        ⚡ 3. Site Installation ({SECTION_3_SITE_INSTALLATION_DOCS.length})
-                      </button>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'section4' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('section4')}
-                      >
-                        💳 4. Bank 2nd Payment ({SECTION_4_BANK_SECOND_PAYMENT_DOCS.length})
-                      </button>
-                      <button 
-                        className="filter-pill-btn" 
-                        style={{
-                          background: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'section5' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#cbd5e1'
-                        }}
-                        onClick={() => setDocCategoryTab('section5')}
-                      >
-                        🏢 5. Grid / DISCOM Docs ({SECTION_5_GRID_OFFICE_DOCS.length})
-                      </button>
-                    </div>
-
-                    {/* ========================================================= */}
-                    {/* SECTION 1: DEALER TECHNICAL SPECIFICATIONS FORM            */}
-                    {/* ========================================================= */}
-                    {(docCategoryTab === 'all' || docCategoryTab === 'section1') && (
-                      <div style={{
-                        background: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '12px',
-                        padding: '1.5rem',
-                        marginBottom: '2rem',
-                        boxShadow: '0 4px 12px rgba(11, 31, 58, 0.04)'
-                      }}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem'}}>
-                          <div>
-                            <h4 style={{margin: 0, fontSize: '1.05rem', color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
-                              📐 Dealer Technical Specifications & Bill of Materials (BOM)
-                            </h4>
-                            <span style={{fontSize: '0.8rem', color: '#64748b'}}>
-                              Enter project electrical sizing, conduit bends, wire lengths, and bank loan details
-                            </span>
-                          </div>
-
-                          <button 
-                            className="btn-primary"
-                            onClick={handleSaveSpecs}
-                            disabled={isSavingSpecs}
-                            style={{padding: '0.45rem 1.1rem', fontSize: '0.85rem'}}
-                          >
-                            {isSavingSpecs ? <><Loader2 size={14} style={{animation: 'spin 1s linear infinite'}} /> Saving...</> : <>💾 Save Specifications</>}
-                          </button>
-                        </div>
-
-                        {/* 1. Customer & Loan Basic Info */}
-                        <div style={{marginBottom: '1.25rem'}}>
-                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
-                            1. Customer & Banking Data
-                          </div>
-                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem'}}>
-                            <div className="form-group">
-                              <label>Customer Full Name</label>
-                              <input 
-                                type="text"
-                                value={specsForm.fullName || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, fullName: e.target.value })}
-                                placeholder="E.g. Rajesh Sharma"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Phone Number</label>
-                              <input 
-                                type="tel"
-                                value={specsForm.phone || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, phone: e.target.value })}
-                                placeholder="E.g. 9876543210"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Email ID (Text or Photo)</label>
-                              <div style={{display: 'flex', gap: '0.4rem'}}>
-                                <input 
-                                  type="email"
-                                  value={specsForm.email || ''}
-                                  onChange={e => setSpecsForm({ ...specsForm, email: e.target.value })}
-                                  placeholder="customer@gmail.com"
-                                  style={{flex: 1}}
-                                />
-                                <label className="btn-outline" style={{padding: '0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} title="Upload Email ID Screenshot">
-                                  <Camera size={16} />
-                                  <input 
-                                    type="file" 
-                                    accept="image/*"
-                                    style={{display: 'none'}}
-                                    onChange={e => {
-                                      if (e.target.files && e.target.files.length > 0) {
-                                        handleUploadEmailProof(e.target.files[0]);
-                                      }
-                                    }}
-                                  />
-                                </label>
+                  {/* Notes */}
+                  <div className="detail-section">
+                    <h3>Notes</h3>
+                    <div className="notes-list">
+                      {selectedLead.notes ? selectedLead.notes.split('\n').map((n, i) => {
+                        const match = n.match(/^\[(.*?)\] (.*?): (.*)$/);
+                        if (match) {
+                          return (
+                            <div key={i} className="note-item">
+                              <div className="note-header">
+                                <span className="note-author">{match[2]}</span>
+                                <span>{match[1]}</span>
                               </div>
-                              {specsForm.emailProofUrl && (
-                                <div style={{fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem'}}>
-                                  ✓ Photo Uploaded: 
-                                  <a href={specsForm.emailProofUrl} target="_blank" rel="noreferrer" style={{color: '#2563eb', textDecoration: 'underline'}}>
-                                    {specsForm.emailProofFileName || 'View'}
-                                  </a>
-                                </div>
-                              )}
+                              <div className="note-text">{match[3]}</div>
                             </div>
-                            <div className="form-group">
-                              <label>Bank IFSC Code (for loan processing)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.bankIfscCode || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, bankIfscCode: e.target.value.toUpperCase() })}
-                                placeholder="E.g. HDFC0001234 / SBIN0004567"
-                                style={{textTransform: 'uppercase', fontWeight: 600}}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 2. Solar Equipment & Structure Sizing */}
-                        <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
-                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
-                            2. Solar Equipment & Structure Sizing
-                          </div>
-                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem'}}>
-                            <div className="form-group">
-                              <label>Which Company Panels and Their Wp?</label>
-                              <input 
-                                type="text"
-                                value={specsForm.panelWp || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, panelWp: e.target.value })}
-                                placeholder="E.g. Waaree 540 Wp / Adani 610 Wp Bifacial"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Phase Needed</label>
-                              <select 
-                                value={specsForm.phase || '1 Phase'}
-                                onChange={e => setSpecsForm({ ...specsForm, phase: e.target.value as '1 Phase' | '3 Phase' })}
-                              >
-                                <option value="1 Phase">1 Phase (Single Phase)</option>
-                                <option value="3 Phase">3 Phase (Three Phase)</option>
-                              </select>
-                            </div>
-                            <div className="form-group">
-                              <label>System Capacity (KW)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.systemCapacityKw || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, systemCapacityKw: e.target.value })}
-                                placeholder="E.g. 3 kW, 5 kW, 10 kW"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Building Floors</label>
-                              <input 
-                                type="text"
-                                value={specsForm.buildingFloors || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, buildingFloors: e.target.value })}
-                                placeholder="E.g. 1 Floor / 2 Floors / G+2"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Structure Height & Type</label>
-                              <select 
-                                value={specsForm.structureHeightAndType || 'Company Structure'}
-                                onChange={e => setSpecsForm({ ...specsForm, structureHeightAndType: e.target.value })}
-                              >
-                                <option value="Company Structure">Standard Company Structure</option>
-                                <option value="Custom GI Welding Structure">Custom GI Welding Structure</option>
-                                <option value="Elevated Rooftop Structure">Elevated Rooftop Structure (8ft+)</option>
-                                <option value="Tin Shed Flush Mount">Tin Shed / Sheet Mount</option>
-                              </select>
-                            </div>
-                            <div className="form-group">
-                              <label>Lightning Arrester Stand?</label>
-                              <select 
-                                value={specsForm.lightningArresterStand || 'Yes'}
-                                onChange={e => setSpecsForm({ ...specsForm, lightningArresterStand: e.target.value as 'Yes' | 'No' })}
-                              >
-                                <option value="Yes">Yes (Iron Stand Needed)</option>
-                                <option value="No">No (Not Required)</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 3. Plumbing, Conduit & Iron Fittings */}
-                        <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
-                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
-                            3. Conduit & Iron Fittings Required
-                          </div>
-                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
-                            <div className="form-group">
-                              <label>10-ft Pipes Needed</label>
-                              <input 
-                                type="number"
-                                value={specsForm.pipes10FeetCount || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, pipes10FeetCount: e.target.value })}
-                                placeholder="Count (e.g. 6)"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Long "L" Bends</label>
-                              <input 
-                                type="number"
-                                value={specsForm.longLBendsCount || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, longLBendsCount: e.target.value })}
-                                placeholder="Count (e.g. 4)"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Short "L" Bends</label>
-                              <input 
-                                type="number"
-                                value={specsForm.shortLBendsCount || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, shortLBendsCount: e.target.value })}
-                                placeholder="Count (e.g. 8)"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>"T" Bends</label>
-                              <input 
-                                type="number"
-                                value={specsForm.tBendsCount || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, tBendsCount: e.target.value })}
-                                placeholder="Count (e.g. 2)"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Straight Joint Connectors</label>
-                              <input 
-                                type="number"
-                                value={specsForm.straightJointConnectorsCount || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, straightJointConnectorsCount: e.target.value })}
-                                placeholder="Count (e.g. 6)"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 4. Electrical Wiring Requirements */}
-                        <div style={{paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
-                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
-                            4. Electrical Wiring Requirements (Meters / Length)
-                          </div>
-                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
-                            <div className="form-group">
-                              <label>DC RED Wire (m)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.dcRedWireLength || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, dcRedWireLength: e.target.value })}
-                                placeholder="E.g. 30m"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>DC BLACK Wire (m)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.dcBlackWireLength || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, dcBlackWireLength: e.target.value })}
-                                placeholder="E.g. 30m"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>AC RED Wire (m)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.acRedWireLength || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, acRedWireLength: e.target.value })}
-                                placeholder="E.g. 25m"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>AC BLACK Wire (m)</label>
-                              <input 
-                                type="text"
-                                value={specsForm.acBlackWireLength || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, acBlackWireLength: e.target.value })}
-                                placeholder="E.g. 25m"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>GREEN (Earthing) Wire</label>
-                              <input 
-                                type="text"
-                                value={specsForm.greenWireLength || ''}
-                                onChange={e => setSpecsForm({ ...specsForm, greenWireLength: e.target.value })}
-                                placeholder="E.g. 20m"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                          );
+                        }
+                        return <div key={i} className="note-text" style={{background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>{n}</div>;
+                      }) : <div style={{color: '#64748b', fontSize: '0.85rem'}}>No notes yet.</div>}
+                    </div>
+                    {canManageModule(currentUser, 'leads') && (
+                      <div style={{marginTop: '1rem', display: 'flex', gap: '0.5rem'}}>
+                        <label htmlFor="lead-drawer-newNote" className="sr-only">Add a note</label>
+                        <input 
+                          type="text" 
+                          id="lead-drawer-newNote"
+                          name="newNote"
+                          placeholder="Add a note..." 
+                          style={{flex: 1, padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', outline: 'none'}}
+                          value={newNote}
+                          onChange={e => setNewNote(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                        />
+                        <button className="btn-primary" onClick={handleAddNote} disabled={!newNote.trim()}>Add</button>
                       </div>
                     )}
+                  </div>
+                </>
+              )}
 
-                    {/* ========================================================= */}
-                    {/* DOCUMENT CARDS RENDERER HELPER                             */}
-                    {/* ========================================================= */}
-                    {(() => {
-                      const renderCategorySection = (
-                        docTypes: string[], 
-                        title: string, 
-                        subtitle: string, 
-                        badgeText: string, 
-                        badgeColor: string,
-                        linkedDocTypes: string[] = [],
-                        sectionBannerNotice?: string
-                      ) => {
-                        const totalTypes = docTypes.length;
-                        const uploadedTypesCount = docTypes.filter(t => selectedLead.documents?.some(d => d.documentType === t)).length;
+              {/* ========================================================= */}
+              {/* TAB 2: TECHNICAL SPECIFICATIONS                           */}
+              {/* ========================================================= */}
+              {leadDetailTab === 'specs' && (
+                <div style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  boxShadow: '0 4px 12px rgba(11, 31, 58, 0.04)'
+                }}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem'}}>
+                    <div>
+                      <h4 style={{margin: 0, fontSize: '1.05rem', color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
+                        📐 Dealer Technical Specifications & Bill of Materials (BOM)
+                      </h4>
+                      <span style={{fontSize: '0.8rem', color: '#64748b'}}>
+                        Enter project electrical sizing, conduit bends, wire lengths, and bank loan details
+                      </span>
+                    </div>
 
-                        return (
-                          <div style={{
-                            marginBottom: '2rem', 
-                            border: '1px solid #e2e8f0', 
-                            borderRadius: '14px', 
-                            padding: '1.5rem', 
-                            background: '#ffffff', 
-                            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)'
-                          }}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem'}}>
-                              <div>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
-                                  <h4 style={{margin: 0, fontSize: '1.1rem', color: '#0b1f3a', fontWeight: 800}}>{title}</h4>
-                                  <span style={{fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: badgeColor, color: '#0b1f3a', fontWeight: 700}}>
-                                    {badgeText}
-                                  </span>
-                                </div>
-                                <p style={{margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b'}}>{subtitle}</p>
-                              </div>
+                    <button 
+                      className="btn-primary"
+                      onClick={handleSaveSpecs}
+                      disabled={isSavingSpecs}
+                      style={{padding: '0.45rem 1.1rem', fontSize: '0.85rem'}}
+                    >
+                      {isSavingSpecs ? <><Loader2 size={14} style={{animation: 'spin 1s linear infinite'}} /> Saving...</> : <>💾 Save Specifications</>}
+                    </button>
+                  </div>
+
+                  {/* 1. Customer & Loan Basic Info */}
+                  <div style={{marginBottom: '1.25rem'}}>
+                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                      1. Customer & Banking Data
+                    </div>
+                    <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem'}}>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-fullName">Customer Full Name</label>
+                        <input 
+                          id="lead-spec-fullName"
+                          name="fullName"
+                          type="text"
+                          value={specsForm.fullName || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, fullName: e.target.value })}
+                          placeholder="E.g. Rajesh Sharma"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-phone">Phone Number</label>
+                        <input 
+                          id="lead-spec-phone"
+                          name="phone"
+                          type="tel"
+                          value={specsForm.phone || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, phone: e.target.value })}
+                          placeholder="E.g. 9876543210"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-email">Email ID (Text or Photo)</label>
+                        <div style={{display: 'flex', gap: '0.4rem'}}>
+                          <input 
+                            id="lead-spec-email"
+                            name="email"
+                            type="email"
+                            value={specsForm.email || ''}
+                            onChange={e => setSpecsForm({ ...specsForm, email: e.target.value })}
+                            placeholder="customer@gmail.com"
+                            style={{flex: 1}}
+                          />
+                          <label htmlFor="lead-spec-emailPhoto" className="btn-outline" style={{padding: '0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} title="Upload Email ID Screenshot">
+                            <Camera size={16} />
+                            <input 
+                              id="lead-spec-emailPhoto"
+                              name="emailProofPhoto"
+                              type="file" 
+                              accept="image/*"
+                              style={{display: 'none'}}
+                              onChange={e => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handleUploadEmailProof(e.target.files[0]);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {specsForm.emailProofUrl && (
+                          <div style={{fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem'}}>
+                            ✓ Photo Uploaded: 
+                            <a href={specsForm.emailProofUrl} target="_blank" rel="noreferrer" style={{color: '#2563eb', textDecoration: 'underline'}}>
+                              {specsForm.emailProofFileName || 'View'}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-bankIfscCode">Bank IFSC Code (for loan processing)</label>
+                        <input 
+                          id="lead-spec-bankIfscCode"
+                          name="bankIfscCode"
+                          type="text"
+                          value={specsForm.bankIfscCode || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, bankIfscCode: e.target.value.toUpperCase() })}
+                          placeholder="E.g. HDFC0001234 / SBIN0004567"
+                          style={{textTransform: 'uppercase', fontWeight: 600}}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Solar Equipment & Structure Sizing */}
+                  <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                      2. Solar Equipment & Structure Sizing
+                    </div>
+                    <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem'}}>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-panelWp">Which Company Panels and Their Wp?</label>
+                        <input 
+                          id="lead-spec-panelWp"
+                          name="panelWp"
+                          type="text"
+                          value={specsForm.panelWp || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, panelWp: e.target.value })}
+                          placeholder="E.g. Waaree 540 Wp / Adani 610 Wp Bifacial"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-phase">Phase Needed</label>
+                        <select 
+                          id="lead-spec-phase"
+                          name="phase"
+                          value={specsForm.phase || '1 Phase'}
+                          onChange={e => setSpecsForm({ ...specsForm, phase: e.target.value as '1 Phase' | '3 Phase' })}
+                        >
+                          <option value="1 Phase">1 Phase (Single Phase)</option>
+                          <option value="3 Phase">3 Phase (Three Phase)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-systemCapacityKw">System Capacity (KW)</label>
+                        <input 
+                          id="lead-spec-systemCapacityKw"
+                          name="systemCapacityKw"
+                          type="text"
+                          value={specsForm.systemCapacityKw || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, systemCapacityKw: e.target.value })}
+                          placeholder="E.g. 3 kW, 5 kW, 10 kW"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-buildingFloors">Building Floors</label>
+                        <input 
+                          id="lead-spec-buildingFloors"
+                          name="buildingFloors"
+                          type="text"
+                          value={specsForm.buildingFloors || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, buildingFloors: e.target.value })}
+                          placeholder="E.g. 1 Floor / 2 Floors / G+2"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-structureHeightAndType">Structure Height & Type</label>
+                        <select 
+                          id="lead-spec-structureHeightAndType"
+                          name="structureHeightAndType"
+                          value={specsForm.structureHeightAndType || 'Company Structure'}
+                          onChange={e => setSpecsForm({ ...specsForm, structureHeightAndType: e.target.value })}
+                        >
+                          <option value="Company Structure">Standard Company Structure</option>
+                          <option value="Custom GI Welding Structure">Custom GI Welding Structure</option>
+                          <option value="Elevated Rooftop Structure">Elevated Rooftop Structure (8ft+)</option>
+                          <option value="Tin Shed Flush Mount">Tin Shed / Sheet Mount</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-lightningArresterStand">Lightning Arrester Stand?</label>
+                        <select 
+                          id="lead-spec-lightningArresterStand"
+                          name="lightningArresterStand"
+                          value={specsForm.lightningArresterStand || 'Yes'}
+                          onChange={e => setSpecsForm({ ...specsForm, lightningArresterStand: e.target.value as 'Yes' | 'No' })}
+                        >
+                          <option value="Yes">Yes (Iron Stand Needed)</option>
+                          <option value="No">No (Not Required)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Plumbing, Conduit & Iron Fittings */}
+                  <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                      3. Conduit & Iron Fittings Required
+                    </div>
+                    <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-pipes10FeetCount">10-ft Pipes Needed</label>
+                        <input 
+                          id="lead-spec-pipes10FeetCount"
+                          name="pipes10FeetCount"
+                          type="number"
+                          value={specsForm.pipes10FeetCount || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, pipes10FeetCount: e.target.value })}
+                          placeholder="Count (e.g. 6)"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-longLBendsCount">Long "L" Bends</label>
+                        <input 
+                          id="lead-spec-longLBendsCount"
+                          name="longLBendsCount"
+                          type="number"
+                          value={specsForm.longLBendsCount || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, longLBendsCount: e.target.value })}
+                          placeholder="Count (e.g. 4)"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-shortLBendsCount">Short "L" Bends</label>
+                        <input 
+                          id="lead-spec-shortLBendsCount"
+                          name="shortLBendsCount"
+                          type="number"
+                          value={specsForm.shortLBendsCount || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, shortLBendsCount: e.target.value })}
+                          placeholder="Count (e.g. 8)"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-tBendsCount">"T" Bends</label>
+                        <input 
+                          id="lead-spec-tBendsCount"
+                          name="tBendsCount"
+                          type="number"
+                          value={specsForm.tBendsCount || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, tBendsCount: e.target.value })}
+                          placeholder="Count (e.g. 2)"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-straightJointConnectorsCount">Straight Joint Connectors</label>
+                        <input 
+                          id="lead-spec-straightJointConnectorsCount"
+                          name="straightJointConnectorsCount"
+                          type="number"
+                          value={specsForm.straightJointConnectorsCount || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, straightJointConnectorsCount: e.target.value })}
+                          placeholder="Count (e.g. 6)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Electrical Wiring Requirements */}
+                  <div style={{paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                      4. Electrical Wiring Requirements (Meters / Length)
+                    </div>
+                    <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-dcRedWireLength">DC RED Wire (m)</label>
+                        <input 
+                          id="lead-spec-dcRedWireLength"
+                          name="dcRedWireLength"
+                          type="text"
+                          value={specsForm.dcRedWireLength || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, dcRedWireLength: e.target.value })}
+                          placeholder="E.g. 30m"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-dcBlackWireLength">DC BLACK Wire (m)</label>
+                        <input 
+                          id="lead-spec-dcBlackWireLength"
+                          name="dcBlackWireLength"
+                          type="text"
+                          value={specsForm.dcBlackWireLength || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, dcBlackWireLength: e.target.value })}
+                          placeholder="E.g. 30m"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-acRedWireLength">AC RED Wire (m)</label>
+                        <input 
+                          id="lead-spec-acRedWireLength"
+                          name="acRedWireLength"
+                          type="text"
+                          value={specsForm.acRedWireLength || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, acRedWireLength: e.target.value })}
+                          placeholder="E.g. 25m"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-acBlackWireLength">AC BLACK Wire (m)</label>
+                        <input 
+                          id="lead-spec-acBlackWireLength"
+                          name="acBlackWireLength"
+                          type="text"
+                          value={specsForm.acBlackWireLength || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, acBlackWireLength: e.target.value })}
+                          placeholder="E.g. 25m"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="lead-spec-greenWireLength">GREEN (Earthing) Wire</label>
+                        <input 
+                          id="lead-spec-greenWireLength"
+                          name="greenWireLength"
+                          type="text"
+                          value={specsForm.greenWireLength || ''}
+                          onChange={e => setSpecsForm({ ...specsForm, greenWireLength: e.target.value })}
+                          placeholder="E.g. 20m"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 3: DOCUMENTS (5 STAGES & UPLOADS)                     */}
+              {/* ========================================================= */}
+              {leadDetailTab === 'docs' && (
+                <div className="detail-section">
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
+                    <div>
+                      <h3 style={{margin: 0, fontSize: '1.2rem', color: '#0b1f3a'}}>Project Documents & Verification</h3>
+                      <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0'}}>
+                        5-Stage lifecycle documentation, KYC, site installation photos, and linked bank/grid paperwork
+                      </p>
+                    </div>
+                    {selectedLead.documents && selectedLead.documents.length > 0 && (
+                      <button className="btn-outline" style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} onClick={() => setShowDownloadSectionModal(true)}>
+                        <Download size={15} /> Download Files ({selectedLead.documents.length})
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 5-Section Category Navigation Pills */}
+                  <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.35rem'}}>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'all' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'all' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'all' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('all')}
+                    >
+                      🌐 All Stages ({ALL_DOCUMENT_TYPES.length})
+                    </button>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'section1' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('section1')}
+                    >
+                      📁 1. Dealer KYC ({SECTION_1_DEALER_KYC_DOCS.length})
+                    </button>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'section2' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('section2')}
+                    >
+                      🏦 2. Bank 1st Payment ({SECTION_2_BANK_FIRST_PAYMENT_DOCS.length})
+                    </button>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'section3' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('section3')}
+                    >
+                      ⚡ 3. Site Installation ({SECTION_3_SITE_INSTALLATION_DOCS.length})
+                    </button>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'section4' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('section4')}
+                    >
+                      💳 4. Bank 2nd Payment ({SECTION_4_BANK_SECOND_PAYMENT_DOCS.length})
+                    </button>
+                    <button 
+                      className="filter-pill-btn" 
+                      style={{
+                        background: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#f8fafc',
+                        color: docCategoryTab === 'section5' ? '#fff' : '#475569',
+                        borderColor: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#cbd5e1'
+                      }}
+                      onClick={() => setDocCategoryTab('section5')}
+                    >
+                      🏢 5. Grid / DISCOM Docs ({SECTION_5_GRID_OFFICE_DOCS.length})
+                    </button>
+                  </div>
+
+                  {/* DOCUMENT CARDS RENDERER */}
+                  {(() => {
+                    const renderCategorySection = (
+                      docTypes: string[], 
+                      title: string, 
+                      subtitle: string, 
+                      badgeText: string, 
+                      badgeColor: string,
+                      linkedDocTypes: string[] = [],
+                      sectionBannerNotice?: string
+                    ) => {
+                      const totalTypes = docTypes.length;
+                      const uploadedTypesCount = docTypes.filter(t => selectedLead.documents?.some(d => d.documentType === t)).length;
+
+                      return (
+                        <div style={{
+                          marginBottom: '1.5rem', 
+                          border: '1px solid #e2e8f0', 
+                          borderRadius: '14px', 
+                          padding: '1.25rem', 
+                          background: '#ffffff', 
+                          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)'
+                        }}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem'}}>
+                            <div>
                               <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
-                                <span style={{
-                                  fontSize: '0.85rem', 
-                                  fontWeight: 700, 
-                                  color: uploadedTypesCount === totalTypes ? '#16a34a' : '#475569', 
-                                  background: uploadedTypesCount === totalTypes ? '#dcfce7' : '#f1f5f9', 
-                                  padding: '0.3rem 0.75rem', 
-                                  borderRadius: '8px'
-                                }}>
-                                  {uploadedTypesCount} / {totalTypes} Completed
+                                <h4 style={{margin: 0, fontSize: '1.05rem', color: '#0b1f3a', fontWeight: 800}}>{title}</h4>
+                                <span style={{fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: badgeColor, color: '#0b1f3a', fontWeight: 700}}>
+                                  {badgeText}
                                 </span>
-                                {selectedLead.documents && selectedLead.documents.some(d => docTypes.includes(d.documentType)) && (
-                                  <button 
-                                    className="btn-outline" 
-                                    style={{padding: '0.3rem 0.65rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600}}
-                                    onClick={() => handleDownloadSection(title, docTypes, badgeText.replace(/[^a-zA-Z0-9]/g, '_'))}
-                                    disabled={isDownloadingSection !== null}
-                                    title={`Download all files in ${title}`}
-                                  >
-                                    {isDownloadingSection === badgeText.replace(/[^a-zA-Z0-9]/g, '_') ? (
-                                      <><Loader2 size={13} style={{animation: 'spin 1s linear infinite'}} /> Downloading...</>
-                                    ) : (
-                                      <><FolderDown size={14} color="#2563eb" /> Download Section ({selectedLead.documents.filter(d => docTypes.includes(d.documentType)).length})</>
-                                    )}
-                                  </button>
-                                )}
                               </div>
+                              <p style={{margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b'}}>{subtitle}</p>
                             </div>
-
-                            {sectionBannerNotice && (
-                              <div style={{
-                                background: '#eff6ff', 
-                                padding: '0.65rem 1rem', 
-                                borderRadius: '8px', 
-                                fontSize: '0.85rem', 
-                                color: '#1e40af', 
-                                marginBottom: '1.25rem', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.5rem', 
-                                border: '1px solid #bfdbfe'
+                            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                              <span style={{
+                                fontSize: '0.82rem', 
+                                fontWeight: 700, 
+                                color: uploadedTypesCount === totalTypes ? '#16a34a' : '#475569', 
+                                background: uploadedTypesCount === totalTypes ? '#dcfce7' : '#f1f5f9', 
+                                padding: '0.25rem 0.65rem', 
+                                borderRadius: '8px'
                               }}>
-                                <AlertTriangle size={16} color="#2563eb" /> {sectionBannerNotice}
-                              </div>
-                            )}
+                                {uploadedTypesCount} / {totalTypes} Completed
+                              </span>
+                              {selectedLead.documents && selectedLead.documents.some(d => docTypes.includes(d.documentType)) && (
+                                <button 
+                                  className="btn-outline" 
+                                  style={{padding: '0.25rem 0.6rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600}}
+                                  onClick={() => handleDownloadSection(title, docTypes, badgeText.replace(/[^a-zA-Z0-9]/g, '_'))}
+                                  disabled={isDownloadingSection !== null}
+                                  title={`Download all files in ${title}`}
+                                >
+                                  {isDownloadingSection === badgeText.replace(/[^a-zA-Z0-9]/g, '_') ? (
+                                    <><Loader2 size={13} style={{animation: 'spin 1s linear infinite'}} /> Downloading...</>
+                                  ) : (
+                                    <><FolderDown size={14} color="#2563eb" /> Download Section ({selectedLead.documents.filter(d => docTypes.includes(d.documentType)).length})</>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
-                            <div className="document-grid">
-                              {docTypes.map(type => {
-                                const req = DOC_REQUIREMENTS[type] || { maxImages: 1 };
-                                const isLinked = linkedDocTypes.includes(type);
-                                const existingDocs = selectedLead.documents?.filter(d => d.documentType === type) || [];
-                                const hasFiles = existingDocs.length > 0;
+                          {sectionBannerNotice && (
+                            <div style={{
+                              background: '#eff6ff', 
+                              padding: '0.65rem 1rem', 
+                              borderRadius: '8px', 
+                              fontSize: '0.85rem', 
+                              color: '#1e40af', 
+                              marginBottom: '1.25rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.5rem', 
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              <AlertTriangle size={16} color="#2563eb" /> {sectionBannerNotice}
+                            </div>
+                          )}
 
-                                return (
-                                  <div 
-                                    key={type} 
-                                    className={`document-card ${!hasFiles ? 'empty' : ''}`}
-                                    style={{
-                                      position: 'relative',
-                                      borderColor: hasFiles ? '#cbd5e1' : '#e2e8f0',
-                                      background: hasFiles ? '#ffffff' : '#f8fafc'
-                                    }}
-                                  >
-                                    <div className="document-card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                                      <div>
-                                        <span className="document-card-title" style={{fontWeight: 800, color: '#0b1f3a', fontSize: '0.92rem'}}>
-                                          {type}
-                                        </span>
-                                        {isLinked && (
-                                          <div style={{fontSize: '0.7rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.2rem'}}>
-                                            🔗 Auto-Linked Document
-                                          </div>
-                                        )}
-                                      </div>
+                          <div className="document-grid">
+                            {docTypes.map(type => {
+                              const req = DOC_REQUIREMENTS[type] || { maxImages: 1 };
+                              const isLinked = linkedDocTypes.includes(type);
+                              const existingDocs = selectedLead.documents?.filter(d => d.documentType === type) || [];
+                              const hasFiles = existingDocs.length > 0;
+                              const safeTypeId = type.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-                                      {hasFiles && (
-                                        <span style={{
-                                          fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '12px', fontWeight: 700,
-                                          background: existingDocs[0].status === 'Verified' ? '#dcfce7' : existingDocs[0].status === 'Pending' ? '#fef9c3' : '#f1f5f9',
-                                          color: existingDocs[0].status === 'Verified' ? '#16a34a' : existingDocs[0].status === 'Pending' ? '#ca8a04' : '#475569'
-                                        }}>
-                                          {existingDocs[0].status}
-                                        </span>
+                              return (
+                                <div 
+                                  key={type} 
+                                  className={`document-card ${!hasFiles ? 'empty' : ''}`}
+                                  style={{
+                                    position: 'relative',
+                                    borderColor: hasFiles ? '#cbd5e1' : '#e2e8f0',
+                                    background: hasFiles ? '#ffffff' : '#f8fafc'
+                                  }}
+                                >
+                                  <div className="document-card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                    <div>
+                                      <span className="document-card-title" style={{fontWeight: 800, color: '#0b1f3a', fontSize: '0.92rem'}}>
+                                        {type}
+                                      </span>
+                                      {isLinked && (
+                                        <div style={{fontSize: '0.7rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.2rem'}}>
+                                          🔗 Auto-Linked Document
+                                        </div>
                                       )}
                                     </div>
 
-                                    {/* Notice / Requirement Text */}
-                                    {req.notice && (
-                                      <div style={{fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', margin: '0.35rem 0'}}>
-                                        {req.notice}
-                                      </div>
+                                    {hasFiles && (
+                                      <span style={{
+                                        fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '12px', fontWeight: 700,
+                                        background: existingDocs[0].status === 'Verified' ? '#dcfce7' : existingDocs[0].status === 'Pending' ? '#fef9c3' : '#f1f5f9',
+                                        color: existingDocs[0].status === 'Verified' ? '#16a34a' : existingDocs[0].status === 'Pending' ? '#ca8a04' : '#475569'
+                                      }}>
+                                        {existingDocs[0].status}
+                                      </span>
                                     )}
+                                  </div>
 
-                                    {/* Uploaded Files List */}
-                                    {hasFiles ? (
-                                      <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem'}}>
-                                        {existingDocs.map((doc, idx) => (
-                                          <div key={doc.id} style={{background: '#f8fafc', padding: '0.5rem 0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                                            <div className="document-card-filename" style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem'}}>
-                                              <FileText size={14} color="#64748b" /> 
-                                              <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1}} title={doc.fileName}>
-                                                {doc.fileName} {existingDocs.length > 1 ? `(#${idx + 1})` : ''}
-                                              </span>
-                                            </div>
+                                  {/* Notice / Requirement Text */}
+                                  {req.notice && (
+                                    <div style={{fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', margin: '0.35rem 0'}}>
+                                      {req.notice}
+                                    </div>
+                                  )}
 
-                                            <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem'}}>
-                                              <span>{new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>
-                                              <span style={{fontWeight: 600, color: doc.uploadedByRole === 'Dealer' ? '#2563eb' : '#059669'}}>
-                                                {doc.uploadedByRole || 'Staff'}
-                                              </span>
-                                            </div>
-
-                                            <div className="document-card-actions" style={{display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap'}}>
-                                              <button 
-                                                className="btn-outline" 
-                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
-                                                onClick={() => { setPreviewDoc(doc); setShowPreviewModal(true); }}
-                                                title="View Document"
-                                              >
-                                                <Eye size={12} /> View
-                                              </button>
-                                              <button 
-                                                className="btn-outline" 
-                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
-                                                onClick={() => handleDownloadDocument(doc)}
-                                                title="Download Document directly to device"
-                                              >
-                                                <Download size={12} /> Download
-                                              </button>
-                                              <button 
-                                                className="btn-outline" 
-                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#0284c7', borderColor: '#bae6fd'}} 
-                                                onClick={() => handleShareDocument(doc)}
-                                                title="Share via WhatsApp, Email, or Link"
-                                              >
-                                                <Share2 size={12} /> Share
-                                              </button>
-                                              {currentUser?.id === doc.uploadedByUserId && (
-                                                <button 
-                                                  className="btn-outline" 
-                                                  style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#ef4444', borderColor: '#fca5a5'}} 
-                                                  onClick={() => { setDocToDelete(doc.id); setShowDeleteDocModal(true); }}
-                                                  title="Delete File"
-                                                >
-                                                  <Trash2 size={12} /> Delete
-                                                </button>
-                                              )}
-                                            </div>
+                                  {/* Uploaded Files List */}
+                                  {hasFiles ? (
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem'}}>
+                                      {existingDocs.map((doc, idx) => (
+                                        <div key={doc.id} style={{background: '#f8fafc', padding: '0.5rem 0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                          <div className="document-card-filename" style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem'}}>
+                                            <FileText size={14} color="#64748b" /> 
+                                            <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1}} title={doc.fileName}>
+                                              {doc.fileName} {existingDocs.length > 1 ? `(#${idx + 1})` : ''}
+                                            </span>
                                           </div>
-                                        ))}
 
-                                        {/* Multi-Image Upload Button when below max */}
-                                        {existingDocs.length < req.maxImages && (
-                                          <label className="inline-upload-btn" style={{marginTop: '0.25rem', width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
-                                            <Upload size={13} /> + Add Another Image ({existingDocs.length}/{req.maxImages === 999 ? '∞' : req.maxImages})
-                                            <input 
-                                              type="file" 
-                                              style={{display: 'none'}}
-                                              onChange={async (e) => {
-                                                if (e.target.files && e.target.files.length > 0) {
-                                                  const fileToUpload = e.target.files[0];
-                                                  await handleInlineUpload(type, fileToUpload);
-                                                  e.target.value = '';
-                                                }
-                                              }}
-                                            />
-                                          </label>
-                                        )}
+                                          <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem'}}>
+                                            <span>{new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>
+                                            <span style={{fontWeight: 600, color: doc.uploadedByRole === 'Dealer' ? '#2563eb' : '#059669'}}>
+                                              {doc.uploadedByRole || 'Staff'}
+                                            </span>
+                                          </div>
 
-                                        {/* Admin / Employee Actions */}
-                                        {(isAdmin || currentUser?.role === 'Employee') && (
+                                          <div className="document-card-actions" style={{display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap'}}>
+                                            <button 
+                                              className="btn-outline" 
+                                              style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
+                                              onClick={() => { setPreviewDoc(doc); setShowPreviewModal(true); }}
+                                              title="View Document"
+                                            >
+                                              <Eye size={12} /> View
+                                            </button>
+                                            <button 
+                                              className="btn-outline" 
+                                              style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
+                                              onClick={() => handleDownloadDocument(doc)}
+                                              title="Download Document directly to device"
+                                            >
+                                              <Download size={12} /> Download
+                                            </button>
+                                            <button 
+                                              className="btn-outline" 
+                                              style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#0284c7', borderColor: '#bae6fd'}} 
+                                              onClick={() => handleShareDocument(doc)}
+                                              title="Share via WhatsApp, Email, or Link"
+                                            >
+                                              <Share2 size={12} /> Share
+                                            </button>
+                                            {currentUser?.id === doc.uploadedByUserId && (
+                                              <button 
+                                                className="btn-outline" 
+                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#ef4444', borderColor: '#fca5a5'}} 
+                                                onClick={() => { setDocToDelete(doc.id); setShowDeleteDocModal(true); }}
+                                                title="Delete File"
+                                              >
+                                                <Trash2 size={12} /> Delete
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+
+                                      {/* Multi-Image Upload Button when below max */}
+                                      {existingDocs.length < req.maxImages && (
+                                        <label htmlFor={`inline-upload-add-${safeTypeId}`} className="inline-upload-btn" style={{marginTop: '0.25rem', width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
+                                          <Upload size={13} /> + Add Another Image ({existingDocs.length}/{req.maxImages === 999 ? '∞' : req.maxImages})
+                                          <input 
+                                            id={`inline-upload-add-${safeTypeId}`}
+                                            name={`upload_${safeTypeId}`}
+                                            type="file" 
+                                            style={{display: 'none'}}
+                                            onChange={async (e) => {
+                                              if (e.target.files && e.target.files.length > 0) {
+                                                const fileToUpload = e.target.files[0];
+                                                await handleInlineUpload(type, fileToUpload);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      )}
+
+                                      {/* Admin / Employee Actions */}
+                                      {(isAdmin || currentUser?.role === 'Employee') && (
+                                        <div style={{marginTop: '0.4rem', width: '100%'}}>
+                                          <label htmlFor={`doc-action-select-${safeTypeId}`} className="sr-only">Document Actions for {type}</label>
                                           <select 
+                                            id={`doc-action-select-${safeTypeId}`}
+                                            name={`docAction_${safeTypeId}`}
                                             className="filter-select" 
-                                            style={{padding: '0.3rem', fontSize: '0.75rem', marginTop: '0.4rem', width: '100%'}}
+                                            style={{padding: '0.3rem', fontSize: '0.75rem', width: '100%'}}
                                             value=""
                                             onChange={(e) => {
                                               const action = e.target.value;
@@ -2638,103 +2931,128 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                                             <option value="request">❓ Request Additional</option>
                                             <option value="reject">✕ Reject</option>
                                           </select>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem'}}>
-                                        <FileText size={28} color="#cbd5e1" />
-                                        <label className="inline-upload-btn" style={{width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
-                                          <Upload size={14} /> Upload {req.maxImages > 1 ? `(Max ${req.maxImages === 999 ? 'Multiple' : req.maxImages})` : ''}
-                                          <input 
-                                            type="file" 
-                                            style={{display: 'none'}}
-                                            onChange={async (e) => {
-                                              if (e.target.files && e.target.files.length > 0) {
-                                                const fileToUpload = e.target.files[0];
-                                                await handleInlineUpload(type, fileToUpload);
-                                                e.target.value = '';
-                                              }
-                                            }}
-                                          />
-                                        </label>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem'}}>
+                                      <FileText size={28} color="#cbd5e1" />
+                                      <label htmlFor={`inline-upload-new-${safeTypeId}`} className="inline-upload-btn" style={{width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
+                                        <Upload size={14} /> Upload {req.maxImages > 1 ? `(Max ${req.maxImages === 999 ? 'Multiple' : req.maxImages})` : ''}
+                                        <input 
+                                          id={`inline-upload-new-${safeTypeId}`}
+                                          name={`upload_${safeTypeId}`}
+                                          type="file" 
+                                          style={{display: 'none'}}
+                                          onChange={async (e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                              const fileToUpload = e.target.files[0];
+                                              await handleInlineUpload(type, fileToUpload);
+                                              e.target.value = '';
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      };
-
-                      return (
-                        <>
-                          {/* 1. FIRST DOC: Dealer KYC & Site Survey Documents */}
-                          {(docCategoryTab === 'all' || docCategoryTab === 'section1') && (
-                            renderCategorySection(
-                              SECTION_1_DEALER_KYC_DOCS,
-                              '1. First Doc: Dealer KYC & Site Survey Documents',
-                              'Customer identity proofs, electricity bill, house tax, meter, building, and signature photos',
-                              'First Doc (Dealer KYC)',
-                              '#dbeafe',
-                              [],
-                              'Please ensure all identity documents, bank cheque, and electricity bills are high-resolution and clearly readable.'
-                            )
-                          )}
-
-                          {/* 2. SECOND DOC: Bank First Payment Documents */}
-                          {(docCategoryTab === 'all' || docCategoryTab === 'section2') && (
-                            renderCategorySection(
-                              [...SECTION_2_BANK_FIRST_PAYMENT_DOCS, ...SECTION_2_LINKED_KYC_DOCS],
-                              '2. Second Doc: Bank First Payment Documents',
-                              'E-Token, agreements, feasibility letter, JanSamarth doc, and auto-linked customer KYC proofs',
-                              'Second Doc (Bank 1st Payment)',
-                              '#fef3c7',
-                              SECTION_2_LINKED_KYC_DOCS
-                            )
-                          )}
-
-                          {/* 3. THIRD DOC: Site Installation Photos */}
-                          {(docCategoryTab === 'all' || docCategoryTab === 'section3') && (
-                            renderCategorySection(
-                              SECTION_3_SITE_INSTALLATION_DOCS,
-                              '3. Third Doc: Site Installation Photos',
-                              'Geo-tagged customer photo, earthing, inverter serial number, and panel serial barcodes (min 2 to infinite)',
-                              'Third Doc (Installation Photos)',
-                              '#e0e7ff',
-                              [],
-                              'All installation photos must be sharp and clear to see text, panel barcodes, and inverter serial numbers.'
-                            )
-                          )}
-
-                          {/* 4. FOURTH DOC: Bank Second Payment Documents */}
-                          {(docCategoryTab === 'all' || docCategoryTab === 'section4') && (
-                            renderCategorySection(
-                              ['Geo-Tagged Photo with Customer in Plant', ...SECTION_4_BANK_SECOND_PAYMENT_DOCS],
-                              '4. Fourth Doc: Bank Second Payment Documents',
-                              'Project completion report, tax invoice bill, and auto-linked geo-tagged plant photo',
-                              'Fourth Doc (Bank 2nd Payment)',
-                              '#dcfce7',
-                              ['Geo-Tagged Photo with Customer in Plant']
-                            )
-                          )}
-
-                          {/* 5. FIFTH DOC: Grid / DISCOM Office Documents */}
-                          {(docCategoryTab === 'all' || docCategoryTab === 'section5') && (
-                            renderCategorySection(
-                              ['Annexure - A', 'Annexure - C', 'SYNCHRONISATION', 'PROJECT COMPLETION REPORT', 'S Number Photo', 'DCR Certificate Documents', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill'],
-                              '5. Fifth Doc: Grid / DISCOM Office Documents',
-                              'Annexure A & C, synchronisation report, S-Number photo, DCR certificates, and linked reports',
-                              'Fifth Doc (Grid / DISCOM)',
-                              '#f3e8ff',
-                              ['PROJECT COMPLETION REPORT', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill']
-                            )
-                          )}
-                        </>
+                        </div>
                       );
-                    })()}
-                  </div>
+                    };
 
+                    return (
+                      <>
+                        {/* 1. FIRST DOC: Dealer KYC & Site Survey Documents */}
+                        {(docCategoryTab === 'all' || docCategoryTab === 'section1') && (
+                          renderCategorySection(
+                            SECTION_1_DEALER_KYC_DOCS,
+                            '1. First Doc: Dealer KYC & Site Survey Documents',
+                            'Customer identity proofs, electricity bill, house tax, meter, building, and signature photos',
+                            'First Doc (Dealer KYC)',
+                            '#dbeafe',
+                            [],
+                            'Please ensure all identity documents, bank cheque, and electricity bills are high-resolution and clearly readable.'
+                          )
+                        )}
+
+                        {/* 2. SECOND DOC: Bank First Payment Documents */}
+                        {(docCategoryTab === 'all' || docCategoryTab === 'section2') && (
+                          renderCategorySection(
+                            [...SECTION_2_BANK_FIRST_PAYMENT_DOCS, ...SECTION_2_LINKED_KYC_DOCS],
+                            '2. Second Doc: Bank First Payment Documents',
+                            'E-Token, agreements, feasibility letter, JanSamarth doc, and auto-linked customer KYC proofs',
+                            'Second Doc (Bank 1st Payment)',
+                            '#fef3c7',
+                            SECTION_2_LINKED_KYC_DOCS
+                          )
+                        )}
+
+                        {/* 3. THIRD DOC: Site Installation Photos */}
+                        {(docCategoryTab === 'all' || docCategoryTab === 'section3') && (
+                          renderCategorySection(
+                            SECTION_3_SITE_INSTALLATION_DOCS,
+                            '3. Third Doc: Site Installation Photos',
+                            'Geo-tagged customer photo, earthing, inverter serial number, and panel serial barcodes (min 2 to infinite)',
+                            'Third Doc (Installation Photos)',
+                            '#e0e7ff',
+                            [],
+                            'All installation photos must be sharp and clear to see text, panel barcodes, and inverter serial numbers.'
+                          )
+                        )}
+
+                        {/* 4. FOURTH DOC: Bank Second Payment Documents */}
+                        {(docCategoryTab === 'all' || docCategoryTab === 'section4') && (
+                          renderCategorySection(
+                            ['Geo-Tagged Photo with Customer in Plant', ...SECTION_4_BANK_SECOND_PAYMENT_DOCS],
+                            '4. Fourth Doc: Bank Second Payment Documents',
+                            'Project completion report, tax invoice bill, and auto-linked geo-tagged plant photo',
+                            'Fourth Doc (Bank 2nd Payment)',
+                            '#dcfce7',
+                            ['Geo-Tagged Photo with Customer in Plant']
+                          )
+                        )}
+
+                        {/* 5. FIFTH DOC: Grid / DISCOM Office Documents */}
+                        {(docCategoryTab === 'all' || docCategoryTab === 'section5') && (
+                          renderCategorySection(
+                            ['Annexure - A', 'Annexure - C', 'SYNCHRONISATION', 'PROJECT COMPLETION REPORT', 'S Number Photo', 'DCR Certificate Documents', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill'],
+                            '5. Fifth Doc: Grid / DISCOM Office Documents',
+                            'Annexure A & C, synchronisation report, S-Number photo, DCR certificates, and linked reports',
+                            'Fifth Doc (Grid / DISCOM)',
+                            '#f3e8ff',
+                            ['PROJECT COMPLETION REPORT', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill']
+                          )
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 4: FINANCIALS                                         */}
+              {/* ========================================================= */}
+              {leadDetailTab === 'financials' && (
+                <div className="detail-section" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+                  <CustomerFinancialsCard
+                    lead={selectedLead}
+                    onOpenRecordModal={(type) => {
+                      setRecordPaymentModalType(type);
+                      setRecordPaymentModalLeadId(selectedLead.id);
+                      setShowRecordPaymentModal(true);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 5: ACTIVITY & WORK                                    */}
+              {/* ========================================================= */}
+              {leadDetailTab === 'activity' && (
+                <>
                   {/* Admin Assignment Section */}
                   <div className="detail-section">
                     <h3>Project Assignment</h3>
@@ -2803,128 +3121,43 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       </div>
                     </div>
                   )}
-                </>
-              {/* --- END PROJECT SECTIONS --- */}
 
-              {/* Follow ups */}
-              {selectedLead.followUp && (
-                <div className="detail-section">
-                  <h3>Next Follow-up</h3>
-                  <div className="fu-item">
-                    <div>
-                      <div style={{fontWeight: 700, fontSize: '0.95rem'}}>{selectedLead.followUp.type}</div>
-                      <div style={{fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem'}}>
-                        <Calendar size={12} style={{display:'inline', marginRight:'0.25rem'}}/> {selectedLead.followUp.date} at {selectedLead.followUp.time}
-                      </div>
-                    </div>
-                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem'}}>
-                      <span className={`stage-badge ${selectedLead.followUp.status === 'Overdue' ? 'pmsurvey' : (selectedLead.followUp.status === 'Completed' ? 'completed' : 'lead')}`}>
-                        {selectedLead.followUp.status}
-                      </span>
-                      {selectedLead.followUp.status !== 'Completed' && (
-                        <button className="btn-outline" style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem'}} onClick={() => handleCompleteFollowUp(selectedLead.id)}>
-                          Complete
+                  {/* Activity Timeline */}
+                  <div className="detail-section">
+                    <h3>Activity Timeline</h3>
+                    <div className="activity-filters">
+                      {['All', 'Lead Update', 'Lead Assignment', 'Follow-up'].map(f => (
+                        <button 
+                          key={f} 
+                          className={`activity-filter-btn ${activityFilter === f ? 'active' : ''}`}
+                          onClick={() => setActivityFilter(f)}
+                        >
+                          {f}
                         </button>
+                      ))}
+                    </div>
+                    <div className="timeline">
+                      {activities
+                        .filter(a => a.message.includes(selectedLead.customer))
+                        .filter(a => activityFilter === 'All' || a.type.includes(activityFilter))
+                        .reverse() // Newest first
+                        .map(a => (
+                          <div key={a.id} className="timeline-item">
+                            <div className="timeline-dot"></div>
+                            <div className="timeline-content">
+                              <span className="timeline-title">{a.type}</span>
+                              <span style={{fontSize: '0.9rem', color: '#334155', marginTop: '0.25rem'}}>{a.message}</span>
+                              <span className="timeline-time" style={{marginTop: '0.25rem'}}>{a.user} • {a.createdAt}</span>
+                            </div>
+                          </div>
+                      ))}
+                      {activities.filter(a => a.message.includes(selectedLead.customer)).length === 0 && (
+                        <div style={{color: '#64748b', fontSize: '0.85rem'}}>No activity yet.</div>
                       )}
                     </div>
                   </div>
-                </div>
+                </>
               )}
-
-              {/* Related Tasks */}
-              <div className="detail-section">
-                <h3>Related Tasks</h3>
-                <div className="notes-list">
-                  {tasks.filter(t => t.leadId === selectedLead.id).length > 0 ? tasks.filter(t => t.leadId === selectedLead.id).map(task => (
-                    <div key={task.id} className="note-item" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
-                        <CheckSquare size={16} color={task.status === 'Completed' ? '#16a34a' : '#0284c7'} />
-                        <div>
-                          <div style={{fontWeight: 600, color: '#1e293b'}}>{task.title}</div>
-                          <div style={{fontSize: '0.8rem', color: '#64748b'}}>
-                            {task.status} {task.dueDate && `• Due: ${task.dueDate}`}
-                          </div>
-                        </div>
-                      </div>
-                      <span className={`stage-badge lead`} style={{background: task.priority === 'High' ? '#fee2e2' : task.priority === 'Medium' ? '#fef3c7' : '#e0e7ff', color: task.priority === 'High' ? '#b91c1c' : task.priority === 'Medium' ? '#b45309' : '#3730a3'}}>
-                        {task.priority}
-                      </span>
-                    </div>
-                  )) : (
-                    <div style={{fontSize: '0.9rem', color: '#64748b', fontStyle: 'italic', padding: '0.5rem'}}>No tasks related to this lead.</div>
-                  )}
-                </div>
-              </div>
-              {/* Notes */}
-              <div className="detail-section">
-                <h3>Notes</h3>
-                <div className="notes-list">
-                  {selectedLead.notes ? selectedLead.notes.split('\n').map((n, i) => {
-                    const match = n.match(/^\[(.*?)\] (.*?): (.*)$/);
-                    if (match) {
-                      return (
-                        <div key={i} className="note-item">
-                          <div className="note-header">
-                            <span className="note-author">{match[2]}</span>
-                            <span>{match[1]}</span>
-                          </div>
-                          <div className="note-text">{match[3]}</div>
-                        </div>
-                      );
-                    }
-                    return <div key={i} className="note-text" style={{background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>{n}</div>;
-                  }) : <div style={{color: '#64748b', fontSize: '0.85rem'}}>No notes yet.</div>}
-                </div>
-                {canManageModule(currentUser, 'leads') && (
-                  <div style={{marginTop: '1rem', display: 'flex', gap: '0.5rem'}}>
-                    <input 
-                      type="text" 
-                      placeholder="Add a note..." 
-                      style={{flex: 1, padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', outline: 'none'}}
-                      value={newNote}
-                      onChange={e => setNewNote(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleAddNote()}
-                    />
-                    <button className="btn-primary" onClick={handleAddNote} disabled={!newNote.trim()}>Add</button>
-                  </div>
-                )}
-              </div>
-
-              {/* Activity Timeline */}
-              <div className="detail-section">
-                <h3>Activity</h3>
-                <div className="activity-filters">
-                  {['All', 'Lead Update', 'Lead Assignment', 'Follow-up'].map(f => (
-                    <button 
-                      key={f} 
-                      className={`activity-filter-btn ${activityFilter === f ? 'active' : ''}`}
-                      onClick={() => setActivityFilter(f)}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-                <div className="timeline">
-                  {activities
-                    .filter(a => a.message.includes(selectedLead.customer))
-                    .filter(a => activityFilter === 'All' || a.type.includes(activityFilter))
-                    .reverse() // Newest first
-                    .map(a => (
-                      <div key={a.id} className="timeline-item">
-                        <div className="timeline-dot"></div>
-                        <div className="timeline-content">
-                          <span className="timeline-title">{a.type}</span>
-                          <span style={{fontSize: '0.9rem', color: '#334155', marginTop: '0.25rem'}}>{a.message}</span>
-                          <span className="timeline-time" style={{marginTop: '0.25rem'}}>{a.user} • {a.createdAt}</span>
-                        </div>
-                      </div>
-                  ))}
-                  {activities.filter(a => a.message.includes(selectedLead.customer)).length === 0 && (
-                    <div style={{color: '#64748b', fontSize: '0.85rem'}}>No activity yet.</div>
-                  )}
-                </div>
-              </div>
-
             </div>
           </div>
         </>
@@ -2950,8 +3183,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <h2>Reject Document</h2>
             <p style={{marginBottom: '1rem', color: '#64748b'}}>Are you sure you want to reject <strong>{docToReject.documentType}</strong>?</p>
             <div className="form-group">
-              <label>Rejection Reason (Optional)</label>
-              <input type="text" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Enter reason..." />
+              <label htmlFor="doc-reject-reason">Rejection Reason (Optional)</label>
+              <input id="doc-reject-reason" name="rejectReason" type="text" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Enter reason..." />
             </div>
             <div className="modal-actions" style={{marginTop: '1.5rem'}}>
               <button className="btn-outline" onClick={() => setShowRejectDocModal(false)}>Cancel</button>
@@ -2967,12 +3200,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <h2>Request Additional Document</h2>
             <p style={{marginBottom: '1rem', color: '#64748b'}}>Request additional information for <strong>{docToRequest.documentType}</strong>.</p>
             <div className="form-group">
-              <label>Document Type</label>
-              <input type="text" value={docToRequest.documentType} disabled style={{background: '#f1f5f9'}} />
+              <label htmlFor="doc-request-type">Document Type</label>
+              <input id="doc-request-type" name="docRequestType" type="text" value={docToRequest.documentType} disabled style={{background: '#f1f5f9'}} />
             </div>
             <div className="form-group">
-              <label>Reason / Notes (Recommended)</label>
-              <input type="text" value={requestDocNotes} onChange={e => setRequestDocNotes(e.target.value)} placeholder="Specify what is missing..." />
+              <label htmlFor="doc-request-notes">Reason / Notes (Recommended)</label>
+              <input id="doc-request-notes" name="docRequestNotes" type="text" value={requestDocNotes} onChange={e => setRequestDocNotes(e.target.value)} placeholder="Specify what is missing..." />
             </div>
             <div className="modal-actions" style={{marginTop: '1.5rem'}}>
               <button className="btn-outline" onClick={() => setShowRequestDocModal(false)}>Cancel</button>
@@ -2989,8 +3222,10 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <p style={{marginBottom: '1rem', color: '#64748b'}}>Provide an update on your work progress for <strong>{selectedLead.customer}</strong>.</p>
             
             <div className="form-group">
-              <label>Work Status *</label>
+              <label htmlFor="update-work-status">Work Status *</label>
               <select 
+                id="update-work-status"
+                name="workStatus"
                 value={newUpdateForm.status} 
                 onChange={e => setNewUpdateForm({...newUpdateForm, status: e.target.value as EmployeeWorkStatus})}
                 style={{width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px'}}
@@ -3005,8 +3240,10 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </div>
             
             <div className="form-group" style={{marginTop: '1rem'}}>
-              <label>Update / Work Description *</label>
+              <label htmlFor="update-work-description">Update / Work Description *</label>
               <textarea 
+                id="update-work-description"
+                name="workDescription"
                 value={newUpdateForm.description} 
                 onChange={e => setNewUpdateForm({...newUpdateForm, description: e.target.value})}
                 placeholder="What did you work on?"
@@ -3027,15 +3264,20 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           <div className="modal-content" style={{maxWidth: '400px'}}>
             <h2>Change Stage</h2>
             <p style={{marginBottom: '1rem', color: '#64748b'}}>Move <strong>{selectedLead.customer}</strong> to a new stage?</p>
-            <select 
-              className="filter-select" 
-              style={{width: '100%', marginBottom: '1.5rem'}}
-              value={targetStage} 
-              onChange={e => setTargetStage(e.target.value as Stage)}
-            >
-              <option value="">Select Stage...</option>
-              {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div className="form-group">
+              <label htmlFor="target-stage-select" className="sr-only">Select Stage</label>
+              <select 
+                id="target-stage-select"
+                name="targetStage"
+                className="filter-select" 
+                style={{width: '100%', marginBottom: '1.5rem'}}
+                value={targetStage} 
+                onChange={e => setTargetStage(e.target.value as Stage)}
+              >
+                <option value="">Select Stage...</option>
+                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
             <div className="modal-actions">
               <button className="btn-outline" onClick={() => setShowStageModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={handleStageChange} disabled={!targetStage}>Confirm Move</button>
@@ -3061,10 +3303,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </p>
             
             <div className="form-group" style={{marginBottom: '1rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="assign-modal-employee" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Assign Employee
               </label>
               <select 
+                id="assign-modal-employee"
+                name="assignModalEmployee"
                 className="filter-select" 
                 style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
                 value={assignModalForm.employeeName} 
@@ -3083,10 +3327,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </div>
 
             <div className="form-group" style={{marginBottom: '1rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="assign-modal-dealer" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Assign Dealer
               </label>
               <select 
+                id="assign-modal-dealer"
+                name="assignModalDealer"
                 className="filter-select" 
                 style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
                 value={assignModalForm.dealerName} 
@@ -3105,10 +3351,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </div>
 
             <div className="form-group" style={{marginBottom: '1.25rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="assign-modal-notes" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Assignment Remarks / Instructions
               </label>
               <textarea 
+                id="assign-modal-notes"
+                name="assignModalNotes"
                 value={assignModalForm.notes}
                 onChange={e => setAssignModalForm({...assignModalForm, notes: e.target.value})}
                 placeholder="E.g. High priority project. Please schedule site inspection and verify solar quotation immediately..."
@@ -3148,10 +3396,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </p>
             
             <div className="form-group" style={{marginBottom: '1rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="transfer-target-employee" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Target Employee (Optional)
               </label>
               <select 
+                id="transfer-target-employee"
+                name="transferTargetEmployee"
                 className="filter-select" 
                 style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
                 value={transferRequestForm.targetEmployee} 
@@ -3172,10 +3422,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </div>
 
             <div className="form-group" style={{marginBottom: '1rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="transfer-target-dealer" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Target Dealer (Optional)
               </label>
               <select 
+                id="transfer-target-dealer"
+                name="transferTargetDealer"
                 className="filter-select" 
                 style={{width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px'}}
                 value={transferRequestForm.targetDealer} 
@@ -3195,10 +3447,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </div>
 
             <div className="form-group" style={{marginBottom: '1.25rem'}}>
-              <label style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
+              <label htmlFor="transfer-request-reason" style={{fontWeight: 700, display: 'block', marginBottom: '0.4rem', color: '#334155', fontSize: '0.88rem'}}>
                 Reason for Reassignment Request *
               </label>
               <textarea 
+                id="transfer-request-reason"
+                name="transferRequestReason"
                 value={transferRequestForm.reason}
                 onChange={e => setTransferRequestForm({...transferRequestForm, reason: e.target.value})}
                 placeholder="E.g. Customer requested a local visit in Guntur region; please reassign to local staff..."
@@ -3230,12 +3484,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem'}}>
               Please specify the reason for rejecting the transfer request for <strong>{selectedLead.customer}</strong>.
             </p>
-            <textarea 
-              value={rejectTransferReason} 
-              onChange={e => setRejectTransferReason(e.target.value)}
-              placeholder="E.g. Current assignee is already handling this zone; please continue..."
-              style={{width: '100%', minHeight: '90px', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '1.25rem', boxSizing: 'border-box'}}
-            />
+            <div className="form-group">
+              <label htmlFor="reject-transfer-reason" className="sr-only">Rejection Reason</label>
+              <textarea 
+                id="reject-transfer-reason"
+                name="rejectTransferReason"
+                value={rejectTransferReason} 
+                onChange={e => setRejectTransferReason(e.target.value)}
+                placeholder="E.g. Current assignee is already handling this zone; please continue..."
+                style={{width: '100%', minHeight: '90px', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '1.25rem', boxSizing: 'border-box'}}
+              />
+            </div>
             <div className="modal-actions" style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem'}}>
               <button className="btn-outline" onClick={() => { setShowRejectTransferModal(false); setRejectTransferReason(''); }}>Cancel</button>
               <button className="btn-primary" style={{background: '#dc2626', borderColor: '#dc2626'}} onClick={handleRejectTransfer}>Confirm Rejection</button>
@@ -3351,19 +3610,24 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           <div className="modal-content" style={{maxWidth: '400px'}}>
             <h2>Mark Lead as Lost</h2>
             <p style={{marginBottom: '1rem', color: '#64748b'}}>Please provide a reason for losing <strong>{selectedLead.customer}</strong>.</p>
-            <select 
-              className="filter-select" 
-              style={{width: '100%', marginBottom: '1.5rem'}}
-              value={lostReason} 
-              onChange={e => setLostReason(e.target.value)}
-            >
-              <option value="">Select Reason...</option>
-              <option value="Customer not interested">Customer not interested</option>
-              <option value="Price issue">Price issue</option>
-              <option value="Duplicate">Duplicate</option>
-              <option value="Invalid lead">Invalid lead</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="form-group">
+              <label htmlFor="lost-reason-select" className="sr-only">Select Reason</label>
+              <select 
+                id="lost-reason-select"
+                name="lostReason"
+                className="filter-select" 
+                style={{width: '100%', marginBottom: '1.5rem'}}
+                value={lostReason} 
+                onChange={e => setLostReason(e.target.value)}
+              >
+                <option value="">Select Reason...</option>
+                <option value="Customer not interested">Customer not interested</option>
+                <option value="Price issue">Price issue</option>
+                <option value="Duplicate">Duplicate</option>
+                <option value="Invalid lead">Invalid lead</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
             <div className="modal-actions">
               <button className="btn-outline" onClick={() => setShowLostModal(false)}>Cancel</button>
               <button className="btn-primary" style={{background: '#ef4444', borderColor: '#ef4444'}} onClick={handleMarkLost} disabled={!lostReason}>Mark Lost</button>
@@ -3381,31 +3645,31 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             
             <div className="form-grid">
               <div className="form-group" style={{gridColumn: '1 / -1'}}>
-                <label>Lead Type *</label>
-                <select value={newLeadForm.leadType} onChange={e => setNewLeadForm({...newLeadForm, leadType: e.target.value as 'tracking' | 'project'})}>
+                <label htmlFor="new-lead-type">Lead Type *</label>
+                <select id="new-lead-type" name="leadType" value={newLeadForm.leadType} onChange={e => setNewLeadForm({...newLeadForm, leadType: e.target.value as 'tracking' | 'project'})}>
                   <option value="tracking">Tracking Lead</option>
                   <option value="project">Project / Document Lead</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Customer Name *</label>
-                <input type="text" placeholder="Full Name" value={newLeadForm.customer} onChange={e => setNewLeadForm({...newLeadForm, customer: e.target.value})} />
+                <label htmlFor="new-lead-customer">Customer Name *</label>
+                <input id="new-lead-customer" name="customer" type="text" placeholder="Full Name" value={newLeadForm.customer} onChange={e => setNewLeadForm({...newLeadForm, customer: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Phone *</label>
-                <input type="text" placeholder="+91..." value={newLeadForm.phone} onChange={e => setNewLeadForm({...newLeadForm, phone: e.target.value})} />
+                <label htmlFor="new-lead-phone">Phone *</label>
+                <input id="new-lead-phone" name="phone" type="text" placeholder="+91..." value={newLeadForm.phone} onChange={e => setNewLeadForm({...newLeadForm, phone: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Email Address</label>
-                <input type="email" placeholder="customer@example.com" value={newLeadForm.email} onChange={e => setNewLeadForm({...newLeadForm, email: e.target.value})} />
+                <label htmlFor="new-lead-email">Email Address</label>
+                <input id="new-lead-email" name="email" type="email" placeholder="customer@example.com" value={newLeadForm.email} onChange={e => setNewLeadForm({...newLeadForm, email: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Location / City</label>
-                <input type="text" placeholder="City or Region" value={newLeadForm.location} onChange={e => setNewLeadForm({...newLeadForm, location: e.target.value})} />
+                <label htmlFor="new-lead-location">Location / City</label>
+                <input id="new-lead-location" name="location" type="text" placeholder="City or Region" value={newLeadForm.location} onChange={e => setNewLeadForm({...newLeadForm, location: e.target.value})} />
               </div>
               <div className="form-group" style={{gridColumn: '1 / -1'}}>
-                <label>Initial Requirements / Notes</label>
-                <textarea placeholder="Solar capacity requirements, site address, or customer remarks..." value={newLeadForm.notes} onChange={e => setNewLeadForm({...newLeadForm, notes: e.target.value})}></textarea>
+                <label htmlFor="new-lead-notes">Initial Requirements / Notes</label>
+                <textarea id="new-lead-notes" name="notes" placeholder="Solar capacity requirements, site address, or customer remarks..." value={newLeadForm.notes} onChange={e => setNewLeadForm({...newLeadForm, notes: e.target.value})}></textarea>
               </div>
             </div>
 
@@ -3462,16 +3726,16 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             
             <div className="form-grid">
               <div className="form-group">
-                <label>Date *</label>
-                <input type="date" value={newFollowupForm.date} onChange={e => setNewFollowupForm({...newFollowupForm, date: e.target.value})} />
+                <label htmlFor="new-followup-date">Date *</label>
+                <input id="new-followup-date" name="followupDate" type="date" value={newFollowupForm.date} onChange={e => setNewFollowupForm({...newFollowupForm, date: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Time *</label>
-                <input type="time" value={newFollowupForm.time} onChange={e => setNewFollowupForm({...newFollowupForm, time: e.target.value})} />
+                <label htmlFor="new-followup-time">Time *</label>
+                <input id="new-followup-time" name="followupTime" type="time" value={newFollowupForm.time} onChange={e => setNewFollowupForm({...newFollowupForm, time: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Type *</label>
-                <select value={newFollowupForm.type} onChange={e => setNewFollowupForm({...newFollowupForm, type: e.target.value})}>
+                <label htmlFor="new-followup-type">Type *</label>
+                <select id="new-followup-type" name="followupType" value={newFollowupForm.type} onChange={e => setNewFollowupForm({...newFollowupForm, type: e.target.value})}>
                   <option value="Call">Call</option>
                   <option value="Visit">Visit</option>
                   <option value="WhatsApp">WhatsApp</option>
@@ -3480,8 +3744,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 </select>
               </div>
               <div className="form-group">
-                <label>Priority</label>
-                <select value={newFollowupForm.priority} onChange={e => setNewFollowupForm({...newFollowupForm, priority: e.target.value})}>
+                <label htmlFor="new-followup-priority">Priority</label>
+                <select id="new-followup-priority" name="followupPriority" value={newFollowupForm.priority} onChange={e => setNewFollowupForm({...newFollowupForm, priority: e.target.value})}>
                   <option value="High">High</option>
                   <option value="Medium">Medium</option>
                   <option value="Low">Low</option>
@@ -3547,8 +3811,10 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <div className="upload-modal-body">
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div className="form-group">
-                  <label style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Document Name :-</label>
+                  <label htmlFor="upload-doc-type" style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Document Name :-</label>
                   <select 
+                    id="upload-doc-type"
+                    name="uploadDocType"
                     value={uploadForm.documentType} 
                     onChange={e => setUploadForm({...uploadForm, documentType: e.target.value})}
                     className="filter-select"
@@ -3562,8 +3828,10 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   </select>
                 </div>
                 <div className="form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Notes / Description</label>
+                  <label htmlFor="upload-doc-notes" style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Notes / Description</label>
                   <textarea 
+                    id="upload-doc-notes"
+                    name="uploadDocNotes"
                     value={uploadForm.notes} 
                     onChange={e => setUploadForm({...uploadForm, notes: e.target.value})}
                     placeholder="E.g. Original Aadhaar document uploaded by customer."
@@ -3573,7 +3841,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               </div>
               
               <div className="form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <label style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Choose File *</label>
+                <label htmlFor="doc-upload-input" style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'block', fontWeight: 600 }}>Choose File *</label>
                 <div style={{
                   flex: 1, 
                   padding: '2rem', 
@@ -3591,6 +3859,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   <input 
                     type="file" 
                     id="doc-upload-input"
+                    name="docUploadInput"
                     style={{display: 'none'}}
                     onChange={e => {
                       if (e.target.files && e.target.files.length > 0) {
@@ -3790,9 +4059,11 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             </p>
             
             <div style={{background: '#f8fafc', padding: '1.25rem', borderRadius: '8px', border: '1px dashed #cbd5e1', marginBottom: '1.5rem'}}>
-              <label className="btn-primary" style={{display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.6rem 1.5rem'}}>
+              <label htmlFor="install-photo-input" className="btn-primary" style={{display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.6rem 1.5rem'}}>
                 <Upload size={16} /> Choose & Upload Installation Photo
                 <input 
+                  id="install-photo-input"
+                  name="installPhotoInput"
                   type="file" 
                   accept="image/*"
                   style={{display: 'none'}}
@@ -3823,12 +4094,17 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem'}}>
               Please specify the reason for rejecting the installation stage for <strong>{selectedLead.customer}</strong>.
             </p>
-            <textarea 
-              value={installationRejectReason} 
-              onChange={e => setInstallationRejectReason(e.target.value)}
-              placeholder="E.g. Quotation approval pending, Advance payment receipt not attached..."
-              style={{width: '100%', minHeight: '100px', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '1.25rem', resize: 'vertical'}}
-            />
+            <div className="form-group">
+              <label htmlFor="install-reject-reason" className="sr-only">Rejection Reason</label>
+              <textarea 
+                id="install-reject-reason"
+                name="installationRejectReason"
+                value={installationRejectReason} 
+                onChange={e => setInstallationRejectReason(e.target.value)}
+                placeholder="E.g. Quotation approval pending, Advance payment receipt not attached..."
+                style={{width: '100%', minHeight: '100px', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '1.25rem', resize: 'vertical'}}
+              />
+            </div>
             <div className="modal-actions">
               <button className="btn-outline" onClick={() => { setShowRejectInstallationModal(false); setInstallationRejectReason(''); }}>Cancel</button>
               <button className="btn-primary" style={{background: '#dc2626', borderColor: '#dc2626'}} onClick={handleAdminRejectInstallation}>Confirm Rejection</button>
@@ -3886,6 +4162,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem'}}>
               {/* Section 1 */}
               <label 
+                htmlFor="download-sec-1"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3899,6 +4176,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }}
               >
                 <input 
+                  id="download-sec-1"
+                  name="downloadSec1"
                   type="checkbox" 
                   checked={selectedDownloadSections.s1}
                   onChange={e => setSelectedDownloadSections(prev => ({...prev, s1: e.target.checked}))}
@@ -3919,6 +4198,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
               {/* Section 2 */}
               <label 
+                htmlFor="download-sec-2"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3932,6 +4212,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }}
               >
                 <input 
+                  id="download-sec-2"
+                  name="downloadSec2"
                   type="checkbox" 
                   checked={selectedDownloadSections.s2}
                   onChange={e => setSelectedDownloadSections(prev => ({...prev, s2: e.target.checked}))}
@@ -3952,6 +4234,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
               {/* Section 3 */}
               <label 
+                htmlFor="download-sec-3"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3965,6 +4248,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }}
               >
                 <input 
+                  id="download-sec-3"
+                  name="downloadSec3"
                   type="checkbox" 
                   checked={selectedDownloadSections.s3}
                   onChange={e => setSelectedDownloadSections(prev => ({...prev, s3: e.target.checked}))}
@@ -3985,6 +4270,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
               {/* Section 4 */}
               <label 
+                htmlFor="download-sec-4"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3998,6 +4284,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }}
               >
                 <input 
+                  id="download-sec-4"
+                  name="downloadSec4"
                   type="checkbox" 
                   checked={selectedDownloadSections.s4}
                   onChange={e => setSelectedDownloadSections(prev => ({...prev, s4: e.target.checked}))}
@@ -4018,6 +4306,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
               {/* Section 5 */}
               <label 
+                htmlFor="download-sec-5"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -4031,6 +4320,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }}
               >
                 <input 
+                  id="download-sec-5"
+                  name="downloadSec5"
                   type="checkbox" 
                   checked={selectedDownloadSections.s5}
                   onChange={e => setSelectedDownloadSections(prev => ({...prev, s5: e.target.checked}))}

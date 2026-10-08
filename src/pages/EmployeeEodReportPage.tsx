@@ -42,20 +42,28 @@ export default function EmployeeEodReportPage() {
   useEffect(() => {
     if (!currentUser?.id) return;
     try {
+      // Query by employeeId; sort in memory to be resilient even if composite index is building
       const q = query(
         collection(db, 'eod_reports'),
-        where('employeeId', '==', currentUser.id),
-        orderBy('createdAt', 'desc')
+        where('employeeId', '==', currentUser.id)
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetched: EodReport[] = [];
         snapshot.forEach((docSnap) => {
           fetched.push({ id: docSnap.id, ...docSnap.data() } as EodReport);
         });
+        // Sort descending by createdAt
+        fetched.sort((a, b) => {
+          const rawA = a.createdAt as any;
+          const rawB = b.createdAt as any;
+          const tA = rawA?.toDate ? rawA.toDate().getTime() : (typeof rawA === 'string' ? new Date(rawA).getTime() : 0);
+          const tB = rawB?.toDate ? rawB.toDate().getTime() : (typeof rawB === 'string' ? new Date(rawB).getTime() : 0);
+          return tB - tA;
+        });
         setReports(fetched);
         setLoading(false);
       }, (err) => {
-        console.warn("EOD report snapshot warning:", err);
+        console.warn("EOD report snapshot notice:", err);
         setLoading(false);
       });
       return () => unsubscribe();
@@ -153,11 +161,13 @@ export default function EmployeeEodReportPage() {
           <form onSubmit={handleSubmit}>
             <div className="eod-form-grid">
               <div className="eod-form-group">
-                <label>
+                <label htmlFor="eodReportDate">
                   <Calendar size={15} />
                   Reporting Date
                 </label>
                 <input 
+                  id="eodReportDate"
+                  name="reportDate"
                   type="date" 
                   value={reportDate} 
                   onChange={(e) => setReportDate(e.target.value)} 
@@ -166,11 +176,13 @@ export default function EmployeeEodReportPage() {
               </div>
 
               <div className="eod-form-group">
-                <label>
+                <label htmlFor="eodReportingStaff">
                   <Users size={15} />
                   Reporting Staff
                 </label>
                 <input 
+                  id="eodReportingStaff"
+                  name="reportingStaff"
                   type="text" 
                   value={currentUser?.name || ''} 
                   disabled 
@@ -185,8 +197,10 @@ export default function EmployeeEodReportPage() {
                 <div className="eod-metrics-title">Marketing & Sales Highlights</div>
                 <div className="eod-metrics-grid">
                   <div className="eod-metric-input">
-                    <label>📞 Calls Made</label>
+                    <label htmlFor="eodCallsMade">📞 Calls Made</label>
                     <input 
+                      id="eodCallsMade"
+                      name="callsMade"
                       type="number" 
                       min="0" 
                       value={callsMade} 
@@ -194,8 +208,10 @@ export default function EmployeeEodReportPage() {
                     />
                   </div>
                   <div className="eod-metric-input">
-                    <label>🚗 Field Visits</label>
+                    <label htmlFor="eodVisitsCompleted">🚗 Field Visits</label>
                     <input 
+                      id="eodVisitsCompleted"
+                      name="visitsCompleted"
                       type="number" 
                       min="0" 
                       value={visitsCompleted} 
@@ -203,8 +219,10 @@ export default function EmployeeEodReportPage() {
                     />
                   </div>
                   <div className="eod-metric-input">
-                    <label>✨ Leads Created</label>
+                    <label htmlFor="eodLeadsCreated">✨ Leads Created</label>
                     <input 
+                      id="eodLeadsCreated"
+                      name="leadsCreated"
                       type="number" 
                       min="0" 
                       value={leadsCreated} 
@@ -220,8 +238,10 @@ export default function EmployeeEodReportPage() {
                 <div className="eod-metrics-title">PM Surya Ghar Operations Metrics</div>
                 <div className="eod-metrics-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                   <div className="eod-metric-input">
-                    <label>📋 KYC Applications Processed</label>
+                    <label htmlFor="eodKycProcessed">📋 KYC Applications Processed</label>
                     <input 
+                      id="eodKycProcessed"
+                      name="kycProcessed"
                       type="number" 
                       min="0" 
                       value={kycProcessed} 
@@ -229,8 +249,10 @@ export default function EmployeeEodReportPage() {
                     />
                   </div>
                   <div className="eod-metric-input">
-                    <label>🏛 Subsidy Docs Verified</label>
+                    <label htmlFor="eodSubsidyVerified">🏛 Subsidy Docs Verified</label>
                     <input 
+                      id="eodSubsidyVerified"
+                      name="subsidyVerified"
                       type="number" 
                       min="0" 
                       value={subsidyVerified} 
@@ -246,8 +268,10 @@ export default function EmployeeEodReportPage() {
                 <div className="eod-metrics-title">Inventory & Dispatch Highlights</div>
                 <div className="eod-metrics-grid" style={{ gridTemplateColumns: '1fr' }}>
                   <div className="eod-metric-input">
-                    <label>📦 Dispatches Completed to Customers / Dealers</label>
+                    <label htmlFor="eodDispatchesDone">📦 Dispatches Completed to Customers / Dealers</label>
                     <input 
+                      id="eodDispatchesDone"
+                      name="dispatchesDone"
                       type="number" 
                       min="0" 
                       value={dispatchesDone} 
@@ -259,8 +283,10 @@ export default function EmployeeEodReportPage() {
             )}
 
             <div className="eod-form-group">
-              <label>Summary of Today's Work & Customer Updates *</label>
+              <label htmlFor="eodSummaryWork">Summary of Today's Work & Customer Updates *</label>
               <textarea 
+                id="eodSummaryWork"
+                name="summaryWork"
                 rows={4} 
                 value={summary} 
                 onChange={(e) => setSummary(e.target.value)} 
@@ -270,8 +296,10 @@ export default function EmployeeEodReportPage() {
             </div>
 
             <div className="eod-form-group">
-              <label>Tomorrow's Action Plan & Goals</label>
+              <label htmlFor="eodNextDayPlan">Tomorrow's Action Plan & Goals</label>
               <textarea 
+                id="eodNextDayPlan"
+                name="nextDayPlan"
                 rows={2} 
                 value={nextDayPlan} 
                 onChange={(e) => setNextDayPlan(e.target.value)} 
@@ -280,8 +308,10 @@ export default function EmployeeEodReportPage() {
             </div>
 
             <div className="eod-form-group">
-              <label>Blockers, Delays, or Material Needs (Optional)</label>
+              <label htmlFor="eodBlockers">Blockers, Delays, or Material Needs (Optional)</label>
               <input 
+                id="eodBlockers"
+                name="blockers"
                 type="text" 
                 value={blockers} 
                 onChange={(e) => setBlockers(e.target.value)} 

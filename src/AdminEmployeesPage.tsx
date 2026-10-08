@@ -297,28 +297,33 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
         
         <div className="employees-filters-bar">
           <div className="employees-search">
+            <label htmlFor="admin-emp-search" className="sr-only">Search employees</label>
             <Search size={16} color="#64748b" />
-            <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <input id="admin-emp-search" name="adminEmpSearch" type="text" placeholder="Search employees..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
-          <select className="employees-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <label htmlFor="admin-emp-status-filter" className="sr-only">Filter by Status</label>
+          <select id="admin-emp-status-filter" name="adminEmpStatusFilter" className="employees-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Away">Away</option>
             <option value="Inactive">Inactive</option>
           </select>
-          <select className="employees-filter-select" value={workloadFilter} onChange={e => setWorkloadFilter(e.target.value)}>
+          <label htmlFor="admin-emp-workload-filter" className="sr-only">Filter by Workload</label>
+          <select id="admin-emp-workload-filter" name="adminEmpWorkloadFilter" className="employees-filter-select" value={workloadFilter} onChange={e => setWorkloadFilter(e.target.value)}>
             <option value="All">All Workload</option>
             <option value="Heavy">Heavy</option>
             <option value="Normal">Normal</option>
             <option value="Light">Light</option>
           </select>
-          <select className="employees-filter-select" value={performanceFilter} onChange={e => setPerformanceFilter(e.target.value)}>
+          <label htmlFor="admin-emp-perf-filter" className="sr-only">Filter by Performance</label>
+          <select id="admin-emp-perf-filter" name="adminEmpPerfFilter" className="employees-filter-select" value={performanceFilter} onChange={e => setPerformanceFilter(e.target.value)}>
             <option value="All">All Performance</option>
             <option value="High">High (&ge;50%)</option>
             <option value="Medium">Medium (30-49%)</option>
             <option value="Low">Low (&lt;30%)</option>
           </select>
-          <select className="employees-filter-select" value={dealerFilter} onChange={e => setDealerFilter(e.target.value)}>
+          <label htmlFor="admin-emp-dealer-filter" className="sr-only">Filter by Dealer</label>
+          <select id="admin-emp-dealer-filter" name="adminEmpDealerFilter" className="employees-filter-select" value={dealerFilter} onChange={e => setDealerFilter(e.target.value)}>
             <option value="All">All Dealers</option>
             {dealers.map(d => (
               <option key={d.id} value={d.name}>{d.name}</option>
@@ -569,7 +574,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                 </div>
                 
                 <div style={{marginTop: '1.5rem', display: 'flex', gap: '0.5rem'}}>
-                  <input type="text" placeholder="Add an internal note..." value={newNote} onChange={e => setNewNote(e.target.value)} style={{flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none'}} />
+                  <label htmlFor="admin-emp-note-input" className="sr-only">Add an internal note</label>
+                  <input id="admin-emp-note-input" name="adminEmpNote" type="text" placeholder="Add an internal note..." value={newNote} onChange={e => setNewNote(e.target.value)} style={{flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none'}} />
                   <button className="btn-primary" style={{padding: '0.5rem 1rem'}} onClick={handleAddNote}>Save</button>
                 </div>
               </div>
@@ -598,28 +604,28 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
             
             <div className="form-row">
               <div className="form-group">
-                <label>Employee Name</label>
-                <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Aditya Kumar" />
+                <label htmlFor="admin-emp-form-name">Employee Name</label>
+                <input id="admin-emp-form-name" name="employeeName" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Aditya Kumar" />
               </div>
               <div className="form-group">
-                <label>Employee ID</label>
-                <input type="text" value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} disabled={isEditModalOpen} placeholder="e.g. EMP01" />
+                <label htmlFor="admin-emp-form-id">Employee ID</label>
+                <input id="admin-emp-form-id" name="employeeId" type="text" value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} disabled={isEditModalOpen} placeholder="e.g. EMP01" />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Email</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                <label htmlFor="admin-emp-form-email">Email</label>
+                <input id="admin-emp-form-email" name="employeeEmail" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Phone</label>
-                <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                <label htmlFor="admin-emp-form-phone">Phone</label>
+                <input id="admin-emp-form-phone" name="employeePhone" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
               </div>
             </div>
             {isEditModalOpen && (
               <div className="form-group">
-                <label>Status</label>
-                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                <label htmlFor="admin-emp-form-status">Status</label>
+                <select id="admin-emp-form-status" name="employeeStatus" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                   <option value="Active">Active</option>
                   <option value="Away">Away</option>
                   <option value="Inactive">Inactive</option>
@@ -645,8 +651,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
             <p style={{marginBottom: '1.5rem', color: '#64748b', fontSize: '0.9rem'}}>Select a lead currently assigned to {selectedEmployee.name} to reassign it.</p>
             
             <div className="form-group">
-              <label>Select Lead</label>
-              <select value={assignForm.leadId} onChange={e => setAssignForm({...assignForm, leadId: e.target.value})}>
+              <label htmlFor="reassign-lead-select">Select Lead</label>
+              <select id="reassign-lead-select" name="reassignLeadId" value={assignForm.leadId} onChange={e => setAssignForm({...assignForm, leadId: e.target.value})}>
                 <option value="">-- Choose a lead --</option>
                 {leads.filter(l => l.assignedEmployee === selectedEmployee.name && !l.archived && l.stage !== 'Completed').map(l => (
                   <option key={l.id} value={l.id}>{l.customer} ({l.stage}) - {l.dealer}</option>
@@ -655,8 +661,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
             </div>
             
             <div className="form-group">
-              <label>Assign To (New Employee)</label>
-              <select value={assignForm.newEmployee} onChange={e => setAssignForm({...assignForm, newEmployee: e.target.value})}>
+              <label htmlFor="reassign-new-employee-select">Assign To (New Employee)</label>
+              <select id="reassign-new-employee-select" name="reassignNewEmployee" value={assignForm.newEmployee} onChange={e => setAssignForm({...assignForm, newEmployee: e.target.value})}>
                 <option value="">-- Choose employee --</option>
                 {employees.filter(e => e.status === 'Active' && e.id !== selectedEmployee.id).map(e => (
                   <option key={e.id} value={e.name}>{e.name}</option>
