@@ -776,28 +776,30 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (authUser.role === 'Employee') {
         const eName = (authUser.name || '').toLowerCase().trim();
         const eId = (authUser.id || '').toLowerCase().trim();
-        
-        setLeads(allLeads.filter(l => {
-          const assigned = (l.assignedEmployee || '').toLowerCase();
-          const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
-          const created = (l.createdByName || '').toLowerCase();
-          const creatorId = (l.createdBy || '').toLowerCase();
-          const assignedId = (l.assignedEmployeeId || '').toLowerCase();
+        const empCategory = (authUser as any).employeeCategory || (authUser as any).category || '';
+        const isSuryaGhar = empCategory === 'Surya Ghar Incharge' || empCategory === 'PM Surya Ghar Incharge' || eName.includes('kumari');
+        const isStockIncharge = empCategory === 'Stock Incharge' || eName.includes('gopal');
 
-          if (eName.includes('siva') || eName.includes('sunkara')) {
-            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
-          }
-          if (eName.includes('kumari')) {
-            return assigned.includes('kumari') || marketing.includes('kumari') || created.includes('kumari') || l.leadType === 'project';
-          }
-          if (eName.includes('gopal')) {
-            return true; // Stock incharge monitors all plant inventory & material stages
-          }
-          return (
-            (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
-            (eId && (creatorId === eId || assignedId === eId))
-          );
-        }));
+        if (isSuryaGhar || isStockIncharge) {
+          // PM Surya Ghar Incharge and Stock Incharge monitor company-wide leads & technical/inventory processing
+          setLeads(allLeads);
+        } else {
+          setLeads(allLeads.filter(l => {
+            const assigned = (l.assignedEmployee || '').toLowerCase();
+            const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
+            const created = (l.createdByName || '').toLowerCase();
+            const creatorId = (l.createdBy || '').toLowerCase();
+            const assignedId = (l.assignedEmployeeId || '').toLowerCase();
+
+            if (eName.includes('siva') || eName.includes('sunkara')) {
+              return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
+            }
+            return (
+              (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
+              (eId && (creatorId === eId || assignedId === eId))
+            );
+          }));
+        }
       } else {
         setLeads(allLeads);
       }
