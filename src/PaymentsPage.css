@@ -199,7 +199,228 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.5rem;
+}
+
+/* ========================================================= */
+/* OFFICIAL COMPANY SETTLEMENT ACCOUNT BANNER               */
+/* ========================================================= */
+.company-bank-details-banner {
+  background: linear-gradient(135deg, #0b1f3a 0%, #17325c 50%, #1e3a8a 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(244, 196, 48, 0.4);
+  box-shadow: 0 12px 36px -8px rgba(11, 31, 58, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  padding: 1.4rem 1.75rem;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.company-bank-details-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f4c430 0%, #f59e0b 50%, #38bdf8 100%);
+}
+
+.company-bank-details-banner::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 196, 48, 0.15) 0%, rgba(244, 196, 48, 0) 70%);
+  pointer-events: none;
+}
+
+.bank-banner-top-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  position: relative;
+  z-index: 2;
+}
+
+.bank-verified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(244, 196, 48, 0.15);
+  border: 1px solid rgba(244, 196, 48, 0.4);
+  color: #fef08a;
+  padding: 0.3rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bank-verified-tag .tag-icon {
+  color: #f4c430;
+}
+
+.bank-branch-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.bank-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 2;
+}
+
+.bank-banner-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bank-logo-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(2, 132, 199, 0.35);
+  flex-shrink: 0;
+}
+
+.bank-details-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.bank-company-name {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.bank-branch-name {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #cbd5e1;
+}
+
+.bank-branch-name strong {
+  color: #ffffff;
+}
+
+.bank-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+}
+
+.bank-data-cell {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.bank-data-cell.highlight-cell {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(244, 196, 48, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.bank-data-cell:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(244, 196, 48, 0.6);
+  transform: translateY(-2px);
+}
+
+.cell-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bank-cell-lbl {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.btn-copy-chip {
+  background: rgba(244, 196, 48, 0.2);
+  border: 1px solid rgba(244, 196, 48, 0.4);
+  color: #fef08a;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-chip:hover {
+  background: #f4c430;
+  color: #0b1f3a;
+  border-color: #f4c430;
+  transform: scale(1.04);
+}
+
+.btn-copy-chip:active {
+  transform: scale(0.96);
+}
+
+.bank-cell-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bank-cell-val.main-num {
+  font-size: 1.28rem;
+  font-weight: 800;
+  color: #fef08a;
+  letter-spacing: 0.04em;
+}
+
+.bank-cell-val.ifsc-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.04em;
 }
 
 /* --- Metric Cards Grid --- */
@@ -1168,21 +1389,54 @@
   }
 
   .payments-main {
-    padding: 1rem 0.75rem;
-    gap: 1.25rem;
+    padding: 0.85rem 0.65rem;
+    gap: 1rem;
+  }
+
+  .company-bank-details-banner {
+    padding: 1rem 0.9rem;
+    border-radius: 16px;
+    gap: 0.85rem;
+  }
+
+  .bank-company-name {
+    font-size: 1.15rem;
+  }
+
+  .bank-branch-name {
+    font-size: 0.78rem;
+  }
+
+  .bank-banner-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .bank-data-cell {
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+  }
+
+  .bank-cell-val.main-num {
+    font-size: 1.05rem;
+  }
+
+  .bank-cell-val.ifsc-num {
+    font-size: 0.95rem;
   }
 
   .payments-metrics-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
 
   .payments-metric-card {
-    padding: 1rem;
+    padding: 0.85rem;
+    border-radius: 14px;
   }
 
   .metric-value {
-    font-size: 1.6rem;
+    font-size: 1.35rem;
   }
 
   .payment-card-top {
@@ -1218,6 +1472,16 @@
 }
 
 @media (max-width: 480px) {
+  .bank-banner-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .btn-copy-chip {
+    padding: 0.15rem 0.35rem !important;
+    font-size: 0.68rem !important;
+  }
+
   .payments-metrics-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;

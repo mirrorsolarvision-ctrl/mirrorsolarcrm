@@ -121,9 +121,12 @@ export default function ProfilePage() {
 
             <form className="premium-form" onSubmit={handleSaveProfile}>
               <div className="premium-input-group">
-                <label>Full Name / Username</label>
+                <label htmlFor="profileFullName">Full Name / Username</label>
                 <input 
+                  id="profileFullName"
+                  name="profileFullName"
                   type="text" 
+                  autoComplete="name"
                   value={isAdmin ? adminName : (currentUser?.name || '')} 
                   disabled={!isAdmin}
                   onChange={e => setAdminName(e.target.value)}
@@ -131,9 +134,12 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="premium-input-group">
-                <label>Official Email ID</label>
+                <label htmlFor="profileEmail">Official Email ID</label>
                 <input 
+                  id="profileEmail"
+                  name="profileEmail"
                   type="email" 
+                  autoComplete="email"
                   value={isAdmin ? adminEmail : (currentUser?.email || '')} 
                   disabled={!isAdmin}
                   onChange={e => setAdminEmail(e.target.value)}
@@ -141,9 +147,12 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="premium-input-group">
-                <label>Contact Phone Number</label>
+                <label htmlFor="profilePhone">Contact Phone Number</label>
                 <input 
+                  id="profilePhone"
+                  name="profilePhone"
                   type="tel" 
+                  autoComplete="tel"
                   value={isAdmin ? adminPhone : (currentUser?.phone || '')} 
                   disabled={!isAdmin}
                   onChange={e => setAdminPhone(e.target.value)}
@@ -213,18 +222,24 @@ export default function ProfilePage() {
             {isAdmin ? (
               <div className="premium-form" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
                 <div className="premium-input-group">
-                  <label>Current Password</label>
+                  <label htmlFor="currentPasswordInput">Current Password</label>
                   <input 
+                    id="currentPasswordInput"
+                    name="currentPasswordInput"
                     type="password" 
+                    autoComplete="current-password"
                     placeholder="••••••••" 
                     value={currentPass}
                     onChange={e => setCurrentPass(e.target.value)}
                   />
                 </div>
                 <div className="premium-input-group">
-                  <label>New Administrator Password</label>
+                  <label htmlFor="newPasswordInput">New Administrator Password</label>
                   <input 
+                    id="newPasswordInput"
+                    name="newPasswordInput"
                     type="password" 
+                    autoComplete="new-password"
                     placeholder="Enter new secure password" 
                     value={newPass}
                     onChange={e => setNewPass(e.target.value)}

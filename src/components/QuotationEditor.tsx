@@ -483,35 +483,46 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
               {/* Customer Inputs */}
               <div className="qe-form-grid">
                 <div className="qe-input-group">
-                  <label>Customer Name *</label>
+                  <label htmlFor="qeCustomerName">Customer Name *</label>
                   <input 
+                    id="qeCustomerName"
+                    name="customerName"
                     type="text" 
+                    autoComplete="name"
                     value={customer.customerName} 
                     onChange={(e) => setCustomer({ ...customer, customerName: e.target.value })}
                     placeholder="e.g. Balaji Rao"
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>Mobile Number *</label>
+                  <label htmlFor="qeMobileNumber">Mobile Number *</label>
                   <input 
+                    id="qeMobileNumber"
+                    name="mobileNumber"
                     type="tel" 
+                    autoComplete="tel"
                     value={customer.mobileNumber} 
                     onChange={(e) => setCustomer({ ...customer, mobileNumber: e.target.value })}
                     placeholder="10-digit mobile"
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>Email Address</label>
+                  <label htmlFor="qeEmail">Email Address</label>
                   <input 
+                    id="qeEmail"
+                    name="email"
                     type="email" 
+                    autoComplete="email"
                     value={customer.email || ''} 
                     onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
                     placeholder="customer@email.com"
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>Customer Type</label>
+                  <label htmlFor="qeCustomerType">Customer Type</label>
                   <select 
+                    id="qeCustomerType"
+                    name="customerType"
                     value={customer.customerType} 
                     onChange={(e) => setCustomer({ ...customer, customerType: e.target.value as CustomerType })}
                   >
@@ -523,26 +534,35 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                   </select>
                 </div>
                 <div className="qe-input-group qe-col-span-2">
-                  <label>Site / Installation Address</label>
+                  <label htmlFor="qeAddress">Site / Installation Address</label>
                   <input 
+                    id="qeAddress"
+                    name="address"
                     type="text" 
+                    autoComplete="street-address"
                     value={customer.address} 
                     onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
                     placeholder="House/Plot No, Street, Landmark"
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>City / Town</label>
+                  <label htmlFor="qeCity">City / Town</label>
                   <input 
+                    id="qeCity"
+                    name="city"
                     type="text" 
+                    autoComplete="address-level2"
                     value={customer.city} 
                     onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>PIN Code</label>
+                  <label htmlFor="qePinCode">PIN Code</label>
                   <input 
+                    id="qePinCode"
+                    name="pinCode"
                     type="text" 
+                    autoComplete="postal-code"
                     value={customer.pinCode} 
                     onChange={(e) => setCustomer({ ...customer, pinCode: e.target.value })}
                     placeholder="500081"
@@ -562,8 +582,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
 
               <div className="qe-form-grid">
                 <div className="qe-input-group">
-                  <label>System Capacity (kW) *</label>
+                  <label htmlFor="qeSystemCapacity">System Capacity (kW) *</label>
                   <input 
+                    id="qeSystemCapacity"
+                    name="systemCapacityKw"
                     type="number" 
                     step="0.5" 
                     min="1" 
@@ -572,8 +594,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>Plant Technology Type</label>
+                  <label htmlFor="qePlantType">Plant Technology Type</label>
                   <select 
+                    id="qePlantType"
+                    name="plantType"
                     value={project.plantType} 
                     onChange={(e) => setProject({ ...project, plantType: e.target.value as PlantType })}
                   >
@@ -583,8 +607,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                   </select>
                 </div>
                 <div className="qe-input-group">
-                  <label>Grid Phase Type</label>
+                  <label htmlFor="qePhaseType">Grid Phase Type</label>
                   <select 
+                    id="qePhaseType"
+                    name="phaseType"
                     value={project.phaseType} 
                     onChange={(e) => setProject({ ...project, phaseType: e.target.value as PhaseType })}
                   >
@@ -595,8 +621,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
 
                 {/* Structure Type: EXACTLY 3 TYPES */}
                 <div className="qe-input-group">
-                  <label>Structure Type *</label>
+                  <label htmlFor="qeStructureType">Structure Type *</label>
                   <select 
+                    id="qeStructureType"
+                    name="structureType"
                     value={project.structureType || 'Hot Dip Company Structure'} 
                     onChange={(e) => setProject({ ...project, structureType: e.target.value as StructureType })}
                     className="qe-structure-select"
@@ -611,8 +639,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                 {project.structureType === 'Hot Dip Company Structure' && (
                   <>
                     <div className="qe-input-group qe-highlight-field">
-                      <label>Front Leg Height *</label>
+                      <label htmlFor="qeFrontLegHeight">Front Leg Height *</label>
                       <input 
+                        id="qeFrontLegHeight"
+                        name="frontLegHeight"
                         type="text" 
                         value={project.frontLegHeight || ''} 
                         onChange={(e) => setProject({ ...project, frontLegHeight: e.target.value })}
@@ -620,8 +650,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                       />
                     </div>
                     <div className="qe-input-group qe-highlight-field">
-                      <label>Rear Leg Height *</label>
+                      <label htmlFor="qeRearLegHeight">Rear Leg Height *</label>
                       <input 
+                        id="qeRearLegHeight"
+                        name="rearLegHeight"
                         type="text" 
                         value={project.rearLegHeight || ''} 
                         onChange={(e) => setProject({ ...project, rearLegHeight: e.target.value })}
@@ -632,8 +664,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                 )}
 
                 <div className="qe-input-group">
-                  <label>DISCOM Electricity Board</label>
+                  <label htmlFor="qeDiscomName">DISCOM Electricity Board</label>
                   <input 
+                    id="qeDiscomName"
+                    name="discomName"
                     type="text" 
                     value={project.discomName || ''} 
                     onChange={(e) => setProject({ ...project, discomName: e.target.value })}
@@ -641,8 +675,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                   />
                 </div>
                 <div className="qe-input-group">
-                  <label>Electricity Consumer / USC No.</label>
+                  <label htmlFor="qeConsumerNumber">Electricity Consumer / USC No.</label>
                   <input 
+                    id="qeConsumerNumber"
+                    name="consumerNumber"
                     type="text" 
                     value={project.consumerNumber || ''} 
                     onChange={(e) => setProject({ ...project, consumerNumber: e.target.value })}
@@ -783,14 +819,18 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
               <div className="qe-notes-card">
                 <h4>Terms & Quotation Conditions</h4>
                 <textarea 
+                  id="qeTermsAndConditions"
+                  name="termsAndConditions"
                   rows={4} 
                   value={notes} 
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter quotation validity, warranty stipulations, installation timeline notes..."
                 />
                 <div className="qe-validity-row">
-                  <label>Quotation Validity:</label>
+                  <label htmlFor="qeValidityDays">Quotation Validity:</label>
                   <input 
+                    id="qeValidityDays"
+                    name="validityDays"
                     type="number" 
                     value={validityDays} 
                     onChange={(e) => setValidityDays(Number(e.target.value) || 15)} 
@@ -805,12 +845,14 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
 
                 {/* Single Total Package Price Input with 5% GST Included */}
                 <div className="qe-single-price-input-box">
-                  <label className="qe-single-price-label">
+                  <label htmlFor="qeTotalPackagePrice" className="qe-single-price-label">
                     Total Project Package Price (Inclusive of 5% GST) *
                   </label>
                   <div className="qe-total-input-wrapper">
                     <span className="qe-currency-symbol">₹</span>
                     <input 
+                      id="qeTotalPackagePrice"
+                      name="totalPackagePrice"
                       type="number" 
                       min="1000"
                       step="500"
@@ -843,8 +885,10 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                 {/* PM Surya Ghar Subsidy Box: Displayed clearly at ₹78,000/- WITHOUT subtracting from amount */}
                 <div className="qe-subsidy-box">
                   <div className="qe-subsidy-toggle-row">
-                    <label className="qe-switch-label">
+                    <label className="qe-switch-label" htmlFor="qeSubsidyEligible">
                       <input 
+                        id="qeSubsidyEligible"
+                        name="isSubsidyEligible"
                         type="checkbox" 
                         checked={isSubsidyEligible} 
                         onChange={(e) => setIsSubsidyEligible(e.target.checked)}

@@ -586,6 +586,8 @@ export default function WhatsAppBuddy() {
                   >
                     <Search size={14} className="wa-search-icon" />
                     <input 
+                      id="waLeadSearchInput"
+                      name="waLeadSearch"
                       type="text" 
                       placeholder="Search CRM Lead by Name, Phone, City..."
                       value={searchQuery || (selectedLeadId ? `${recipientName} (${recipientPhone || 'No Phone'})` : '')}
@@ -630,8 +632,10 @@ export default function WhatsAppBuddy() {
                 {/* MANUAL PHONE & NAME OVERRIDES */}
                 <div className="wa-input-grid">
                   <div className="wa-input-field">
-                    <label>Customer Name</label>
+                    <label htmlFor="waCustomerNameInput">Customer Name</label>
                     <input 
+                      id="waCustomerNameInput"
+                      name="waCustomerName"
                       type="text" 
                       value={recipientName} 
                       onChange={(e) => { setRecipientName(e.target.value); setIsEditingManually(false); }}
@@ -639,10 +643,12 @@ export default function WhatsAppBuddy() {
                     />
                   </div>
                   <div className="wa-input-field">
-                    <label>WhatsApp Phone</label>
+                    <label htmlFor="waCustomerPhoneInput">WhatsApp Phone</label>
                     <div className="wa-phone-input-group">
                       <span className="wa-phone-prefix">+91</span>
                       <input 
+                        id="waCustomerPhoneInput"
+                        name="waCustomerPhone"
                         type="tel" 
                         value={recipientPhone} 
                         onChange={(e) => setRecipientPhone(e.target.value)}
@@ -690,10 +696,12 @@ export default function WhatsAppBuddy() {
                   <div className="wa-params-group">
                     <div className="wa-param-row">
                       <div className="wa-slider-header">
-                        <label>System Capacity: <strong>{capacityKw} kW</strong></label>
+                        <label htmlFor="waCapacitySlider">System Capacity: <strong>{capacityKw} kW</strong></label>
                         <span className="wa-slider-stat">Subsidy: ₹{subsidyAmount.toLocaleString()}</span>
                       </div>
                       <input 
+                        id="waCapacitySlider"
+                        name="waCapacityKw"
                         type="range" 
                         min="1" 
                         max="15" 
@@ -740,16 +748,20 @@ export default function WhatsAppBuddy() {
                 {selectedTemplate === 'survey' && (
                   <div className="wa-params-grid">
                     <div className="wa-input-field">
-                      <label>Survey Date</label>
+                      <label htmlFor="waSurveyDateInput">Survey Date</label>
                       <input 
+                        id="waSurveyDateInput"
+                        name="waSurveyDate"
                         type="date" 
                         value={surveyDate} 
                         onChange={(e) => { setSurveyDate(e.target.value); setIsEditingManually(false); }} 
                       />
                     </div>
                     <div className="wa-input-field">
-                      <label>Survey Time</label>
+                      <label htmlFor="waSurveyTimeInput">Survey Time</label>
                       <input 
+                        id="waSurveyTimeInput"
+                        name="waSurveyTime"
                         type="text" 
                         value={surveyTime} 
                         onChange={(e) => { setSurveyTime(e.target.value); setIsEditingManually(false); }} 
@@ -757,8 +769,10 @@ export default function WhatsAppBuddy() {
                       />
                     </div>
                     <div className="wa-input-field full-width">
-                      <label>Engineer / Executive Name</label>
+                      <label htmlFor="waEngineerNameInput">Engineer / Executive Name</label>
                       <input 
+                        id="waEngineerNameInput"
+                        name="waEngineerName"
                         type="text" 
                         value={engineerName} 
                         onChange={(e) => { setEngineerName(e.target.value); setIsEditingManually(false); }} 
@@ -771,16 +785,20 @@ export default function WhatsAppBuddy() {
                 {selectedTemplate === 'loan' && (
                   <div className="wa-params-grid">
                     <div className="wa-input-field">
-                      <label>Bank Name</label>
+                      <label htmlFor="waBankNameInput">Bank Name</label>
                       <input 
+                        id="waBankNameInput"
+                        name="waBankName"
                         type="text" 
                         value={bankName} 
                         onChange={(e) => { setBankName(e.target.value); setIsEditingManually(false); }} 
                       />
                     </div>
                     <div className="wa-input-field">
-                      <label>Application / E-Token</label>
+                      <label htmlFor="waApplicationNumberInput">Application / E-Token</label>
                       <input 
+                        id="waApplicationNumberInput"
+                        name="waApplicationNumber"
                         type="text" 
                         value={applicationNumber} 
                         onChange={(e) => { setApplicationNumber(e.target.value); setIsEditingManually(false); }} 
@@ -788,8 +806,10 @@ export default function WhatsAppBuddy() {
                       />
                     </div>
                     <div className="wa-input-field full-width">
-                      <label>Status</label>
+                      <label htmlFor="waLoanStatusSelect">Status</label>
                       <select 
+                        id="waLoanStatusSelect"
+                        name="waLoanStatus"
                         value={loanStatus} 
                         onChange={(e: any) => { setLoanStatus(e.target.value); setIsEditingManually(false); }}
                         className="wa-select"
@@ -807,16 +827,20 @@ export default function WhatsAppBuddy() {
                 {selectedTemplate === 'dispatch' && (
                   <div className="wa-params-grid">
                     <div className="wa-input-field full-width">
-                      <label>Dispatched Items</label>
+                      <label htmlFor="waItemsDispatchedInput">Dispatched Items</label>
                       <input 
+                        id="waItemsDispatchedInput"
+                        name="waItemsDispatched"
                         type="text" 
                         value={itemsDispatched} 
                         onChange={(e) => { setItemsDispatched(e.target.value); setIsEditingManually(false); }} 
                       />
                     </div>
                     <div className="wa-input-field">
-                      <label>LR / Tracking No.</label>
+                      <label htmlFor="waLorryReceiptInput">LR / Tracking No.</label>
                       <input 
+                        id="waLorryReceiptInput"
+                        name="waLorryReceipt"
                         type="text" 
                         value={lorryReceiptNumber} 
                         onChange={(e) => { setLorryReceiptNumber(e.target.value); setIsEditingManually(false); }} 
@@ -830,16 +854,20 @@ export default function WhatsAppBuddy() {
                 {selectedTemplate === 'payment' && (
                   <div className="wa-params-grid">
                     <div className="wa-input-field">
-                      <label>Total Project Cost (₹)</label>
+                      <label htmlFor="waPaymentGrandTotal">Total Project Cost (₹)</label>
                       <input 
+                        id="waPaymentGrandTotal"
+                        name="waGrandTotal"
                         type="number" 
                         value={grandTotal} 
                         onChange={(e) => { setGrandTotal(Number(e.target.value)); setIsEditingManually(false); }} 
                       />
                     </div>
                     <div className="wa-input-field">
-                      <label>Amount Paid (₹)</label>
+                      <label htmlFor="waPaymentTotalPaid">Amount Paid (₹)</label>
                       <input 
+                        id="waPaymentTotalPaid"
+                        name="waTotalPaid"
                         type="number" 
                         value={totalPaid} 
                         onChange={(e) => { 
@@ -851,8 +879,10 @@ export default function WhatsAppBuddy() {
                       />
                     </div>
                     <div className="wa-input-field full-width">
-                      <label>Balance Due (₹)</label>
+                      <label htmlFor="waPaymentBalanceDue">Balance Due (₹)</label>
                       <input 
+                        id="waPaymentBalanceDue"
+                        name="waBalanceDue"
                         type="number" 
                         value={balanceDue} 
                         onChange={(e) => { setBalanceDue(Number(e.target.value)); setIsEditingManually(false); }} 
@@ -1026,10 +1056,12 @@ export default function WhatsAppBuddy() {
                 </div>
 
                 <div className="wa-bill-input-box">
-                  <label>Customer's Monthly Electricity Bill</label>
+                  <label htmlFor="waMonthlyBillInput">Customer's Monthly Electricity Bill</label>
                   <div className="wa-bill-input-row">
                     <span className="wa-currency">₹</span>
                     <input 
+                      id="waMonthlyBillInput"
+                      name="waMonthlyBill"
                       type="number" 
                       value={monthlyBillInput} 
                       onChange={(e) => setMonthlyBillInput(Math.max(500, Number(e.target.value)))}

@@ -660,9 +660,22 @@ export default function StockPage() {
             <div className="stock-filters-bar">
               <div className="stock-search">
                 <Search size={16} color="#64748b" />
-                <input type="text" placeholder="Search inventory..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                <input 
+                  id="stockInventorySearchInput"
+                  name="stockInventorySearch"
+                  type="text" 
+                  placeholder="Search inventory..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                />
               </div>
-              <select className="stock-filter-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+              <select 
+                id="stockCategoryFilter"
+                name="stockCategoryFilter"
+                className="stock-filter-select" 
+                value={categoryFilter} 
+                onChange={e => setCategoryFilter(e.target.value)}
+              >
                 <option value="All Categories">All Categories</option>
                 <option value="Solar Panels">Solar Panels</option>
                 <option value="Inverters">Inverters</option>
@@ -671,7 +684,13 @@ export default function StockPage() {
                 <option value="Accessories">Accessories</option>
                 <option value="Other">Other</option>
               </select>
-              <select className="stock-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <select 
+                id="stockStatusFilter"
+                name="stockStatusFilter"
+                className="stock-filter-select" 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)}
+              >
                 <option value="All Statuses">All Statuses</option>
                 <option value="Healthy">Healthy</option>
                 <option value="Moderate">Moderate</option>
@@ -871,9 +890,22 @@ export default function StockPage() {
           <div className="stock-filters" style={{marginBottom: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
             <div className="stock-search" style={{flex: 1, minWidth: '220px'}}>
               <Search size={16} color="#64748b" />
-              <input type="text" placeholder="Search dealer stock or item..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input 
+                id="dealerStockSearchInput"
+                name="dealerStockSearch"
+                type="text" 
+                placeholder="Search dealer stock or item..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+              />
             </div>
-            <select value={selectedDealerFilter} onChange={e => setSelectedDealerFilter(e.target.value)} style={{padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
+            <select 
+              id="dealerStockDealerFilter"
+              name="dealerStockDealerFilter"
+              value={selectedDealerFilter} 
+              onChange={e => setSelectedDealerFilter(e.target.value)} 
+              style={{padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}
+            >
               <option value="All Dealers">All Dealers</option>
               {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
@@ -944,9 +976,22 @@ export default function StockPage() {
           <div className="stock-filters" style={{marginBottom: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
             <div className="stock-search" style={{flex: 1, minWidth: '220px'}}>
               <Search size={16} color="#64748b" />
-              <input type="text" placeholder="Search customer, lead ID or dealer..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input 
+                id="consumptionSearchInput"
+                name="consumptionSearch"
+                type="text" 
+                placeholder="Search customer, lead ID or dealer..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+              />
             </div>
-            <select value={selectedDealerFilter} onChange={e => setSelectedDealerFilter(e.target.value)} style={{padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
+            <select 
+              id="consumptionDealerFilter"
+              name="consumptionDealerFilter"
+              value={selectedDealerFilter} 
+              onChange={e => setSelectedDealerFilter(e.target.value)} 
+              style={{padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}
+            >
               <option value="All Dealers">All Dealers</option>
               {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
@@ -1015,9 +1060,21 @@ export default function StockPage() {
           <div className="stock-filters" style={{marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
              <div className="search-bar" style={{flex: 1, minWidth: '200px'}}>
                <Search size={18} />
-               <input type="text" placeholder="Search requests..." value={reqSearchQuery} onChange={e => setReqSearchQuery(e.target.value)} />
+               <input 
+                 id="stockRequestsSearchInput"
+                 name="stockRequestsSearch"
+                 type="text" 
+                 placeholder="Search requests..." 
+                 value={reqSearchQuery} 
+                 onChange={e => setReqSearchQuery(e.target.value)} 
+               />
              </div>
-             <select value={reqStatusFilter} onChange={e => setReqStatusFilter(e.target.value)}>
+             <select 
+               id="stockReqStatusFilter"
+               name="stockReqStatusFilter"
+               value={reqStatusFilter} 
+               onChange={e => setReqStatusFilter(e.target.value)}
+             >
                <option value="All">All Statuses</option>
                <option>Pending</option>
                <option>Approved</option>
@@ -1026,7 +1083,12 @@ export default function StockPage() {
                <option>Completed</option>
              </select>
              {isAdmin && (
-               <select value={reqTypeFilter} onChange={e => setReqTypeFilter(e.target.value)}>
+               <select 
+                 id="stockReqTypeFilter"
+                 name="stockReqTypeFilter"
+                 value={reqTypeFilter} 
+                 onChange={e => setReqTypeFilter(e.target.value)}
+               >
                  <option value="All">All Requesters</option>
                  <option>Dealer</option>
                  <option>Employee</option>
@@ -1348,8 +1410,10 @@ export default function StockPage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Waybill / Tracking No (Optional)</label>
+                    <label htmlFor="dispatchWaybillInput">Waybill / Tracking No (Optional)</label>
                     <input 
+                      id="dispatchWaybillInput"
+                      name="dispatchWaybill"
                       type="text" 
                       placeholder="e.g. VRL-992812" 
                       value={dispatchWaybill} 
@@ -1357,8 +1421,10 @@ export default function StockPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Dispatch Notes (Optional)</label>
+                    <label htmlFor="dispatchNotesInput">Dispatch Notes (Optional)</label>
                     <input 
+                      id="dispatchNotesInput"
+                      name="dispatchNotes"
                       type="text" 
                       placeholder="e.g. Sent via transport" 
                       value={dispatchNotes} 
@@ -1384,18 +1450,38 @@ export default function StockPage() {
               <>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Item Name *</label>
-                    <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Mono PERC 540W" />
+                    <label htmlFor="stockItemName">Item Name *</label>
+                    <input 
+                      id="stockItemName"
+                      name="stockItemName"
+                      type="text" 
+                      value={formData.name} 
+                      onChange={e => setFormData({...formData, name: e.target.value})} 
+                      placeholder="e.g. Mono PERC 540W" 
+                    />
                   </div>
                   <div className="form-group">
-                    <label>SKU Code *</label>
-                    <input type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} placeholder="e.g. SP-540-MONO" disabled={modalType === 'edit'} />
+                    <label htmlFor="stockItemSku">SKU Code *</label>
+                    <input 
+                      id="stockItemSku"
+                      name="stockItemSku"
+                      type="text" 
+                      value={formData.sku} 
+                      onChange={e => setFormData({...formData, sku: e.target.value})} 
+                      placeholder="e.g. SP-540-MONO" 
+                      disabled={modalType === 'edit'} 
+                    />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Category</label>
-                    <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                    <label htmlFor="stockCategory">Category</label>
+                    <select 
+                      id="stockCategory"
+                      name="stockCategory"
+                      value={formData.category} 
+                      onChange={e => setFormData({...formData, category: e.target.value})}
+                    >
                       <option>Solar Panels</option>
                       <option>Inverters</option>
                       <option>Mounting</option>
@@ -1405,8 +1491,13 @@ export default function StockPage() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Unit of Measure</label>
-                    <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})}>
+                    <label htmlFor="stockUnit">Unit of Measure</label>
+                    <select 
+                      id="stockUnit"
+                      name="stockUnit"
+                      value={formData.unit} 
+                      onChange={e => setFormData({...formData, unit: e.target.value})}
+                    >
                       <option>Units</option>
                       <option>Meters</option>
                       <option>Boxes</option>
@@ -1418,26 +1509,57 @@ export default function StockPage() {
                 <div className="form-row">
                   {modalType === 'add' && (
                     <div className="form-group">
-                      <label>Initial Quantity</label>
-                      <input type="number" value={formData.quantity} onChange={e => setFormData({...formData, quantity: parseInt(e.target.value) || 0})} />
+                      <label htmlFor="stockInitialQty">Initial Quantity</label>
+                      <input 
+                        id="stockInitialQty"
+                        name="stockInitialQty"
+                        type="number" 
+                        value={formData.quantity} 
+                        onChange={e => setFormData({...formData, quantity: parseInt(e.target.value) || 0})} 
+                      />
                     </div>
                   )}
                   <div className="form-group">
-                    <label>Minimum Stock Level</label>
-                    <input type="number" value={formData.minimumStock} onChange={e => setFormData({...formData, minimumStock: parseInt(e.target.value) || 0})} />
+                    <label htmlFor="stockMinLevel">Minimum Stock Level</label>
+                    <input 
+                      id="stockMinLevel"
+                      name="stockMinLevel"
+                      type="number" 
+                      value={formData.minimumStock} 
+                      onChange={e => setFormData({...formData, minimumStock: parseInt(e.target.value) || 0})} 
+                    />
                   </div>
                   <div className="form-group">
-                    <label>Maximum Stock Level</label>
-                    <input type="number" value={formData.maxStock} onChange={e => setFormData({...formData, maxStock: parseInt(e.target.value) || 0})} />
+                    <label htmlFor="stockMaxLevel">Maximum Stock Level</label>
+                    <input 
+                      id="stockMaxLevel"
+                      name="stockMaxLevel"
+                      type="number" 
+                      value={formData.maxStock} 
+                      onChange={e => setFormData({...formData, maxStock: parseInt(e.target.value) || 0})} 
+                    />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Warehouse Location</label>
-                  <input type="text" value={formData.warehouseLocation} onChange={e => setFormData({...formData, warehouseLocation: e.target.value})} placeholder="e.g. Bay 2, Shelf C" />
+                  <label htmlFor="stockWarehouseLoc">Warehouse Location</label>
+                  <input 
+                    id="stockWarehouseLoc"
+                    name="stockWarehouseLoc"
+                    type="text" 
+                    value={formData.warehouseLocation} 
+                    onChange={e => setFormData({...formData, warehouseLocation: e.target.value})} 
+                    placeholder="e.g. Bay 2, Shelf C" 
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Notes / Specifications</label>
-                  <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} rows={2}></textarea>
+                  <label htmlFor="stockNotes">Notes / Specifications</label>
+                  <textarea 
+                    id="stockNotes"
+                    name="stockNotes"
+                    value={formData.notes} 
+                    onChange={e => setFormData({...formData, notes: e.target.value})} 
+                    rows={2}
+                  ></textarea>
                 </div>
               </>
             )}
@@ -1449,20 +1571,36 @@ export default function StockPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Adjustment Type</label>
-                    <select value={adjustData.type} onChange={e => setAdjustData({...adjustData, type: e.target.value})}>
+                    <label htmlFor="stockAdjustType">Adjustment Type</label>
+                    <select 
+                      id="stockAdjustType"
+                      name="stockAdjustType"
+                      value={adjustData.type} 
+                      onChange={e => setAdjustData({...adjustData, type: e.target.value})}
+                    >
                       <option>Add Stock</option>
                       <option>Remove Stock</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Quantity</label>
-                    <input type="number" value={adjustData.quantity} onChange={e => setAdjustData({...adjustData, quantity: parseInt(e.target.value) || 0})} />
+                    <label htmlFor="stockAdjustQuantity">Quantity</label>
+                    <input 
+                      id="stockAdjustQuantity"
+                      name="stockAdjustQuantity"
+                      type="number" 
+                      value={adjustData.quantity} 
+                      onChange={e => setAdjustData({...adjustData, quantity: parseInt(e.target.value) || 0})} 
+                    />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Reason</label>
-                  <select value={adjustData.reason} onChange={e => setAdjustData({...adjustData, reason: e.target.value})}>
+                  <label htmlFor="stockAdjustReason">Reason</label>
+                  <select 
+                    id="stockAdjustReason"
+                    name="stockAdjustReason"
+                    value={adjustData.reason} 
+                    onChange={e => setAdjustData({...adjustData, reason: e.target.value})}
+                  >
                     <option value="">Select Reason...</option>
                     <option>Received shipment</option>
                     <option>Damaged</option>
@@ -1480,17 +1618,38 @@ export default function StockPage() {
                   Available to reserve: <strong style={{color: '#16a34a'}}>{selectedItem.totalQuantity - selectedItem.reservedQuantity}</strong>
                 </div>
                 <div className="form-group">
-                  <label>Quantity to Reserve</label>
-                  <input type="number" value={reserveData.quantity} onChange={e => setReserveData({...reserveData, quantity: parseInt(e.target.value) || 0})} max={selectedItem.totalQuantity - selectedItem.reservedQuantity} />
+                  <label htmlFor="stockReserveQuantity">Quantity to Reserve</label>
+                  <input 
+                    id="stockReserveQuantity"
+                    name="stockReserveQuantity"
+                    type="number" 
+                    value={reserveData.quantity} 
+                    onChange={e => setReserveData({...reserveData, quantity: parseInt(e.target.value) || 0})} 
+                    max={selectedItem.totalQuantity - selectedItem.reservedQuantity} 
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Related Dealer</label>
-                    <input type="text" value={reserveData.dealer} onChange={e => setReserveData({...reserveData, dealer: e.target.value})} placeholder="e.g. Sri Solar Dealers" />
+                    <label htmlFor="stockReserveDealer">Related Dealer</label>
+                    <input 
+                      id="stockReserveDealer"
+                      name="stockReserveDealer"
+                      type="text" 
+                      value={reserveData.dealer} 
+                      onChange={e => setReserveData({...reserveData, dealer: e.target.value})} 
+                      placeholder="e.g. Sri Solar Dealers" 
+                    />
                   </div>
                   <div className="form-group">
-                    <label>Related Lead</label>
-                    <input type="text" value={reserveData.lead} onChange={e => setReserveData({...reserveData, lead: e.target.value})} placeholder="Optional" />
+                    <label htmlFor="stockReserveLead">Related Lead</label>
+                    <input 
+                      id="stockReserveLead"
+                      name="stockReserveLead"
+                      type="text" 
+                      value={reserveData.lead} 
+                      onChange={e => setReserveData({...reserveData, lead: e.target.value})} 
+                      placeholder="Optional" 
+                    />
                   </div>
                 </div>
               </>
@@ -1502,12 +1661,26 @@ export default function StockPage() {
                   Currently Reserved: <strong style={{color: 'var(--color-orange)'}}>{selectedItem.reservedQuantity}</strong>
                 </div>
                 <div className="form-group">
-                  <label>Quantity to Release</label>
-                  <input type="number" value={reserveData.quantity} onChange={e => setReserveData({...reserveData, quantity: parseInt(e.target.value) || 0})} max={selectedItem.reservedQuantity} />
+                  <label htmlFor="stockReleaseQuantity">Quantity to Release</label>
+                  <input 
+                    id="stockReleaseQuantity"
+                    name="stockReleaseQuantity"
+                    type="number" 
+                    value={reserveData.quantity} 
+                    onChange={e => setReserveData({...reserveData, quantity: parseInt(e.target.value) || 0})} 
+                    max={selectedItem.reservedQuantity} 
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Reason</label>
-                  <input type="text" value={reserveData.reason} onChange={e => setReserveData({...reserveData, reason: e.target.value})} placeholder="e.g. Order cancelled" />
+                  <label htmlFor="stockReleaseReason">Reason</label>
+                  <input 
+                    id="stockReleaseReason"
+                    name="stockReleaseReason"
+                    type="text" 
+                    value={reserveData.reason} 
+                    onChange={e => setReserveData({...reserveData, reason: e.target.value})} 
+                    placeholder="e.g. Order cancelled" 
+                  />
                 </div>
               </>
             )}
@@ -1515,8 +1688,13 @@ export default function StockPage() {
             {modalType === 'request' && (
               <>
                 <div className="form-group">
-                  <label>Product *</label>
-                  <select value={requestData.productSku} onChange={e => setRequestData({...requestData, productSku: e.target.value})}>
+                  <label htmlFor="stockRequestProduct">Product *</label>
+                  <select 
+                    id="stockRequestProduct"
+                    name="stockRequestProduct"
+                    value={requestData.productSku} 
+                    onChange={e => setRequestData({...requestData, productSku: e.target.value})}
+                  >
                     <option value="">Select Product...</option>
                     {stockItems.filter(i => !i.archived).map(i => (
                       <option key={i.id} value={i.sku}>{i.name} ({i.sku})</option>
@@ -1525,26 +1703,49 @@ export default function StockPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Quantity *</label>
-                    <input type="number" value={requestData.quantity} onChange={e => setRequestData({...requestData, quantity: parseInt(e.target.value) || 0})} />
+                    <label htmlFor="stockRequestQuantity">Quantity *</label>
+                    <input 
+                      id="stockRequestQuantity"
+                      name="stockRequestQuantity"
+                      type="number" 
+                      value={requestData.quantity} 
+                      onChange={e => setRequestData({...requestData, quantity: parseInt(e.target.value) || 0})} 
+                    />
                   </div>
                   <div className="form-group">
-                    <label>Required Date *</label>
-                    <input type="date" value={requestData.requiredDate} onChange={e => setRequestData({...requestData, requiredDate: e.target.value})} />
+                    <label htmlFor="stockRequestDate">Required Date *</label>
+                    <input 
+                      id="stockRequestDate"
+                      name="stockRequestDate"
+                      type="date" 
+                      value={requestData.requiredDate} 
+                      onChange={e => setRequestData({...requestData, requiredDate: e.target.value})} 
+                    />
                   </div>
                 </div>
                 {isEmployee && (
                   <div className="form-group">
-                    <label>Related Lead (Optional)</label>
-                    <select value={requestData.lead} onChange={e => setRequestData({...requestData, lead: e.target.value})}>
+                    <label htmlFor="stockRequestLead">Related Lead (Optional)</label>
+                    <select 
+                      id="stockRequestLead"
+                      name="stockRequestLead"
+                      value={requestData.lead} 
+                      onChange={e => setRequestData({...requestData, lead: e.target.value})}
+                    >
                       <option value="">Select Lead...</option>
                       {leads.map(l => <option key={l.id} value={l.id}>{l.customer}</option>)}
                     </select>
                   </div>
                 )}
                 <div className="form-group">
-                  <label>Notes</label>
-                  <textarea value={requestData.notes} onChange={e => setRequestData({...requestData, notes: e.target.value})} rows={2}></textarea>
+                  <label htmlFor="stockRequestNotes">Notes</label>
+                  <textarea 
+                    id="stockRequestNotes"
+                    name="stockRequestNotes"
+                    value={requestData.notes} 
+                    onChange={e => setRequestData({...requestData, notes: e.target.value})} 
+                    rows={2}
+                  ></textarea>
                 </div>
               </>
             )}
@@ -1556,12 +1757,27 @@ export default function StockPage() {
                   <p style={{margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.9rem'}}>Please confirm the amount to approve.</p>
                 </div>
                 <div className="form-group">
-                  <label>Quantity to Approve</label>
-                  <input type="number" value={approvalData.quantity} onChange={e => setApprovalData({...approvalData, quantity: parseInt(e.target.value) || 0})} max={selectedRequest.requestedQty} disabled={modalType === 'approve'} />
+                  <label htmlFor="stockApproveQuantity">Quantity to Approve</label>
+                  <input 
+                    id="stockApproveQuantity"
+                    name="stockApproveQuantity"
+                    type="number" 
+                    value={approvalData.quantity} 
+                    onChange={e => setApprovalData({...approvalData, quantity: parseInt(e.target.value) || 0})} 
+                    max={selectedRequest.requestedQty} 
+                    disabled={modalType === 'approve'} 
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Reason / Notes (Optional)</label>
-                  <input type="text" value={approvalData.reason} onChange={e => setApprovalData({...approvalData, reason: e.target.value})} placeholder="e.g. Approved partially due to low stock" />
+                  <label htmlFor="stockApproveReason">Reason / Notes (Optional)</label>
+                  <input 
+                    id="stockApproveReason"
+                    name="stockApproveReason"
+                    type="text" 
+                    value={approvalData.reason} 
+                    onChange={e => setApprovalData({...approvalData, reason: e.target.value})} 
+                    placeholder="e.g. Approved partially due to low stock" 
+                  />
                 </div>
               </>
             )}
@@ -1569,8 +1785,13 @@ export default function StockPage() {
             {modalType === 'reject' && selectedRequest && (
               <>
                 <div className="form-group">
-                  <label>Rejection Reason *</label>
-                  <select value={approvalData.reason} onChange={e => setApprovalData({...approvalData, reason: e.target.value})}>
+                  <label htmlFor="stockRejectReason">Rejection Reason *</label>
+                  <select 
+                    id="stockRejectReason"
+                    name="stockRejectReason"
+                    value={approvalData.reason} 
+                    onChange={e => setApprovalData({...approvalData, reason: e.target.value})}
+                  >
                     <option value="">Select a reason...</option>
                     <option>Insufficient Stock</option>
                     <option>Invalid Request</option>

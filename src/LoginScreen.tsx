@@ -204,10 +204,13 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
 
       if (matchedUser) {
         loginUser(matchedUser);
-        try {
-          await signInWithEmailAndPassword(auth, matchedUser.email, inputPass);
-        } catch {
-          // Handled smoothly
+        // Only attempt Firebase auth if email is standard and available
+        if (matchedUser.email && matchedUser.email.includes('@') && inputPass) {
+          try {
+            await signInWithEmailAndPassword(auth, matchedUser.email, inputPass);
+          } catch {
+            // Silently ignore secondary firebase auth error since local firestore session is validated
+          }
         }
         if (onLoginSuccess) onLoginSuccess(matchedUser.id);
         return;
@@ -233,7 +236,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           onLoginSuccess(userCredential.user.uid);
         }
       } catch (authErr: any) {
-        console.error("Firebase auth error:", authErr);
+        console.warn("Firebase auth error:", authErr?.message || authErr);
         setErrorMsg("Invalid username or password. Please try again.");
       }
 
@@ -311,12 +314,15 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             )}
             
             <div className={`input-group ${stage >= 4 ? 'reveal' : ''}`}>
-              <label>
+              <label htmlFor="loginIdentifier">
                 {role === 'Admin' ? 'Admin Email, Phone or Username' : 'Username, Employee ID or Email'}
               </label>
               <div className="input-wrapper">
                 <input 
+                  id="loginIdentifier"
+                  name="loginIdentifier"
                   type="text"
+                  autoComplete="username"
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder={
@@ -334,10 +340,13 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             </div>
 
             <div className={`input-group ${stage >= 4 ? 'reveal' : ''}`} style={{ marginTop: '1rem' }}>
-              <label>Password</label>
+              <label htmlFor="loginPassword">Password</label>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input 
+                  id="loginPassword"
+                  name="loginPassword"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -356,8 +365,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             </div>
 
             <div className={`form-actions-row ${stage >= 4 ? 'reveal' : ''}`}>
-              <label className="custom-checkbox-container">
+              <label className="custom-checkbox-container" htmlFor="rememberMeCheckbox">
                 <input 
+                  id="rememberMeCheckbox"
+                  name="rememberMeCheckbox"
                   type="checkbox" 
                   checked={rememberMe} 
                   onChange={(e) => setRememberMe(e.target.checked)} 

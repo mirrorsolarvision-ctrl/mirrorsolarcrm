@@ -346,6 +346,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             <div className="users-search-box">
               <Search size={16} color="#64748b" />
               <input 
+                id="adminUsersSearch"
+                name="adminUsersSearch"
                 type="text" 
                 placeholder="Search name, ID, email, role..." 
                 value={searchQuery}
@@ -357,6 +359,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             </div>
 
             <select 
+              id="adminUsersStatusFilter"
+              name="adminUsersStatusFilter"
               className="users-filter-select"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as any)}
@@ -530,8 +534,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             <form onSubmit={handleSaveEditCredentials} className="edit-user-form">
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label>Full Name / Display Name *</label>
+                  <label htmlFor="editUserName">Full Name / Display Name *</label>
                   <input 
+                    id="editUserName"
+                    name="editUserName"
                     type="text" 
                     required 
                     value={editUserForm.name}
@@ -540,8 +546,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 </div>
 
                 <div className="form-group">
-                  <label>Login Email Address *</label>
+                  <label htmlFor="editUserEmail">Login Email Address *</label>
                   <input 
+                    id="editUserEmail"
+                    name="editUserEmail"
                     type="email" 
                     required 
                     value={editUserForm.email}
@@ -552,8 +560,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label htmlFor="editUserPhone">Phone Number</label>
                   <input 
+                    id="editUserPhone"
+                    name="editUserPhone"
                     type="tel" 
                     value={editUserForm.phone}
                     onChange={e => setEditUserForm({ ...editUserForm, phone: e.target.value })}
@@ -561,8 +571,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 </div>
 
                 <div className="form-group">
-                  <label>Account Status</label>
+                  <label htmlFor="editUserStatus">Account Status</label>
                   <select 
+                    id="editUserStatus"
+                    name="editUserStatus"
                     value={editUserForm.status}
                     onChange={e => setEditUserForm({ ...editUserForm, status: e.target.value as UserStatus })}
                   >
@@ -574,9 +586,11 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               {/* Password Direct Edit */}
               <div className="form-group credential-edit-group">
-                <label>Login Password (Admin Editable)</label>
+                <label htmlFor="editUserPassword">Login Password (Admin Editable)</label>
                 <div className="pass-input-row">
                   <input 
+                    id="editUserPassword"
+                    name="editUserPassword"
                     type={showEditPassword ? 'text' : 'password'}
                     required 
                     value={editUserForm.password}
@@ -600,8 +614,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
               {/* Employee Category Selection */}
               {editModalUser.role === 'Employee' && (
                 <div className="form-group">
-                  <label>Employee Operational Category / Role</label>
+                  <label htmlFor="editUserEmployeeCategory">Employee Operational Category / Role</label>
                   <select 
+                    id="editUserEmployeeCategory"
+                    name="editUserEmployeeCategory"
                     value={editUserForm.employeeCategory}
                     onChange={e => setEditUserForm({ ...editUserForm, employeeCategory: e.target.value })}
                   >
@@ -616,8 +632,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
               {/* Dealer Address */}
               {editModalUser.role === 'Dealer' && (
                 <div className="form-group">
-                  <label>Dealership Location / Address</label>
+                  <label htmlFor="editUserAddress">Dealership Location / Address</label>
                   <input 
+                    id="editUserAddress"
+                    name="editUserAddress"
                     type="text" 
                     value={editUserForm.address}
                     onChange={e => setEditUserForm({ ...editUserForm, address: e.target.value })}
@@ -806,8 +824,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label>{addUserType === 'Dealer' ? 'Dealership Name *' : 'Full Name *'}</label>
+                  <label htmlFor="newUserName">{addUserType === 'Dealer' ? 'Dealership Name *' : 'Full Name *'}</label>
                   <input 
+                    id="newUserName"
+                    name="newUserName"
                     type="text" 
                     required 
                     placeholder={addUserType === 'Dealer' ? 'e.g. Sri Balaji Solar' : 'e.g. Rajesh Kumar'} 
@@ -817,8 +837,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 </div>
 
                 <div className="form-group">
-                  <label>{addUserType === 'Dealer' ? 'Dealer ID *' : 'Employee ID *'}</label>
+                  <label htmlFor="newUserId">{addUserType === 'Dealer' ? 'Dealer ID *' : 'Employee ID *'}</label>
                   <input 
+                    id="newUserId"
+                    name="newUserId"
                     type="text" 
                     required 
                     placeholder={addUserType === 'Dealer' ? 'e.g. DLR-101' : 'e.g. EMP-101'} 
@@ -830,8 +852,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               {addUserType === 'Employee' && (
                 <div className="form-group">
-                  <label>Employee Category / Functional Role *</label>
+                  <label htmlFor="newUserEmployeeCategory">Employee Category / Functional Role *</label>
                   <select 
+                    id="newUserEmployeeCategory"
+                    name="newUserEmployeeCategory"
                     value={newUserForm.employeeCategory}
                     onChange={e => setNewUserForm({ ...newUserForm, employeeCategory: e.target.value })}
                   >
@@ -845,8 +869,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label>Login Email Address</label>
+                  <label htmlFor="newUserEmail">Login Email Address</label>
                   <input 
+                    id="newUserEmail"
+                    name="newUserEmail"
                     type="email" 
                     placeholder={addUserType === 'Dealer' ? 'dealer@mirrorsolar.in' : 'name@mirrorsolar.in'} 
                     value={newUserForm.email}
@@ -855,8 +881,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 </div>
 
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label htmlFor="newUserPhone">Phone Number</label>
                   <input 
+                    id="newUserPhone"
+                    name="newUserPhone"
                     type="tel" 
                     placeholder="+91 98765 43210" 
                     value={newUserForm.phone}
@@ -866,8 +894,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
               </div>
 
               <div className="form-group">
-                <label>Initial Login Password *</label>
+                <label htmlFor="newUserPassword">Initial Login Password *</label>
                 <input 
+                  id="newUserPassword"
+                  name="newUserPassword"
                   type="text" 
                   required 
                   value={newUserForm.password}
@@ -877,8 +907,10 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
               {addUserType === 'Dealer' && (
                 <div className="form-group">
-                  <label>Business Address / Location</label>
+                  <label htmlFor="newUserAddress">Business Address / Location</label>
                   <input 
+                    id="newUserAddress"
+                    name="newUserAddress"
                     type="text" 
                     placeholder="e.g. Vijayawada, Andhra Pradesh" 
                     value={newUserForm.address}

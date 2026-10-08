@@ -585,62 +585,73 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
 
         {/* Company Official Bank & Settlement Account Banner */}
         <div className="company-bank-details-banner">
-          <div className="bank-banner-left">
-            <div className="bank-logo-box">
-              <Building2 size={24} color="#0284c7" />
+          <div className="bank-banner-top-badge-row">
+            <div className="bank-verified-tag">
+              <ShieldCheck size={14} className="tag-icon" />
+              <span>OFFICIAL COMPANY SETTLEMENT ACCOUNT</span>
             </div>
-            <div className="bank-details-info">
-              <span className="bank-holder-badge">Official Company Settlement Account</span>
-              <h3 className="bank-company-name">MIRROR SOLAR VISION</h3>
-              <p className="bank-branch-name">HDFC BANK, ELURU</p>
-            </div>
+            <span className="bank-branch-badge">HDFC BANK, ELURU</span>
           </div>
 
-          <div className="bank-banner-grid">
-            <div className="bank-data-cell">
-              <span className="bank-cell-lbl">Account Number</span>
-              <div className="bank-cell-val-wrap">
-                <span className="bank-cell-val font-mono">50200118210181</span>
-                <button 
-                  type="button" 
-                  className="btn-copy-mini"
-                  onClick={() => {
-                    navigator.clipboard.writeText('50200118210181');
-                    showToast('✓ Account Number copied: 50200118210181', 'success');
-                  }}
-                  title="Copy Account Number"
-                >
-                  <Copy size={13} />
-                </button>
+          <div className="bank-banner-body">
+            <div className="bank-banner-identity">
+              <div className="bank-logo-box">
+                <Building2 size={26} color="#ffffff" />
+              </div>
+              <div className="bank-details-info">
+                <h3 className="bank-company-name">MIRROR SOLAR VISION</h3>
+                <p className="bank-branch-name">
+                  Account Holder: <strong>MIRROR SOLAR VISION</strong> • Branch: <strong>HDFC Bank, Eluru</strong>
+                </p>
               </div>
             </div>
 
-            <div className="bank-data-cell">
-              <span className="bank-cell-lbl">IFSC Code</span>
-              <div className="bank-cell-val-wrap">
-                <span className="bank-cell-val font-mono">HDFC0001641</span>
-                <button 
-                  type="button" 
-                  className="btn-copy-mini"
-                  onClick={() => {
-                    navigator.clipboard.writeText('HDFC0001641');
-                    showToast('✓ IFSC Code copied: HDFC0001641', 'success');
-                  }}
-                  title="Copy IFSC Code"
-                >
-                  <Copy size={13} />
-                </button>
+            <div className="bank-banner-grid">
+              <div className="bank-data-cell highlight-cell">
+                <div className="cell-header-row">
+                  <span className="bank-cell-lbl">ACCOUNT NUMBER</span>
+                  <button 
+                    type="button" 
+                    className="btn-copy-chip"
+                    onClick={() => {
+                      navigator.clipboard.writeText('50200118210181');
+                      showToast('✓ Account Number copied: 50200118210181', 'success');
+                    }}
+                    title="Copy Account Number"
+                  >
+                    <Copy size={13} /> Copy A/C
+                  </button>
+                </div>
+                <div className="bank-cell-val font-mono main-num">50200118210181</div>
               </div>
-            </div>
 
-            <div className="bank-data-cell">
-              <span className="bank-cell-lbl">Account Holder</span>
-              <span className="bank-cell-val">MIRROR SOLAR VISION</span>
-            </div>
+              <div className="bank-data-cell highlight-cell">
+                <div className="cell-header-row">
+                  <span className="bank-cell-lbl">IFSC CODE</span>
+                  <button 
+                    type="button" 
+                    className="btn-copy-chip"
+                    onClick={() => {
+                      navigator.clipboard.writeText('HDFC0001641');
+                      showToast('✓ IFSC Code copied: HDFC0001641', 'success');
+                    }}
+                    title="Copy IFSC Code"
+                  >
+                    <Copy size={13} /> Copy IFSC
+                  </button>
+                </div>
+                <div className="bank-cell-val font-mono ifsc-num">HDFC0001641</div>
+              </div>
 
-            <div className="bank-data-cell">
-              <span className="bank-cell-lbl">Bank & Branch</span>
-              <span className="bank-cell-val">HDFC Bank, Eluru</span>
+              <div className="bank-data-cell standard-cell">
+                <span className="bank-cell-lbl">ACCOUNT HOLDER</span>
+                <span className="bank-cell-val">MIRROR SOLAR VISION</span>
+              </div>
+
+              <div className="bank-data-cell standard-cell">
+                <span className="bank-cell-lbl">BANK & BRANCH</span>
+                <span className="bank-cell-val">HDFC Bank, Eluru</span>
+              </div>
             </div>
           </div>
         </div>
@@ -738,6 +749,8 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
                 <div className="search-input-wrapper">
                   <Search size={18} className="search-icon-pos" />
                   <input 
+                    id="customerPaymentSearchInput"
+                    name="customerPaymentSearch"
                     type="text"
                     className="search-input-field"
                     placeholder="Search by customer, phone, dealer, UTR / ref, or payment type..."
@@ -1013,6 +1026,8 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
                 <div className="search-input-wrapper">
                   <Search size={18} className="search-icon-pos" />
                   <input 
+                    id="dealerPaymentSearchInput"
+                    name="dealerPaymentSearch"
                     type="text"
                     className="search-input-field"
                     placeholder="Search by customer, phone, dealer, or UTR number..."
@@ -1399,8 +1414,10 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             </p>
 
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label>Rejection Reason</label>
+              <label htmlFor="rejectReasonInput">Rejection Reason</label>
               <input 
+                id="rejectReasonInput"
+                name="rejectReason"
                 type="text"
                 placeholder="E.g. Amount not credited in bank, invalid UTR"
                 value={rejectReason}
@@ -1443,8 +1460,10 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             </div>
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>Payout Amount (₹) *</label>
+              <label htmlFor="settlePayoutAmount">Payout Amount (₹) *</label>
               <input 
+                id="settlePayoutAmount"
+                name="settlePayoutAmount"
                 type="number"
                 placeholder="E.g. 25000"
                 value={settleForm.amount}
@@ -1454,8 +1473,10 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             </div>
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>UTR / Transaction Reference (Optional)</label>
+              <label htmlFor="settleUtrNumber">UTR / Transaction Reference (Optional)</label>
               <input 
+                id="settleUtrNumber"
+                name="settleUtrNumber"
                 type="text"
                 placeholder="E.g. UTR12849104810 or IMPS ref"
                 value={settleForm.utrNumber}
@@ -1464,7 +1485,7 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             </div>
 
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label>Payment Proof Screenshot / Receipt *</label>
+              <label htmlFor="dealer-payout-proof-input">Payment Proof Screenshot / Receipt *</label>
               <div 
                 className="upload-dropzone"
                 onClick={() => document.getElementById('dealer-payout-proof-input')?.click()}
@@ -1473,6 +1494,7 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
                 <input 
                   type="file"
                   id="dealer-payout-proof-input"
+                  name="dealerPayoutProof"
                   accept="image/*,application/pdf"
                   style={{ display: 'none' }}
                   onChange={e => {
@@ -1493,8 +1515,10 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
             </div>
 
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label>Admin Notes</label>
+              <label htmlFor="settleAdminNotes">Admin Notes</label>
               <textarea 
+                id="settleAdminNotes"
+                name="settleAdminNotes"
                 placeholder="Any special remarks or bank transfer notes..."
                 value={settleForm.adminNotes}
                 onChange={e => setSettleForm({ ...settleForm, adminNotes: e.target.value })}
@@ -1574,8 +1598,10 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
               </div>
 
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>Acknowledgment Note (Optional)</label>
+                <label htmlFor="dealerAcknowledgeNotes">Acknowledgment Note (Optional)</label>
                 <input 
+                  id="dealerAcknowledgeNotes"
+                  name="dealerNotes"
                   type="text"
                   placeholder="E.g. Received in HDFC Bank account."
                   value={dealerNotes}

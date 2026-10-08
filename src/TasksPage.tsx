@@ -183,6 +183,8 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
         <div className="search-box" style={{flex: '1 1 100%', minWidth: '0'}}>
           <Search size={18} className="search-icon" />
           <input 
+            id="taskSearchInput"
+            name="taskSearch"
             type="text" 
             placeholder="Search tasks..." 
             className="search-input"
@@ -191,7 +193,14 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
           />
         </div>
         
-        <select className="filter-select" style={{flex: '1 1 120px'}} value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
+        <select 
+          id="taskTimeFilter"
+          name="taskTimeFilter"
+          className="filter-select" 
+          style={{flex: '1 1 120px'}} 
+          value={timeFilter} 
+          onChange={e => setTimeFilter(e.target.value)}
+        >
           <option value="All">All Time</option>
           <option value="Today">Today</option>
           <option value="Upcoming">Upcoming</option>
@@ -199,14 +208,28 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
           <option value="Completed">Completed</option>
         </select>
         
-        <select className="filter-select" style={{flex: '1 1 120px'}} value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+        <select 
+          id="taskStatusFilter"
+          name="taskStatusFilter"
+          className="filter-select" 
+          style={{flex: '1 1 120px'}} 
+          value={statusFilter} 
+          onChange={e => setStatusFilter(e.target.value as any)}
+        >
           <option value="All">All Statuses</option>
           <option value="Pending">Pending</option>
           <option value="In Progress">In Progress</option>
           <option value="Completed">Completed</option>
         </select>
 
-        <select className="filter-select" style={{flex: '1 1 120px'}} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as any)}>
+        <select 
+          id="taskPriorityFilter"
+          name="taskPriorityFilter"
+          className="filter-select" 
+          style={{flex: '1 1 120px'}} 
+          value={priorityFilter} 
+          onChange={e => setPriorityFilter(e.target.value as any)}
+        >
           <option value="All">All Priorities</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
@@ -352,14 +375,26 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
             <p style={{marginBottom: '1.25rem', color: '#64748b', fontSize: '0.9rem'}}>Schedule a new task for yourself or a team member.</p>
             
             <div className="form-group">
-              <label>Task Title *</label>
-              <input type="text" value={newTaskForm.title} onChange={e => setNewTaskForm({...newTaskForm, title: e.target.value})} placeholder="e.g. Review Feasibility Report" />
+              <label htmlFor="newTaskTitle">Task Title *</label>
+              <input 
+                id="newTaskTitle"
+                name="newTaskTitle"
+                type="text" 
+                value={newTaskForm.title} 
+                onChange={e => setNewTaskForm({...newTaskForm, title: e.target.value})} 
+                placeholder="e.g. Review Feasibility Report" 
+              />
             </div>
 
             <div className="form-grid">
               <div className="form-group">
-                <label>Task Type *</label>
-                <select value={newTaskForm.taskType} onChange={e => setNewTaskForm({...newTaskForm, taskType: e.target.value as any})}>
+                <label htmlFor="newTaskType">Task Type *</label>
+                <select 
+                  id="newTaskType"
+                  name="newTaskType"
+                  value={newTaskForm.taskType} 
+                  onChange={e => setNewTaskForm({...newTaskForm, taskType: e.target.value as any})}
+                >
                   <option value="Follow-up">Follow-up</option>
                   <option value="Project Work">Project Work</option>
                   <option value="Document Required">Document Required</option>
@@ -372,8 +407,13 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
                 </select>
               </div>
               <div className="form-group">
-                <label>Priority</label>
-                <select value={newTaskForm.priority} onChange={e => setNewTaskForm({...newTaskForm, priority: e.target.value as any})}>
+                <label htmlFor="newTaskPriority">Priority</label>
+                <select 
+                  id="newTaskPriority"
+                  name="newTaskPriority"
+                  value={newTaskForm.priority} 
+                  onChange={e => setNewTaskForm({...newTaskForm, priority: e.target.value as any})}
+                >
                   <option value="High">High</option>
                   <option value="Medium">Medium</option>
                   <option value="Low">Low</option>
@@ -383,19 +423,33 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
 
             <div className="form-grid">
               <div className="form-group">
-                <label>Due Date *</label>
-                <input type="date" value={newTaskForm.dueDate} onChange={e => setNewTaskForm({...newTaskForm, dueDate: e.target.value})} />
+                <label htmlFor="newTaskDueDate">Due Date *</label>
+                <input 
+                  id="newTaskDueDate"
+                  name="newTaskDueDate"
+                  type="date" 
+                  value={newTaskForm.dueDate} 
+                  onChange={e => setNewTaskForm({...newTaskForm, dueDate: e.target.value})} 
+                />
               </div>
               <div className="form-group">
-                <label>Time (Optional)</label>
-                <input type="time" value={newTaskForm.dueTime} onChange={e => setNewTaskForm({...newTaskForm, dueTime: e.target.value})} />
+                <label htmlFor="newTaskDueTime">Time (Optional)</label>
+                <input 
+                  id="newTaskDueTime"
+                  name="newTaskDueTime"
+                  type="time" 
+                  value={newTaskForm.dueTime} 
+                  onChange={e => setNewTaskForm({...newTaskForm, dueTime: e.target.value})} 
+                />
               </div>
             </div>
 
             <div className="form-grid">
               <div className="form-group">
-                <label>Assign To *</label>
+                <label htmlFor="newTaskAssignedTo">Assign To *</label>
                 <select 
+                  id="newTaskAssignedTo"
+                  name="newTaskAssignedTo"
                   value={newTaskForm.assignedToUserId} 
                   onChange={e => setNewTaskForm({...newTaskForm, assignedToUserId: e.target.value})}
                   disabled={currentUser?.role !== 'Admin'} // Only Admin can assign to others
@@ -406,8 +460,13 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
                 </select>
               </div>
               <div className="form-group">
-                <label>Related Project/Lead</label>
-                <select value={newTaskForm.leadId} onChange={e => setNewTaskForm({...newTaskForm, leadId: e.target.value})}>
+                <label htmlFor="newTaskLeadId">Related Project/Lead</label>
+                <select 
+                  id="newTaskLeadId"
+                  name="newTaskLeadId"
+                  value={newTaskForm.leadId} 
+                  onChange={e => setNewTaskForm({...newTaskForm, leadId: e.target.value})}
+                >
                   <option value="">None</option>
                   {leads.map(l => (
                     <option key={l.id} value={l.id}>{l.customer} ({l.leadType === 'project' ? 'Project' : 'Tracking'})</option>
@@ -417,8 +476,10 @@ export default function TasksPage({ onNavigate, filter }: TasksPageProps) {
             </div>
 
             <div className="form-group">
-              <label>Description</label>
+              <label htmlFor="newTaskDescription">Description</label>
               <textarea 
+                id="newTaskDescription"
+                name="newTaskDescription"
                 value={newTaskForm.description} 
                 onChange={e => setNewTaskForm({...newTaskForm, description: e.target.value})} 
                 placeholder="Additional details..."

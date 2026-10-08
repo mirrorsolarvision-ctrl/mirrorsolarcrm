@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, ArrowDownLeft, ArrowUpRight, Upload, 
-  IndianRupee, CheckCircle2, Clock, AlertCircle, FileText, Loader2, Sparkles, Building2, User, Copy
+  IndianRupee, CheckCircle2, Clock, AlertCircle, FileText, Loader2, Sparkles, Building2, User, Copy, ShieldCheck
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import type { 
@@ -252,8 +252,10 @@ export default function UnifiedRecordPaymentModal({
 
         {/* PROJECT / CUSTOMER SELECTION */}
         <div className="modal-lead-picker-box">
-          <label className="picker-label">Select Customer / Project Lead *</label>
+          <label className="picker-label" htmlFor="leadPickerSelect">Select Customer / Project Lead *</label>
           <select 
+            id="leadPickerSelect"
+            name="leadPickerSelect"
             className="picker-select"
             value={selectedLeadId}
             onChange={e => setSelectedLeadId(e.target.value)}
@@ -324,16 +326,16 @@ export default function UnifiedRecordPaymentModal({
             <div className="modal-bank-reference-card">
               <div className="modal-bank-header">
                 <div className="modal-bank-title">
-                  <Building2 size={16} className="text-blue" />
-                  <span>Mirror Solar Vision Official Bank Details</span>
+                  <ShieldCheck size={16} color="#f4c430" />
+                  <span>Official Company Settlement Account</span>
                 </div>
                 <span className="modal-bank-branch-pill">HDFC BANK, ELURU</span>
               </div>
               <div className="modal-bank-grid">
                 <div className="modal-bank-col">
-                  <span className="mb-lbl">A/C No:</span>
+                  <span className="mb-lbl">Account Number</span>
                   <div className="mb-val-row">
-                    <span className="mb-val font-mono">50200118210181</span>
+                    <span className="mb-val font-mono ac-highlight">50200118210181</span>
                     <button
                       type="button"
                       className="mb-copy-btn"
@@ -343,14 +345,14 @@ export default function UnifiedRecordPaymentModal({
                       }}
                       title="Copy Account Number"
                     >
-                      <Copy size={12} />
+                      <Copy size={12} /> Copy
                     </button>
                   </div>
                 </div>
                 <div className="modal-bank-col">
-                  <span className="mb-lbl">IFSC:</span>
+                  <span className="mb-lbl">IFSC Code</span>
                   <div className="mb-val-row">
-                    <span className="mb-val font-mono">HDFC0001641</span>
+                    <span className="mb-val font-mono ifsc-highlight">HDFC0001641</span>
                     <button
                       type="button"
                       className="mb-copy-btn"
@@ -360,12 +362,12 @@ export default function UnifiedRecordPaymentModal({
                       }}
                       title="Copy IFSC"
                     >
-                      <Copy size={12} />
+                      <Copy size={12} /> Copy
                     </button>
                   </div>
                 </div>
                 <div className="modal-bank-col">
-                  <span className="mb-lbl">Holder:</span>
+                  <span className="mb-lbl">Account Holder</span>
                   <span className="mb-val bold">MIRROR SOLAR VISION</span>
                 </div>
               </div>
@@ -373,10 +375,12 @@ export default function UnifiedRecordPaymentModal({
 
             <div className="form-two-col">
               <div className="form-field">
-                <label>Amount Collected (₹) *</label>
+                <label htmlFor="customerPaymentAmount">Amount Collected (₹) *</label>
                 <div className="input-with-icon">
                   <span className="input-icon">₹</span>
                   <input
+                    id="customerPaymentAmount"
+                    name="customerPaymentAmount"
                     type="number"
                     min="1"
                     step="any"
@@ -390,8 +394,10 @@ export default function UnifiedRecordPaymentModal({
               </div>
 
               <div className="form-field">
-                <label>Payment Category *</label>
+                <label htmlFor="customerPaymentCategory">Payment Category *</label>
                 <select
+                  id="customerPaymentCategory"
+                  name="customerPaymentCategory"
                   value={customerForm.paymentType}
                   onChange={e => setCustomerForm({ ...customerForm, paymentType: e.target.value as CustomerPaymentType })}
                 >
@@ -407,8 +413,10 @@ export default function UnifiedRecordPaymentModal({
 
             <div className="form-two-col">
               <div className="form-field">
-                <label>Payment Mode *</label>
+                <label htmlFor="customerPaymentMode">Payment Mode *</label>
                 <select
+                  id="customerPaymentMode"
+                  name="customerPaymentMode"
                   value={customerForm.paymentMode}
                   onChange={e => setCustomerForm({ ...customerForm, paymentMode: e.target.value as CustomerPaymentMode })}
                 >
@@ -424,8 +432,10 @@ export default function UnifiedRecordPaymentModal({
               </div>
 
               <div className="form-field">
-                <label>Date Paid</label>
+                <label htmlFor="customerPaymentDate">Date Paid</label>
                 <input
+                  id="customerPaymentDate"
+                  name="customerPaymentDate"
                   type="date"
                   value={customerForm.paidAt}
                   onChange={e => setCustomerForm({ ...customerForm, paidAt: e.target.value })}
@@ -434,8 +444,10 @@ export default function UnifiedRecordPaymentModal({
             </div>
 
             <div className="form-field">
-              <label>UTR Number / Transaction ID / Cheque #</label>
+              <label htmlFor="customerPaymentRef">UTR Number / Transaction ID / Cheque #</label>
               <input
+                id="customerPaymentRef"
+                name="customerPaymentRef"
                 type="text"
                 placeholder="E.g. UTR29104810294 or Cheque #883921"
                 value={customerForm.referenceNumber}
@@ -444,7 +456,7 @@ export default function UnifiedRecordPaymentModal({
             </div>
 
             <div className="form-field">
-              <label>Upload Customer Receipt Screenshot / Proof</label>
+              <label htmlFor="unified-cust-file">Upload Customer Receipt Screenshot / Proof</label>
               <div 
                 className="upload-drop-area"
                 onClick={() => document.getElementById('unified-cust-file')?.click()}
@@ -453,6 +465,7 @@ export default function UnifiedRecordPaymentModal({
                 <input
                   type="file"
                   id="unified-cust-file"
+                  name="customerReceiptFile"
                   accept="image/*,application/pdf"
                   style={{ display: 'none' }}
                   onChange={e => {
@@ -471,8 +484,10 @@ export default function UnifiedRecordPaymentModal({
             </div>
 
             <div className="form-field">
-              <label>Internal Notes / Remarks</label>
+              <label htmlFor="customerPaymentNotes">Internal Notes / Remarks</label>
               <textarea
+                id="customerPaymentNotes"
+                name="customerPaymentNotes"
                 placeholder="E.g. Received from customer's personal HDFC account..."
                 value={customerForm.notes}
                 onChange={e => setCustomerForm({ ...customerForm, notes: e.target.value })}
@@ -500,8 +515,10 @@ export default function UnifiedRecordPaymentModal({
           <form onSubmit={handleDealerCommissionSubmit} className="modal-tab-form">
             <div className="form-two-col">
               <div className="form-field">
-                <label>Commission Milestone *</label>
+                <label htmlFor="dealerMilestoneType">Commission Milestone *</label>
                 <select
+                  id="dealerMilestoneType"
+                  name="dealerMilestoneType"
                   value={dealerForm.milestoneType}
                   onChange={e => setDealerForm({ ...dealerForm, milestoneType: e.target.value as PaymentMilestoneType })}
                 >
@@ -511,10 +528,12 @@ export default function UnifiedRecordPaymentModal({
               </div>
 
               <div className="form-field">
-                <label>Commission Amount (₹) *</label>
+                <label htmlFor="dealerCommissionAmount">Commission Amount (₹) *</label>
                 <div className="input-with-icon">
                   <span className="input-icon">₹</span>
                   <input
+                    id="dealerCommissionAmount"
+                    name="dealerCommissionAmount"
                     type="number"
                     min="1"
                     step="any"
@@ -530,8 +549,10 @@ export default function UnifiedRecordPaymentModal({
 
             <div className="form-two-col">
               <div className="form-field">
-                <label>UTR Number / Banking Ref *</label>
+                <label htmlFor="dealerUtrNumber">UTR Number / Banking Ref *</label>
                 <input
+                  id="dealerUtrNumber"
+                  name="dealerUtrNumber"
                   type="text"
                   required
                   placeholder="E.g. CMS92019482019"
@@ -541,8 +562,10 @@ export default function UnifiedRecordPaymentModal({
               </div>
 
               <div className="form-field">
-                <label>Date Settled</label>
+                <label htmlFor="dealerPaymentDate">Date Settled</label>
                 <input
+                  id="dealerPaymentDate"
+                  name="dealerPaymentDate"
                   type="date"
                   value={dealerForm.paidAt}
                   onChange={e => setDealerForm({ ...dealerForm, paidAt: e.target.value })}
@@ -551,7 +574,7 @@ export default function UnifiedRecordPaymentModal({
             </div>
 
             <div className="form-field">
-              <label>Upload Payment Proof / Transfer Voucher *</label>
+              <label htmlFor="unified-dealer-file">Upload Payment Proof / Transfer Voucher *</label>
               <div 
                 className="upload-drop-area"
                 onClick={() => document.getElementById('unified-dealer-file')?.click()}
@@ -560,6 +583,7 @@ export default function UnifiedRecordPaymentModal({
                 <input
                   type="file"
                   id="unified-dealer-file"
+                  name="dealerPaymentProofFile"
                   accept="image/*,application/pdf"
                   style={{ display: 'none' }}
                   onChange={e => {
@@ -578,8 +602,10 @@ export default function UnifiedRecordPaymentModal({
             </div>
 
             <div className="form-field">
-              <label>Admin Remarks / Payout Notes</label>
+              <label htmlFor="dealerAdminNotes">Admin Remarks / Payout Notes</label>
               <textarea
+                id="dealerAdminNotes"
+                name="dealerAdminNotes"
                 placeholder="E.g. Commission transferred to dealer registered bank account..."
                 value={dealerForm.adminNotes}
                 onChange={e => setDealerForm({ ...dealerForm, adminNotes: e.target.value })}
