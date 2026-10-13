@@ -5,7 +5,7 @@ import {
   CheckCircle, ArrowUpRight, ShieldCheck,
   AlertCircle, ChevronRight, User, Phone, MapPin, Loader2, IndianRupee,
   ArrowDownLeft, Plus, Filter, FileText, Check, XCircle, Trash2, Copy,
-  TrendingUp, Wallet, DollarSign, Building2, Receipt, ArrowRightLeft, Sparkles
+  TrendingUp, Wallet, DollarSign, Building2, Receipt, ArrowRightLeft, Sparkles, Award
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
 import type { 
@@ -26,7 +26,7 @@ interface PaymentsPageProps {
   onNavigate?: (path: string) => void;
 }
 
-export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPageProps) {
+export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
   const { 
     leads, 
     dealers, 
@@ -539,12 +539,25 @@ export default function PaymentsPage({ onNavigate: _onNavigate }: PaymentsPagePr
         title="Payments & Transactions Center"
         subtitle="Manage incoming customer collections, milestone payouts to dealers, and complete company cashflow audit trails."
         actions={
-          <button 
-            className="btn-hero-primary"
-            onClick={() => handleOpenUnifiedModal('customer_to_vendor')}
-          >
-            <Plus size={18} /> Record Payment / Commission
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {onNavigate && (
+              <button 
+                type="button"
+                className="btn-hero-secondary"
+                style={{ background: 'rgba(255, 255, 255, 0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.6rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                onClick={() => onNavigate('Milestones')}
+                title="Open Project & Sales Milestones Hub"
+              >
+                <Award size={16} /> Milestones Hub →
+              </button>
+            )}
+            <button 
+              className="btn-hero-primary"
+              onClick={() => handleOpenUnifiedModal('customer_to_vendor')}
+            >
+              <Plus size={18} /> Record Payment / Commission
+            </button>
+          </div>
         }
       >
         {/* Segmented Primary Navigation Tabs */}

@@ -3682,23 +3682,26 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 }
                 try {
                   const actualDealer = isDealer && currentUser ? currentUser.name : 'Direct (Company)';
+                  const actualDealerId = isDealer && currentUser ? currentUser.id : '';
                   const actualEmployee = isDealer ? '' : (isEmployee ? (currentUser?.name || 'Sunkara Siva') : (currentUser?.name || 'Direct (Company)'));
                   const actualEmployeeId = isEmployee ? (currentUser?.id || (currentUser as any)?.employeeId || (currentUser as any)?.employeeCode || 'MSV-SIVA-001') : '';
                   
                   await addLead({
                     customer: newLeadForm.customer,
                     phone: newLeadForm.phone,
-                    email: newLeadForm.email,
-                    location: newLeadForm.location,
+                    email: newLeadForm.email || '',
+                    location: newLeadForm.location || '',
                     dealer: actualDealer,
+                    dealerId: actualDealerId,
                     assignedEmployee: actualEmployee,
                     assignedEmployeeId: actualEmployeeId,
                     createdBy: currentUser?.id || currentUser?.name || 'Employee',
                     createdByName: currentUser?.name || 'Employee',
-                    notes: newLeadForm.notes,
+                    createdByRole: (currentUser as any)?.role || 'Admin',
+                    notes: newLeadForm.notes || '',
                     stage: 'Lead',
                     priority: 'Medium',
-                    leadType: 'project',
+                    leadType: newLeadForm.leadType || 'project',
                     followUp: { date: '', time: '', type: 'Other', status: 'No Follow-up' },
                     createdAt: new Date().toISOString(),
                     updatedAt: 'Just now',

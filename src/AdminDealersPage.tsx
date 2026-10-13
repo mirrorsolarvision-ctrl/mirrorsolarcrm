@@ -132,6 +132,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
     const initials = formData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     
     addDealer({
+      id: formData.id?.trim() || undefined,
       name: formData.name, email: formData.email, phone: formData.phone, 
       address: formData.address, status: formData.status as any,
       initials, lastActive: 'Just now'

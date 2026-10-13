@@ -15,10 +15,11 @@ export default function DealerProfilePage() {
     address: currentUser?.address || ''
   });
 
-  if (!currentUser) return null;
-
   // Derived Performance Data
-  const performance = useMemo(() => getDealerPerformance(currentUser.name, leads), [currentUser.name, leads]);
+  const currentUserName = currentUser?.name || '';
+  const performance = useMemo(() => getDealerPerformance(currentUserName, leads), [currentUserName, leads]);
+
+  if (!currentUser) return null;
   const myLeads = leads.filter(l => l.dealer === currentUser.name && !l.archived);
   const totalLeads = myLeads.length;
   const convertedLeads = myLeads.filter(l => l.stage === 'Converted' || l.stage === 'Completed').length;

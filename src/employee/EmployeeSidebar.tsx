@@ -12,7 +12,9 @@ import {
   UserCheck,
   FileText,
   Megaphone,
-  X
+  X,
+  Award,
+  CreditCard
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
@@ -48,7 +50,9 @@ export default function EmployeeSidebar({
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: isSuryaGhar ? 'All Leads & KYC' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: 'Sales Milestones', path: '/employee/milestones', icon: Award, routeName: 'Milestones' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
+    { name: 'Finance & Payments', path: '/employee/payments', icon: CreditCard, routeName: 'Payments' },
     { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Tasks' },
     { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Calendar' },
     { name: isStockIncharge ? 'Warehouse Stock' : 'Stock Availability', path: '/employee/stock', icon: Package, routeName: 'Stock' },

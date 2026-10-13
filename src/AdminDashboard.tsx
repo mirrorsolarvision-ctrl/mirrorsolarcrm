@@ -6,7 +6,7 @@ import {
   TrendingUp, Activity, AlertCircle, ArrowRight,
   UserPlus, CheckCircle2, Sun, Wallet, CheckCircle, PieChart,
   CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck,
-  FileText, Megaphone, History
+  FileText, Megaphone, History, Award
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import './AdminDashboard.css';
@@ -24,6 +24,7 @@ const ProfilePage = lazy(() => import('./ProfilePage'));
 const TasksPage = lazy(() => import('./TasksPage'));
 const CalendarPage = lazy(() => import('./CalendarPage'));
 const PaymentsPage = lazy(() => import('./PaymentsPage'));
+const MilestonesPage = lazy(() => import('./MilestonesPage'));
 
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
@@ -279,6 +280,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     { name: 'Attendance', icon: <UserCheck size={20} /> },
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
+    { name: 'Milestones', icon: <Award size={20} /> },
     { name: 'Tasks', icon: <CheckSquare size={20} /> },
     { name: 'Calendar', icon: <Calendar size={20} /> },
     { name: 'Reports', icon: <PieChart size={20} /> },
@@ -421,8 +423,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
         <ErrorBoundary fallbackTitle="Module Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
           <Suspense fallback={<RouteLoadingFallback message={`Loading ${activeTab}...`} subMessage="Mirror Solar Workspace" />}>
-            {!canAccessRoute(currentUser, activeTab) ? (
-              <AccessRestricted onReturnToDashboard={() => setActiveTab('Dashboard')} />
+            {activeTab === 'Milestones' ? (
+              <MilestonesPage onNavigate={handleNavClick} />
             ) : activeTab === 'Stock' ? (
               <StockPage />
             ) : activeTab === 'Quotations' ? (

@@ -12,7 +12,8 @@ import {
   Calendar,
   CreditCard,
   FileText,
-  X
+  X,
+  Award
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
@@ -48,6 +49,7 @@ export default function DealerSidebar({
     { name: 'My Employees', path: '/dealer/employees', icon: Users, routeName: 'My Employees' },
     { name: 'Team Attendance', path: '/dealer/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: 'Payments', path: '/dealer/payments', icon: CreditCard, routeName: 'Payments' },
+    { name: 'Project Milestones', path: '/dealer/milestones', icon: Award, routeName: 'Milestones' },
     { name: 'Tasks', path: '/dealer/tasks', icon: CheckSquare, routeName: 'Tasks' },
     { name: 'Calendar', path: '/dealer/calendar', icon: Calendar, routeName: 'Calendar' },
     { name: 'Stock', path: '/dealer/stock', icon: Package, routeName: 'Stock' },

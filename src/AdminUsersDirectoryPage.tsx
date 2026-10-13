@@ -238,6 +238,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
     if (addUserType === 'Dealer') {
       addDealer({
+        id: newUserForm.id?.trim() || undefined,
         name: newUserForm.name,
         email: newUserForm.email || `${newUserForm.name.toLowerCase().replace(/\s+/g, '')}@dealer.in`,
         phone: newUserForm.phone || '+91 98765 00000',

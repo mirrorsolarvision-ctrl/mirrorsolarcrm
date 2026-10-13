@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
+import { sanitizeForFirestore } from '../utils/firestoreUtils';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -361,7 +362,7 @@ export const defaultDealerFeatures: DealerFeatures = {
   leads: true,
   stock: true,
   payments: true,
-  reports: false,
+  reports: true,
   tasks: true,
   calendar: true
 };
@@ -372,8 +373,8 @@ export const defaultEmployeeFeatures: DealerFeatures = {
   quotations: true,
   leads: true,
   stock: true,
-  payments: false,
-  reports: false,
+  payments: true,
+  reports: true,
   tasks: true,
   calendar: true
 };
@@ -595,10 +596,11 @@ interface CRMContextType {
   setCurrentUser: (user: User | null) => void;
   addEmployee: (emp: Omit<Employee, 'id' | 'permissions' | 'role'>) => void;
   updateEmployee: (id: string, updates: Partial<Employee>) => void;
-  addDealer: (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'>) => void;
-  updateDealer: (id: string, updates: Partial<Dealer>) => void;
-  addLead: (lead: Omit<MockLead, 'id'>) => void;
-  updateLead: (id: string, updates: Partial<MockLead>) => void;
+  addDealer: (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string }) => Promise<void>;
+  updateDealer: (id: string, updates: Partial<Dealer>) => Promise<void>;
+  deleteDealer: (id: string) => Promise<void>;
+  addLead: (lead: Omit<MockLead, 'id'>) => Promise<void>;
+  updateLead: (id: string, updates: Partial<MockLead>) => Promise<void>;
   updateLeadStage: (leadId: string, newStage: Stage) => void;
   updateUserPermissions: (userId: string, permissions: UserPermissions) => void;
   updateUserRole: (userId: string, role: UserRole) => void;
@@ -700,7 +702,14 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<MockLead[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [dealers, setDealers] = useState<Dealer[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_dealers_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activities, setActivities] = useState<Activity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
@@ -713,6 +722,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     setCurrentUser(authUser);
   }, [authUser]);
+
+  useEffect(() => {
+    if (dealers.length > 0) {
+      try {
+        localStorage.setItem('crm_dealers_cache', JSON.stringify(dealers));
+      } catch (e) {
+        console.warn("Could not cache dealers:", e);
+      }
+    }
+  }, [dealers]);
   
   const [adminUser, setAdminUser] = useState<User>({
     id: 'ADM01',
@@ -730,7 +749,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!authUser) {
       setLeads([]);
       setEmployees([]);
-      setDealers([]);
       setActivities([]);
       setTasks([]);
       setAttendances([]);
@@ -742,18 +760,41 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const userMap = new Map<string, User>();
       snapshot.forEach(docSnap => {
         const data = docSnap.data() as User;
-        const key = (data.email || data.id || docSnap.id).toLowerCase().trim();
-        if (!userMap.has(key) || data.id === docSnap.id) {
-          userMap.set(key, { ...data, id: data.id || docSnap.id });
-        }
+        const key = (data.id || docSnap.id).toLowerCase().trim();
+        userMap.set(key, { ...data, id: data.id || docSnap.id });
       });
       const allUsers = Array.from(userMap.values());
       const empList = allUsers.filter(u => u.role === 'Employee') as Employee[];
       const dealerList = allUsers.filter(u => u.role === 'Dealer') as Dealer[];
       setEmployees(empList);
-      setDealers(dealerList);
+      if (dealerList.length > 0) {
+        setDealers(prev => {
+          const map = new Map<string, Dealer>();
+          prev.forEach(d => map.set(d.id, d));
+          dealerList.forEach(d => map.set(d.id, { ...map.get(d.id), ...d }));
+          return Array.from(map.values());
+        });
+      }
     }, (err) => {
       console.warn("Users listener error:", err);
+    });
+
+    // 1b. Listen for Dedicated Dealers Collection in Firestore
+    const unsubscribeDealers = onSnapshot(collection(db, 'dealers'), (snapshot) => {
+      const explicitDealers: Dealer[] = [];
+      snapshot.forEach(docSnap => {
+        explicitDealers.push({ id: docSnap.id, ...docSnap.data() } as Dealer);
+      });
+      if (explicitDealers.length > 0) {
+        setDealers(prev => {
+          const map = new Map<string, Dealer>();
+          prev.forEach(d => map.set(d.id, d));
+          explicitDealers.forEach(d => map.set(d.id, { ...map.get(d.id), ...d }));
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => {
+      console.warn("Dealers collection listener warning:", err);
     });
 
     // 2. Listen for Live Leads
@@ -855,6 +896,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       unsubscribeUsers();
+      unsubscribeDealers();
       unsubscribeLeads();
       unsubscribeQuotations();
       unsubscribeActivities();
@@ -887,53 +929,103 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addDealer = async (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'>) => {
-    if (authUser?.role !== 'Admin') {
-      console.error("Unauthorized: Only Admins can add dealers");
-      return;
-    }
-    const newId = `DLR${Date.now()}`;
-    const newDealer: Dealer = { ...dealer, id: newId, role: 'Dealer', permissions: { ...defaultDealerPermissions } };
+  const addDealer = async (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string }) => {
+    const newId = dealer.id?.trim() || `DLR${Date.now()}`;
+    const newDealer: Dealer = { 
+      ...dealer, 
+      id: newId, 
+      role: 'Dealer', 
+      permissions: { ...defaultDealerPermissions },
+      status: dealer.status || 'Active',
+      features: dealer.features || { ...defaultDealerFeatures }
+    };
+
+    // 1. Optimistic local state update
+    setDealers(prev => [newDealer, ...prev.filter(d => d.id !== newId)]);
+
+    // 2. Persist to localStorage cache
     try {
-      await setDoc(doc(db, 'users', newId), newDealer);
+      const cached = localStorage.getItem('crm_dealers_cache');
+      const list = cached ? JSON.parse(cached) : [];
+      localStorage.setItem('crm_dealers_cache', JSON.stringify([newDealer, ...list.filter((d: any) => d.id !== newId)]));
+    } catch (e) {
+      console.warn("Storage warning:", e);
+    }
+
+    // 3. Persist to Firestore: BOTH 'users' AND 'dealers' collections!
+    try {
+      await setDoc(doc(db, 'users', newId), newDealer, { merge: true });
     } catch (err) {
-      console.error("Error adding dealer:", err);
+      console.warn("Firestore users collection write warning:", err);
+    }
+
+    try {
+      await setDoc(doc(db, 'dealers', newId), newDealer, { merge: true });
+    } catch (err) {
+      console.warn("Firestore dealers collection write warning:", err);
     }
   };
 
   const updateDealer = async (id: string, updates: Partial<Dealer>) => {
+    setDealers(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     try {
       await updateDoc(doc(db, 'users', id), updates);
     } catch (err) {
-      console.error("Error updating dealer:", err);
+      console.warn("Error updating dealer in users:", err);
+    }
+    try {
+      await setDoc(doc(db, 'dealers', id), updates, { merge: true });
+    } catch (err) {
+      console.warn("Error updating dealer in dealers:", err);
+    }
+  };
+
+  const deleteDealer = async (id: string) => {
+    setDealers(prev => prev.filter(d => d.id !== id));
+    try {
+      await deleteDoc(doc(db, 'users', id));
+    } catch (err) {
+      console.warn("Error deleting dealer from users:", err);
+    }
+    try {
+      await deleteDoc(doc(db, 'dealers', id));
+    } catch (err) {
+      console.warn("Error deleting dealer from dealers:", err);
     }
   };
 
   const addLead = async (lead: Omit<MockLead, 'id'>) => {
     try {
       const assignedEmp = lead.assignedEmployee || (authUser?.role === 'Employee' ? authUser.name : '');
-      const assignedEmpId = lead.assignedEmployeeId || (authUser?.role === 'Employee' ? authUser.id : undefined);
+      const assignedEmpId = lead.assignedEmployeeId || (authUser?.role === 'Employee' ? authUser.id : '') || '';
+      const dealer = lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : 'Direct (Company)');
+      const dealerId = lead.dealerId || (authUser?.role === 'Dealer' ? authUser.id : '') || '';
+
       const leadPayload = {
         ...lead,
-        dealerId: lead.dealerId || (authUser?.role === 'Dealer' ? authUser.id : undefined),
-        dealer: lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : ''),
+        dealerId,
+        dealer,
         assignedEmployee: assignedEmp,
         assignedEmployeeId: assignedEmpId
       };
-      await addDoc(collection(db, 'leads'), leadPayload);
+      const cleanPayload = sanitizeForFirestore(leadPayload);
+      await addDoc(collection(db, 'leads'), cleanPayload);
     } catch (err: any) {
       console.error("Error adding lead:", err);
       alert(`Failed to save lead to database: ${err.message || String(err)}`);
+      throw err;
     }
   };
 
   const updateLead = async (id: string, updates: Partial<MockLead>) => {
     try {
-      await updateDoc(doc(db, 'leads', id), updates);
-      console.log("Successfully updated lead in Firestore", updates);
+      const cleanUpdates = sanitizeForFirestore(updates);
+      await updateDoc(doc(db, 'leads', id), cleanUpdates);
+      console.log("Successfully updated lead in Firestore", cleanUpdates);
     } catch (err: any) {
       console.error("Error updating lead:", err);
       alert(`Firestore Update Failed: ${err.message || String(err)}`);
+      throw err;
     }
   };
 
@@ -943,7 +1035,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (['Converted', 'Installation', 'Loan', 'Material', 'Completed'].includes(newStage)) {
         updates.convertedAt = new Date().toISOString();
       }
-      await updateDoc(doc(db, 'leads', leadId), updates);
+      await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore(updates));
     } catch (err) {
       console.error("Error updating lead stage:", err);
     }
@@ -1619,7 +1711,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (assignment.dealerName) updates.dealer = assignment.dealerName;
         if (assignment.dealerId) updates.dealerId = assignment.dealerId;
       }
-      await updateDoc(doc(db, 'leads', leadId), updates);
+      await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore(updates));
       addActivity({
         type: 'Lead Assigned',
         message: `Lead assignment updated`,
@@ -1651,10 +1743,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             requestedAt: new Date().toISOString()
           };
 
-      await updateDoc(doc(db, 'leads', leadId), {
+      await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore({
         reassignmentRequest: payload,
         updatedAt: new Date().toISOString()
-      });
+      }));
     } catch (err) {
       console.warn("Error requesting lead reassignment in Firestore:", err);
     }
@@ -1679,7 +1771,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rejectionReason) {
         updates['reassignmentRequest.rejectionReason'] = rejectionReason;
       }
-      await updateDoc(doc(db, 'leads', leadId), updates);
+      await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore(updates));
     } catch (err) {
       console.warn("Error resolving lead reassignment in Firestore:", err);
     }
@@ -1689,7 +1781,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
       addEmployee, updateEmployee, 
-      addDealer, updateDealer, 
+      addDealer, updateDealer, deleteDealer,
       addLead, updateLead, updateLeadStage,
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,

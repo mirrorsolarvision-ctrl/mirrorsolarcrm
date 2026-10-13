@@ -90,7 +90,13 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
     case 'Reports':
       return features.reports !== false;
     case 'Payments':
+    case 'Finance':
+    case 'Finance & Payments':
       return features.payments !== false;
+    case 'Milestones':
+    case 'Project Milestones':
+    case 'Sales Milestones':
+      return true;
     case 'Tasks':
       return features.tasks !== false;
     case 'Calendar':

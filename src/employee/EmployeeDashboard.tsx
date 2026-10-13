@@ -4,7 +4,7 @@ import {
   CheckCircle2, Plus, Box, Package, Activity as ActivityIcon,
   CheckSquare, Calendar, Truck, Layers, FileSpreadsheet,
   Sun, UserCheck, ShieldCheck, ArrowRight, Clock, AlertTriangle,
-  FileText, Sparkles, Send, Eye
+  FileText, Sparkles, Send, Eye, Award
 } from 'lucide-react';
 import { useCRM, STAGES } from '../context/CRMContext';
 import { useStock } from '../context/StockContext';
@@ -52,6 +52,28 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   const myActivity = useMemo(() => getMyActivity(userName, activities).slice(0, 5), [userName, activities]);
   const myLeads = useMemo(() => getMyLeads(userName, leads), [userName, leads]);
   const assignedProjects = useMemo(() => myLeads.filter(l => l.leadType === 'project').length, [myLeads]);
+
+  // Current calendar month converted sales for minimum 4 sales milestone
+  const currentMonthConvertedSales = useMemo(() => {
+    const now = new Date();
+    const currMonth = now.getMonth();
+    const currYear = now.getFullYear();
+
+    return myLeads.filter(l => {
+      const isConverted = ['Converted', 'Loan', 'Material', 'Installation', 'Completed'].includes(l.stage);
+      if (!isConverted) return false;
+      const dStr = l.convertedAt || l.updatedAt || l.createdAt;
+      if (!dStr) return false;
+      const d = new Date(dStr);
+      return d.getMonth() === currMonth && d.getFullYear() === currYear;
+    });
+  }, [myLeads]);
+
+  const monthlySalesTarget = 4; // Minimum 4 Sales per month mandatory milestone
+  const monthlySalesCount = currentMonthConvertedSales.length;
+  const isMonthlyMilestoneMet = monthlySalesCount >= monthlySalesTarget;
+  const monthlyMilestonePct = Math.min(100, Math.round((monthlySalesCount / monthlySalesTarget) * 100));
+  const remainingSalesToMilestone = Math.max(0, monthlySalesTarget - monthlySalesCount);
 
   // Read-only stock snapshot for Marketing
   const stockSnapshot = useMemo(() => {
@@ -598,6 +620,83 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
           </div>
         </div>
       )}
+
+      {/* MANDATORY MONTHLY SALES MILESTONE CARD */}
+      <div className="emp-monthly-milestone-card" style={{
+        background: isMonthlyMilestoneMet 
+          ? 'linear-gradient(135deg, #064e3b 0%, #047857 100%)' 
+          : 'linear-gradient(135deg, #0b1f3a 0%, #1e3a8a 100%)',
+        borderRadius: '16px',
+        padding: '1.25rem 1.5rem',
+        color: '#ffffff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.85rem',
+        boxShadow: '0 8px 20px -4px rgba(11, 31, 58, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.12)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '42px', height: '42px', borderRadius: '10px',
+              background: isMonthlyMilestoneMet ? '#10b981' : '#f59e0b',
+              color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', flexShrink: 0
+            }}>
+              <Award size={24} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', color: isMonthlyMilestoneMet ? '#6ee7b7' : '#fbbf24' }}>
+                MARKETING MANDATORY TARGET MILESTONE
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>
+                Minimum 4 Sales Per Month Milestone
+              </h3>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <span style={{
+              background: isMonthlyMilestoneMet ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)',
+              border: isMonthlyMilestoneMet ? '1px solid #34d399' : '1px solid #fbbf24',
+              color: '#ffffff', fontWeight: 800, fontSize: '0.8rem', padding: '4px 12px', borderRadius: '14px'
+            }}>
+              {isMonthlyMilestoneMet ? '🏆 Monthly Milestone Achieved!' : `⏳ ${remainingSalesToMilestone} More Sale${remainingSalesToMilestone > 1 ? 's' : ''} Needed`}
+            </span>
+            <button 
+              onClick={() => onNavigate('/employee/milestones')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                color: '#ffffff', fontWeight: 700, fontSize: '0.8rem', padding: '5px 12px',
+                borderRadius: '8px', cursor: 'pointer'
+              }}
+            >
+              Milestones Hub →
+            </button>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '0.35rem' }}>
+            <span><strong>{monthlySalesCount}</strong> of <strong>{monthlySalesTarget} Sales</strong> Closed This Month</span>
+            <span style={{ fontWeight: 700 }}>{monthlyMilestonePct}% Reached</span>
+          </div>
+          <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${monthlyMilestonePct}%`, height: '100%',
+              background: isMonthlyMilestoneMet ? '#34d399' : '#fbbf24',
+              borderRadius: '10px', transition: 'width 0.4s ease'
+            }} />
+          </div>
+        </div>
+
+        <div style={{ fontSize: '0.8rem', opacity: 0.9, lineHeight: 1.4 }}>
+          {isMonthlyMilestoneMet 
+            ? '🎉 Outstanding performance! You have met your minimum 4 sales milestone for this calendar month. Any additional converted sales count toward bonus commissions.'
+            : `📌 Company Milestone Policy: Marketing employees must close a minimum of 4 converted solar sales per month. You currently have ${monthlySalesCount} closed sale${monthlySalesCount === 1 ? '' : 's'}. Convert ${remainingSalesToMilestone} more to reach quota.`}
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="emp-grid-4">

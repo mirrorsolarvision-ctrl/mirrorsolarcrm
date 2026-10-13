@@ -21,6 +21,7 @@ const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
 const TasksPage = lazy(() => import('../TasksPage'));
 const CalendarPage = lazy(() => import('../CalendarPage'));
 const PaymentsPage = lazy(() => import('../PaymentsPage'));
+const MilestonesPage = lazy(() => import('../MilestonesPage'));
 
 interface DealerAppProps {
   onSignOut: () => void;
@@ -68,6 +69,7 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
     // Determine route name for permission check
     const routeName = currentPath === '/dealer/dashboard' ? 'Dashboard' :
                       currentPath === '/dealer/leads' ? 'Leads' :
+                      currentPath === '/dealer/milestones' ? 'Milestones' :
                       currentPath === '/dealer/quotations' ? 'Quotations' :
                       currentPath === '/dealer/employees' ? 'My Employees' :
                       currentPath === '/dealer/attendance' ? 'Attendance' :
@@ -79,7 +81,7 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
                       currentPath === '/dealer/profile' ? 'Profile' : 'Dashboard';
 
     if (!canAccessRoute(currentUser, routeName, dealers)) {
-      return <AccessRestricted onReturnToDashboard={() => handleNavigate('/dealer/dashboard')} />;
+      return <DealerDashboard onNavigate={handleNavigate} />;
     }
 
     switch (currentPath) {
@@ -87,6 +89,8 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
         return <DealerDashboard onNavigate={handleNavigate} />;
       case '/dealer/leads':
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/dealer/milestones':
+        return <MilestonesPage onNavigate={(tab) => handleNavigate(tab === 'Payments' ? '/dealer/payments' : '/dealer/dashboard')} defaultTab="dealer" />;
       case '/dealer/quotations':
         return <QuotationsPortalPage />;
       case '/dealer/employees':

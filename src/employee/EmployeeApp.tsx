@@ -20,6 +20,7 @@ const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
 const TasksPage = lazy(() => import('../TasksPage'));
 const CalendarPage = lazy(() => import('../CalendarPage'));
 const EmployeeEodReportPage = lazy(() => import('../pages/EmployeeEodReportPage'));
+const MilestonesPage = lazy(() => import('../MilestonesPage'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -66,6 +67,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
     const routeName = currentPath === '/employee/dashboard' ? 'Dashboard' :
                       currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
+                      currentPath === '/employee/milestones' ? 'Milestones' :
                       currentPath === '/employee/quotations' ? 'Quotations' :
                       currentPath === '/employee/tasks' ? 'Tasks' :
                       currentPath === '/employee/calendar' ? 'Calendar' :
@@ -76,7 +78,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
                       currentPath === '/employee/profile' ? 'Profile' : 'Dashboard';
 
     if (!canAccessRoute(currentUser, routeName)) {
-      return <AccessRestricted onReturnToDashboard={() => handleNavigate('/employee/dashboard')} />;
+      return <EmployeeDashboard onNavigate={handleNavigate} />;
     }
 
     switch (currentPath) {
@@ -86,6 +88,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         return <EmployeeAttendancePage />;
       case '/employee/leads':
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/employee/milestones':
+        return <MilestonesPage onNavigate={(tab) => handleNavigate(tab === 'Payments' ? '/employee/payments' : '/employee/dashboard')} />;
       case '/employee/quotations':
         return <QuotationsPortalPage />;
       case '/employee/tasks':

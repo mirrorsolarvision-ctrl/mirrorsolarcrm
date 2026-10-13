@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   LayoutDashboard, Activity, Package, CreditCard, Menu, 
-  Users, Briefcase, PieChart, Shield, Calendar, CheckSquare, PhoneCall, UserCheck
+  Users, Briefcase, PieChart, Shield, Calendar, CheckSquare, PhoneCall, UserCheck, Award
 } from 'lucide-react';
 import './MobileBottomNav.css';
 
@@ -37,26 +37,26 @@ export default function MobileBottomNav({
     if (role === 'Admin') {
       return [
         { id: 'Dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },
-        { id: 'Attendance', label: 'Attendance', icon: <UserCheck size={20} /> },
         { id: 'Leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
-        { id: 'Stock', label: 'Stock', icon: <Package size={20} />, badge: stockBadge },
+        { id: 'Milestones', label: 'Milestones', icon: <Award size={20} /> },
+        { id: 'Payments', label: 'Finance', icon: <CreditCard size={20} /> },
       ];
     } else if (role === 'Dealer') {
       return [
         { id: '/dealer/dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },
-        { id: '/dealer/attendance', label: 'Attendance', icon: <UserCheck size={20} /> },
         { id: '/dealer/leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
-        { id: '/dealer/stock', label: 'Stock', icon: <Package size={20} />, badge: stockBadge },
+        { id: '/dealer/milestones', label: 'Milestones', icon: <Award size={20} /> },
+        { id: '/dealer/payments', label: 'Finance', icon: <CreditCard size={20} /> },
       ];
     } else {
       const isStockIncharge = employeeCategory === 'Stock Incharge';
       return [
         { id: '/employee/dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },
-        { id: '/employee/attendance', label: 'Attendance', icon: <UserCheck size={20} /> },
+        { id: '/employee/milestones', label: 'Milestones', icon: <Award size={20} /> },
         isStockIncharge
           ? { id: '/employee/stock', label: 'Stock', icon: <Package size={20} />, badge: stockBadge }
           : { id: '/employee/leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
-        { id: '/employee/tasks', label: 'Tasks', icon: <CheckSquare size={20} /> },
+        { id: '/employee/payments', label: 'Finance', icon: <CreditCard size={20} /> },
       ];
     }
   };
