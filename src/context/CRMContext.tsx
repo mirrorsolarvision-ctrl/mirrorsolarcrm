@@ -765,8 +765,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userMap.set(key, { ...data, id: data.id || docSnap.id });
       });
       const allUsers = Array.from(userMap.values());
-      const empList = allUsers.filter(u => u.role === 'Employee') as Employee[];
-      const dealerList = allUsers.filter(u => u.role === 'Dealer') as Dealer[];
+      // Deduplicate users by role + unique identifier (email, phone, or name)
+      const uniqueUsers: User[] = [];
+      const seenIdentity = new Set<string>();
+      allUsers.forEach(u => {
+        const emailKey = (u.email || '').trim().toLowerCase();
+        const phoneKey = (u.phone || '').replace(/\D/g, '').slice(-10);
+        const nameRoleKey = `${u.role}_${(u.name || '').trim().toLowerCase()}`;
+        const identityKey = emailKey ? `${u.role}_${emailKey}` : (phoneKey ? `${u.role}_${phoneKey}` : nameRoleKey);
+        
+        if (!seenIdentity.has(identityKey)) {
+          seenIdentity.add(identityKey);
+          uniqueUsers.push(u);
+        }
+      });
+
+      const empList = uniqueUsers.filter(u => u.role === 'Employee') as Employee[];
+      const dealerList = uniqueUsers.filter(u => u.role === 'Dealer') as Dealer[];
       setEmployees(empList);
       if (dealerList.length > 0) {
         setDealers(prev => {

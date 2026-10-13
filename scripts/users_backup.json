@@ -1,0 +1,557 @@
+[
+  {
+    "id": "DLR1790601644299",
+    "data": {
+      "lastActive": "Just now",
+      "phone": "+919182612420",
+      "email": "balajiperuri09@gmail.com",
+      "status": "Active",
+      "name": "Balaji peruri",
+      "features": {
+        "leads": true,
+        "attendance": true,
+        "stock": true,
+        "quotations": true,
+        "calendar": true,
+        "tasks": true,
+        "myEmployees": true,
+        "payments": true,
+        "reports": false
+      },
+      "password": "mirror@1432",
+      "initials": "BP",
+      "address": "ELURU",
+      "permissions": {
+        "employees": "edit",
+        "leads": "edit",
+        "stock": "view",
+        "dashboard": "view",
+        "dealers": "none",
+        "access": "none",
+        "profile": "edit",
+        "reports": "none"
+      },
+      "role": "Dealer",
+      "id": "DLR1790601644299"
+    }
+  },
+  {
+    "id": "DLR1791784111454",
+    "data": {
+      "status": "Active",
+      "email": "jagapathi@msv.in",
+      "id": "DLR1791784111454",
+      "phone": "9959591855",
+      "address": "VIJAYAWADA",
+      "permissions": {
+        "dashboard": "view",
+        "profile": "edit",
+        "reports": "none",
+        "dealers": "none",
+        "employees": "edit",
+        "stock": "view",
+        "access": "none",
+        "leads": "edit"
+      },
+      "name": "JAGAPATHI",
+      "lastActive": "Just now",
+      "role": "Dealer",
+      "features": {
+        "quotations": true,
+        "calendar": true,
+        "attendance": false,
+        "myEmployees": false,
+        "reports": true,
+        "tasks": true,
+        "leads": true,
+        "payments": true,
+        "stock": false
+      },
+      "initials": "J",
+      "password": "MSV@1855"
+    }
+  },
+  {
+    "id": "DLR1791785666743",
+    "data": {
+      "phone": "7815851917",
+      "status": "Active",
+      "email": "srinivas@msv.in",
+      "name": "SRINIVAS",
+      "lastActive": "Just now",
+      "id": "DLR1791785666743",
+      "features": {
+        "payments": true,
+        "tasks": true,
+        "quotations": true,
+        "attendance": false,
+        "leads": true,
+        "stock": true,
+        "myEmployees": true,
+        "reports": false,
+        "calendar": true
+      },
+      "address": "AMALAPURAM",
+      "initials": "S",
+      "password": "MSV@1917",
+      "role": "Dealer",
+      "permissions": {
+        "access": "none",
+        "employees": "edit",
+        "leads": "edit",
+        "dealers": "none",
+        "profile": "edit",
+        "reports": "none",
+        "dashboard": "view",
+        "stock": "view"
+      }
+    }
+  },
+  {
+    "id": "QRWLhJpqCUUMi4U9mVNpUGQPu713",
+    "data": {
+      "role": "Employee",
+      "initials": "SG",
+      "email": "gopal.mirrorsolarvision@gmail.com",
+      "features": {
+        "reports": false,
+        "payments": false,
+        "quotations": false,
+        "tasks": true,
+        "myEmployees": false,
+        "attendance": true,
+        "leads": false,
+        "stock": true,
+        "calendar": true
+      },
+      "phone": "8688556211",
+      "employeeCategory": "Stock Incharge",
+      "status": "Active",
+      "id": "QRWLhJpqCUUMi4U9mVNpUGQPu713",
+      "permissions": {
+        "stock": "edit",
+        "dashboard": "view",
+        "dealers": "none",
+        "leads": "none",
+        "access": "none",
+        "reports": "none",
+        "profile": "edit",
+        "employees": "none"
+      },
+      "lastActive": "Just now",
+      "name": "Sai Gopal",
+      "employeeId": "MSV-EMP-003",
+      "password": "Mirror@6211"
+    }
+  },
+  {
+    "id": "admin_balajiperuri",
+    "data": {
+      "permissions": {
+        "dealers": "full",
+        "access": "full",
+        "employees": "full",
+        "reports": "full",
+        "profile": "full",
+        "dashboard": "full",
+        "stock": "full",
+        "leads": "full"
+      },
+      "updatedAt": "2026-10-07T06:16:38.765Z",
+      "status": "Active",
+      "phone": "9182612420",
+      "email": "balajiperuri09@gmail.com",
+      "role": "Admin",
+      "id": "admin_balajiperuri",
+      "name": "Balaji Peruri",
+      "initials": "BP"
+    }
+  },
+  {
+    "id": "admin_mirroraquaro",
+    "data": {
+      "email": "mirroraquaro@gmail.com",
+      "name": "Mirror Aqua Admin",
+      "phone": "9849810668",
+      "id": "admin_mirroraquaro",
+      "initials": "MA",
+      "updatedAt": "2026-10-07T06:16:38.298Z",
+      "status": "Active",
+      "permissions": {
+        "leads": "full",
+        "stock": "full",
+        "employees": "full",
+        "reports": "full",
+        "profile": "full",
+        "access": "full",
+        "dealers": "full",
+        "dashboard": "full"
+      },
+      "role": "Admin"
+    }
+  },
+  {
+    "id": "balajiperuri09_gmail_com",
+    "data": {
+      "status": "Active",
+      "permissions": {
+        "dealers": "full",
+        "employees": "full",
+        "profile": "full",
+        "reports": "full",
+        "access": "full",
+        "leads": "full",
+        "dashboard": "full",
+        "stock": "full"
+      },
+      "id": "balajiperuri09_gmail_com",
+      "email": "balajiperuri09@gmail.com",
+      "phone": "9182612420",
+      "role": "Admin",
+      "name": "Balaji Peruri",
+      "initials": "BP",
+      "password": "Mirror@12420",
+      "updatedAt": "2026-10-07T06:15:33.947Z"
+    }
+  },
+  {
+    "id": "bkTpWQKgmsXRBjCHEcwD8uO9nrJ3",
+    "data": {
+      "status": "Active",
+      "phone": "8985141432",
+      "email": "msv-siva-001@mirrorsolar.in",
+      "permissions": {
+        "access": "none",
+        "dealers": "none",
+        "employees": "none",
+        "profile": "edit",
+        "reports": "none",
+        "dashboard": "view",
+        "leads": "edit",
+        "stock": "view"
+      },
+      "id": "bkTpWQKgmsXRBjCHEcwD8uO9nrJ3",
+      "updatedAt": "2026-10-07T06:15:34.727Z",
+      "name": "Sunkara Siva",
+      "username": "siva",
+      "employeeCategory": "Marketing Employee",
+      "password": "Mirror@1432",
+      "employeeId": "MSV-SIVA-001",
+      "role": "Employee",
+      "lastActive": "Just now",
+      "features": {
+        "payments": true,
+        "tasks": true,
+        "reports": false,
+        "leads": true,
+        "stock": true,
+        "myEmployees": false,
+        "attendance": true,
+        "calendar": true,
+        "quotations": true
+      },
+      "initials": "SS"
+    }
+  },
+  {
+    "id": "ck9OPLG03RZeJhYh60npKeMEaFz2",
+    "data": {
+      "initials": "HU",
+      "status": "Active",
+      "role": "Dealer",
+      "address": "Kurnool",
+      "features": {
+        "reports": false,
+        "tasks": true,
+        "leads": true,
+        "payments": true,
+        "stock": true,
+        "calendar": true,
+        "attendance": true,
+        "quotations": true,
+        "myEmployees": true
+      },
+      "name": "Hussain",
+      "lastActive": "Just now",
+      "phone": "9100309431",
+      "lastPasswordReset": "2026-10-01T05:06:45.779Z",
+      "email": "hussain@dealer.in",
+      "id": "ck9OPLG03RZeJhYh60npKeMEaFz2",
+      "permissions": {
+        "stock": "view",
+        "employees": "edit",
+        "access": "none",
+        "leads": "edit",
+        "dealers": "none",
+        "dashboard": "view",
+        "reports": "none",
+        "profile": "edit"
+      },
+      "password": "Mirror@9431"
+    }
+  },
+  {
+    "id": "dealer_balaji",
+    "data": {
+      "permissions": {
+        "dashboard": "view",
+        "reports": "none",
+        "profile": "edit",
+        "stock": "view",
+        "access": "none",
+        "leads": "edit",
+        "dealers": "none",
+        "employees": "none"
+      },
+      "role": "Dealer",
+      "id": "dealer_balaji",
+      "address": "Vijayawada",
+      "initials": "BP",
+      "password": "Mirror@12420",
+      "name": "Balaji Peruri (Dealer)",
+      "username": "balaji",
+      "email": "balaji.dealer@mirrorsolar.in",
+      "updatedAt": "2026-10-07T06:16:39.342Z",
+      "status": "Inactive",
+      "phone": "9182612420"
+    }
+  },
+  {
+    "id": "dealer_hussain",
+    "data": {
+      "email": "hussain@dealer.in",
+      "name": "Hussain",
+      "phone": "9100309431",
+      "status": "Active",
+      "updatedAt": "2026-10-07T06:16:39.216Z",
+      "id": "dealer_hussain",
+      "address": "Kurnool",
+      "username": "hussain",
+      "role": "Dealer",
+      "permissions": {
+        "stock": "view",
+        "employees": "none",
+        "leads": "edit",
+        "dealers": "none",
+        "access": "none",
+        "reports": "none",
+        "profile": "edit",
+        "dashboard": "view"
+      },
+      "password": "Mirror@9431",
+      "initials": "HU"
+    }
+  },
+  {
+    "id": "emp_gopal",
+    "data": {
+      "password": "Mirror@2026",
+      "name": "Sai Gopal",
+      "username": "gopal",
+      "permissions": {
+        "dashboard": "view",
+        "profile": "edit",
+        "reports": "none",
+        "leads": "view",
+        "access": "none",
+        "employees": "none",
+        "stock": "edit",
+        "dealers": "none"
+      },
+      "email": "gopal.mirrorsolarvision@gmail.com",
+      "status": "Active",
+      "phone": "9876543210",
+      "role": "Employee",
+      "employeeId": "MSV-EMP-003",
+      "id": "emp_gopal",
+      "updatedAt": "2026-10-07T06:16:39.095Z",
+      "initials": "SG",
+      "employeeCategory": "Stock Incharge"
+    }
+  },
+  {
+    "id": "emp_kumari",
+    "data": {
+      "employeeId": "MSV-KUMARI-001",
+      "name": "Kumari",
+      "phone": "7670920748",
+      "email": "kumari.mirrorsolarvision@gmail.com",
+      "employeeCategory": "PM Surya Ghar Work Incharge",
+      "initials": "KU",
+      "id": "emp_kumari",
+      "status": "Active",
+      "permissions": {
+        "dealers": "none",
+        "employees": "none",
+        "stock": "view",
+        "profile": "edit",
+        "reports": "none",
+        "leads": "edit",
+        "access": "none",
+        "dashboard": "view"
+      },
+      "role": "Employee",
+      "username": "kumari",
+      "updatedAt": "2026-10-07T06:16:38.984Z",
+      "password": "Mirror@0748"
+    }
+  },
+  {
+    "id": "emp_siva",
+    "data": {
+      "id": "emp_siva",
+      "updatedAt": "2026-10-08T04:01:56.815Z",
+      "email": "siva.mirrorsolarvision@gmail.com",
+      "employeeId": "MSV-SIVA-001",
+      "phone": "8985141432",
+      "role": "Employee",
+      "initials": "SS",
+      "employeeCategory": "Marketing Employee",
+      "permissions": {
+        "reports": "none",
+        "profile": "edit",
+        "dashboard": "view",
+        "dealers": "none",
+        "access": "none",
+        "leads": "edit",
+        "employees": "none",
+        "stock": "view"
+      },
+      "name": "Sunkara Siva",
+      "username": "siva",
+      "status": "Active",
+      "password": "Mirror@1432"
+    }
+  },
+  {
+    "id": "gopal_mirrorsolarvision_gmail_com",
+    "data": {
+      "name": "Sai Gopal",
+      "permissions": {
+        "stock": "edit",
+        "dashboard": "view",
+        "leads": "view",
+        "employees": "none",
+        "profile": "edit",
+        "reports": "none",
+        "dealers": "none",
+        "access": "none"
+      },
+      "updatedAt": "2026-10-08T04:01:21.719Z",
+      "status": "Active",
+      "username": "gopal",
+      "employeeId": "MSV-EMP-003",
+      "password": "Mirror@3210",
+      "phone": "9876543210",
+      "email": "gopal.mirrorsolarvision@gmail.com",
+      "employeeCategory": "Stock Incharge",
+      "id": "gopal_mirrorsolarvision_gmail_com",
+      "initials": "SG",
+      "role": "Employee"
+    }
+  },
+  {
+    "id": "hussain_dealer_in",
+    "data": {
+      "username": "hussain",
+      "permissions": {
+        "leads": "edit",
+        "reports": "none",
+        "profile": "edit",
+        "dashboard": "view",
+        "dealers": "none",
+        "stock": "view",
+        "access": "none",
+        "employees": "none"
+      },
+      "phone": "9100309431",
+      "email": "hussain@dealer.in",
+      "password": "Mirror@9431",
+      "initials": "HU",
+      "name": "Hussain",
+      "status": "Active",
+      "id": "hussain_dealer_in",
+      "role": "Dealer",
+      "updatedAt": "2026-10-07T06:15:37.255Z",
+      "address": "Kurnool"
+    }
+  },
+  {
+    "id": "kumari_mirrorsolarvision_gmail_com",
+    "data": {
+      "employeeCategory": "PM Surya Ghar Work Incharge",
+      "role": "Employee",
+      "employeeId": "MSV-KUMARI-001",
+      "initials": "KU",
+      "id": "kumari_mirrorsolarvision_gmail_com",
+      "status": "Active",
+      "permissions": {
+        "employees": "none",
+        "dealers": "none",
+        "reports": "none",
+        "profile": "edit",
+        "access": "none",
+        "dashboard": "view",
+        "leads": "edit",
+        "stock": "view"
+      },
+      "username": "kumari",
+      "name": "Kumari",
+      "updatedAt": "2026-10-07T06:15:35.629Z",
+      "password": "Mirror@0748",
+      "email": "kumari.mirrorsolarvision@gmail.com",
+      "phone": "7670920748"
+    }
+  },
+  {
+    "id": "tLB8hvGPTQXynRLk4fYI1yPeBkF3",
+    "data": {
+      "password": "Mirror@0748",
+      "employeeId": "MSV-KUMARI-001",
+      "lastActive": "Just now",
+      "employeeCategory": "PM Surya Ghar Work Incharge",
+      "name": "Kumari",
+      "status": "Active",
+      "id": "tLB8hvGPTQXynRLk4fYI1yPeBkF3",
+      "initials": "KU",
+      "role": "Employee",
+      "lastPasswordReset": "2026-10-01T05:06:11.860Z",
+      "permissions": {
+        "access": "none",
+        "dashboard": "view",
+        "employees": "none",
+        "leads": "edit",
+        "dealers": "none",
+        "profile": "edit",
+        "reports": "none",
+        "stock": "view"
+      },
+      "phone": "76709 20748",
+      "email": "kumari.mirrorsolarvision@gmail.com"
+    }
+  },
+  {
+    "id": "vNeRWIuQYNayFekfwhImaBnWs4t2",
+    "data": {
+      "phone": "9849810668",
+      "email": "mirroraquaro@gmail.com",
+      "name": "Mirror Aqua Admin",
+      "updatedAt": "2026-10-07T06:15:32.709Z",
+      "id": "vNeRWIuQYNayFekfwhImaBnWs4t2",
+      "status": "Active",
+      "role": "Admin",
+      "permissions": {
+        "profile": "full",
+        "reports": "full",
+        "employees": "full",
+        "dealers": "full",
+        "dashboard": "full",
+        "stock": "full",
+        "access": "full",
+        "leads": "full"
+      },
+      "password": "Mirror@10668",
+      "initials": "MA"
+    }
+  }
+]
