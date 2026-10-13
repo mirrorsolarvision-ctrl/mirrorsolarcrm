@@ -83,8 +83,14 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         cleanDigits === '9849810668' || 
         cleanLower === '9849810668'
       ) {
+        const validPass = inputPass === 'Mirror@10668' || inputPass === 'Mirror@1432';
+        if (!validPass) {
+          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
+          setIsSigningIn(false);
+          return;
+        }
         const adminUser: CRMUser = {
-          id: 'admin_mirroraquaro_gmail_com',
+          id: 'vNeRWIuQYNayFekfwhImaBnWs4t2',
           name: 'Mirror Aqua Admin',
           email: 'mirroraquaro@gmail.com',
           phone: '9849810668',
@@ -104,8 +110,14 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         cleanDigits === '9182612420' || 
         cleanLower === '9182612420'
       ) {
+        const validPass = inputPass === 'Mirror@12420' || inputPass === 'mirror@1432' || inputPass === 'Mirror@1432';
+        if (!validPass) {
+          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
+          setIsSigningIn(false);
+          return;
+        }
         const adminUser: CRMUser = {
-          id: 'admin_balajiperuri09_gmail_com',
+          id: 'balajiperuri09_gmail_com',
           name: 'Balaji Peruri (Admin)',
           email: 'balajiperuri09@gmail.com',
           phone: '9182612420',
@@ -125,8 +137,14 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         (role === 'Admin' || cleanLower === 'admin' || cleanLower === 'msvadmin') && 
         (cleanLower === 'admin@mirrorsolar.in' || cleanLower === 'admin' || cleanLower === 'msvadmin' || cleanLower === 'mirrorsolarvision@gmail.com')
       ) {
+        const validPass = inputPass === 'MirrorAdmin@2025' || inputPass === 'Mirror@10668' || inputPass === 'Mirror@1432';
+        if (!validPass) {
+          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
+          setIsSigningIn(false);
+          return;
+        }
         const adminUser: CRMUser = {
-          id: 'admin_mirrorsolarvision',
+          id: 'vNeRWIuQYNayFekfwhImaBnWs4t2',
           name: 'Mirror Solar Admin',
           email: 'mirroraquaro@gmail.com',
           phone: '9849810668',
