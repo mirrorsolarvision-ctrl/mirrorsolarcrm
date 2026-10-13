@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
+import { dispatchToast } from './UIContext';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -1012,7 +1013,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await addDoc(collection(db, 'leads'), cleanPayload);
     } catch (err: any) {
       console.error("Error adding lead:", err);
-      alert(`Failed to save lead to database: ${err.message || String(err)}`);
+      dispatchToast(`Failed to save lead: ${err.message || String(err)}`, 'error');
       throw err;
     }
   };
@@ -1024,7 +1025,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log("Successfully updated lead in Firestore", cleanUpdates);
     } catch (err: any) {
       console.error("Error updating lead:", err);
-      alert(`Firestore Update Failed: ${err.message || String(err)}`);
+      dispatchToast(`Firestore Update Failed: ${err.message || String(err)}`, 'error');
       throw err;
     }
   };

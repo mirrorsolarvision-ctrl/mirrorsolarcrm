@@ -40,6 +40,11 @@ import {
   copyDocumentLink, 
   formatDownloadFileName 
 } from './utils/documentUtils';
+import { 
+  generateQuotationWhatsAppMessage, 
+  getWhatsAppDirectUrl, 
+  normalizePhoneForWhatsApp 
+} from './utils/whatsappTemplates';
 import './LeadsPage.css';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
@@ -158,6 +163,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
   const [recordPaymentModalType, setRecordPaymentModalType] = useState<PaymentRecordModalType>('customer_to_vendor');
   const [recordPaymentModalLeadId, setRecordPaymentModalLeadId] = useState<string>('');
+
+  // Mobile Pull-to-refresh & WhatsApp Proposal Engine states
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showWhatsAppProposalModal, setShowWhatsAppProposalModal] = useState(false);
+  const [whatsAppLead, setWhatsAppLead] = useState<MockLead | null>(null);
+  const [proposalKw, setProposalKw] = useState(3);
 
   // Document management state
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -641,6 +652,29 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     // 1. Check if moving to Installation stage and requires Admin Approval
     if (newStage === 'Installation' && selectedLead.installationApprovalStatus !== 'Approved') {
       if (isAdmin) {
+        // Automatically deduct material stock if specifications exist
+        if (selectedLead.dealerSpecifications && selectedLead.dealer) {
+          deductDealerStockForLeadMaterial(
+            selectedLead.id,
+            selectedLead.customer,
+            selectedLead.dealer,
+            selectedLead.dealerSpecifications,
+            currentUser?.name || 'Admin'
+          ).then(deductionRes => {
+            if (deductionRes?.deductedSummary && deductionRes.deductedSummary !== 'No material quantities specified') {
+              addActivity({
+                type: 'Stock Consumed',
+                message: `Material stock automatically deducted for ${selectedLead.customer} (${selectedLead.dealer}): ${deductionRes.deductedSummary}`,
+                user: currentUser?.name || 'Admin',
+                dealer: selectedLead.dealer,
+                leadId: selectedLead.id
+              });
+            }
+          }).catch(err => {
+            console.warn("Stock deduction error:", err);
+          });
+        }
+
         // Admin directly approves
         updateLead(selectedLead.id, { 
           stage: 'Installation',
@@ -653,7 +687,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           dealer: selectedLead.dealer,
           leadId: selectedLead.id
         });
-        showToast(`Installation approved & moved to Installation stage`, 'success');
+        showToast(`Installation approved & materials deducted for ${selectedLead.customer}`, 'success');
         setSelectedLead({ ...selectedLead, stage: 'Installation', installationApprovalStatus: 'Approved' });
         return;
       } else {
@@ -1300,11 +1334,30 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         title="Leads & Project Pipeline"
         subtitle="Track customer inquiries, manage stage progress, and follow up on solar opportunities."
         actions={
-          canManageModule(currentUser, 'leads') && (
-            <button type="button" className="btn-hero-primary" onClick={() => setShowAddModal(true)}>
-              <Plus size={18} /> Add Lead
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <button 
+              type="button" 
+              className="btn-outline" 
+              onClick={() => {
+                setIsRefreshing(true);
+                showToast('Syncing live leads from database...', 'info');
+                setTimeout(() => {
+                  setIsRefreshing(false);
+                  showToast('✓ Leads synchronized!', 'success');
+                }, 600);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 0.85rem' }}
+              title="Sync live leads"
+            >
+              <RefreshCw size={15} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+              <span className="hide-on-mobile">Sync</span>
             </button>
-          )
+            {canManageModule(currentUser, 'leads') && (
+              <button type="button" className="btn-hero-primary" onClick={() => setShowAddModal(true)}>
+                <Plus size={18} /> Add Lead
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -1737,16 +1790,18 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     >
                       <Phone size={14} /> <span className="hide-on-mobile">Call</span>
                     </a>
-                    <a 
-                      href={`https://wa.me/${selectedLead.phone.replace(/[^0-9]/g, '')}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setWhatsAppLead(selectedLead);
+                        setShowWhatsAppProposalModal(true);
+                      }}
                       className="btn-outline drawer-quick-btn"
-                      style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#16a34a', borderColor: '#86efac', textDecoration: 'none'}}
-                      title="WhatsApp Customer"
+                      style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#16a34a', borderColor: '#86efac', background: '#f0fdf4', cursor: 'pointer'}}
+                      title="Send WhatsApp Proposal or Chat"
                     >
                       <MessageSquare size={14} /> <span className="hide-on-mobile">WhatsApp</span>
-                    </a>
+                    </button>
                   </>
                 )}
                 <button 
@@ -3631,6 +3686,155 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <div className="modal-actions">
               <button className="btn-outline" onClick={() => setShowLostModal(false)}>Cancel</button>
               <button className="btn-primary" style={{background: '#ef4444', borderColor: '#ef4444'}} onClick={handleMarkLost} disabled={!lostReason}>Mark Lost</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 Smart WhatsApp Proposal & Quick Dispatch Modal */}
+      {showWhatsAppProposalModal && whatsAppLead && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '560px', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.25rem' }}>WhatsApp Proposal Engine</h2>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>Customer: <strong>{whatsAppLead.customer}</strong> ({whatsAppLead.phone})</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowWhatsAppProposalModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.3rem' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Proposal Configuration Card */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>System Capacity:</span>
+                <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '1.1rem' }}>{proposalKw} kW On-Grid</span>
+              </div>
+              <input 
+                type="range" 
+                min="1" 
+                max="10" 
+                step="0.5" 
+                value={proposalKw} 
+                onChange={(e) => setProposalKw(parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer', marginBottom: '0.75rem' }} 
+              />
+              
+              {/* Financial Snapshot */}
+              {(() => {
+                const costPerKw = proposalKw <= 3 ? 65000 : 58000;
+                const totalCost = Math.round(proposalKw * costPerKw);
+                let subsidy = 0;
+                if (proposalKw <= 1) subsidy = 30000;
+                else if (proposalKw <= 2) subsidy = 60000;
+                else subsidy = 78000;
+                const netPayable = Math.max(0, totalCost - subsidy);
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: '#ffffff', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Cost</div>
+                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>₹{totalCost.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>DBT Subsidy</div>
+                      <div style={{ fontWeight: 700, color: '#16a34a', fontSize: '0.9rem' }}>₹{subsidy.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#0284c7' }}>Net Payable</div>
+                      <div style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.95rem' }}>₹{netPayable.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Quick Dispatch Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ background: '#16a34a', borderColor: '#16a34a', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: 600 }}
+                onClick={() => {
+                  const costPerKw = proposalKw <= 3 ? 65000 : 58000;
+                  const grandTotal = Math.round(proposalKw * costPerKw);
+                  let subsidyAmount = 0;
+                  if (proposalKw <= 1) subsidyAmount = 30000;
+                  else if (proposalKw <= 2) subsidyAmount = 60000;
+                  else subsidyAmount = 78000;
+                  const netPayable = Math.max(0, grandTotal - subsidyAmount);
+                  const monthlySavings = Math.round(proposalKw * 4.3 * 30 * 7.5);
+
+                  const message = generateQuotationWhatsAppMessage({
+                    customerName: whatsAppLead.customer,
+                    customerPhone: whatsAppLead.phone,
+                    capacityKw: proposalKw,
+                    grandTotal,
+                    subsidyAmount,
+                    netPayable,
+                    monthlySavings,
+                    dealerName: whatsAppLead.dealer || 'Mirror Solar Vision'
+                  });
+
+                  const url = getWhatsAppDirectUrl(whatsAppLead.phone, message);
+                  window.open(url, '_blank');
+                  addActivity({
+                    type: 'WhatsApp Sent',
+                    message: `Sent ${proposalKw} kW Solar Proposal via WhatsApp to ${whatsAppLead.customer}`,
+                    user: currentUser?.name || 'Staff',
+                    dealer: whatsAppLead.dealer,
+                    leadId: whatsAppLead.id
+                  });
+                  showToast(`✓ Proposal opened in WhatsApp!`, 'success');
+                  setShowWhatsAppProposalModal(false);
+                }}
+              >
+                <Send size={18} /> Send Official Proposal on WhatsApp
+              </button>
+
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#0f172a' }}
+                onClick={() => {
+                  const greeting = `Hello *${whatsAppLead.customer}*,\n\nThank you for reaching out to *Mirror Solar Vision*. We received your inquiry regarding rooftop solar installation.\n\nCould you please let us know a convenient time for a quick 5-minute call or rooftop survey?\n\nWarm regards,\n*Mirror Solar Vision Team*\n📞 Call/WhatsApp: +91 98498 20668`;
+                  const url = getWhatsAppDirectUrl(whatsAppLead.phone, greeting);
+                  window.open(url, '_blank');
+                  showToast(`✓ Greeting opened in WhatsApp!`, 'success');
+                  setShowWhatsAppProposalModal(false);
+                }}
+              >
+                <MessageSquare size={16} /> Send Quick Greeting / Introduction
+              </button>
+
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#0284c7', borderColor: '#bae6fd' }}
+                onClick={() => {
+                  const surveyMsg = `Hello *${whatsAppLead.customer}*,\n\nOur technical solar engineer is scheduled for your rooftop site survey & structure inspection.\n\n📍 Location: ${whatsAppLead.location || 'Your Site'}\n\nPlease reply to confirm if you will be available.\n\n*Mirror Solar Vision*`;
+                  const url = getWhatsAppDirectUrl(whatsAppLead.phone, surveyMsg);
+                  window.open(url, '_blank');
+                  showToast(`✓ Survey message opened in WhatsApp!`, 'success');
+                  setShowWhatsAppProposalModal(false);
+                }}
+              >
+                <Calendar size={16} /> Send Rooftop Survey Confirmation
+              </button>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '1.25rem' }}>
+              <button type="button" className="btn-outline" onClick={() => setShowWhatsAppProposalModal(false)}>Close</button>
             </div>
           </div>
         </div>

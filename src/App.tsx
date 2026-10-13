@@ -6,6 +6,7 @@ import './App.css';
 import RouteLoadingFallback from './components/RouteLoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
 import WhatsAppBuddy from './components/WhatsAppBuddy';
+import VersionUpdateBanner from './components/VersionUpdateBanner';
 
 // Lazy-loaded top-level views for rapid initial startup
 const RoleSelection = lazy(() => import('./RoleSelection'));
@@ -228,6 +229,9 @@ function AppContent() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+
+      {/* Auto-Update & Cache Refresher Banner */}
+      <VersionUpdateBanner />
 
       {/* Persistent WhatsApp Buddy Floating Copilot */}
       {authUser && <WhatsAppBuddy />}

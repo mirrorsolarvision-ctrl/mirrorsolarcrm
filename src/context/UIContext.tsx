@@ -28,6 +28,12 @@ interface UIContextType {
   ) => void;
 }
 
+export const dispatchToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('app:toast', { detail: { message, type } }));
+  }
+};
+
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -53,6 +59,17 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }, 400); // 400ms matches CSS exit duration
     }, 3000);
   };
+
+  React.useEffect(() => {
+    const handleGlobalToast = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string; type?: 'success' | 'error' | 'info' | 'warning' }>;
+      if (customEvent.detail?.message) {
+        showToast(customEvent.detail.message, customEvent.detail.type || 'info');
+      }
+    };
+    window.addEventListener('app:toast', handleGlobalToast);
+    return () => window.removeEventListener('app:toast', handleGlobalToast);
+  }, []);
 
   const showConfirmModal = (
     title: string,
