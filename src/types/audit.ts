@@ -18,6 +18,13 @@ export type AuditAction =
   | 'ATTENDANCE_CHECK_IN'
   | 'ATTENDANCE_CHECK_OUT'
   | 'ATTENDANCE_CORRECTED'
+  | 'LEAVE_REQUESTED'
+  | 'LEAVE_REVIEWED'
+  | 'SALARY_CONFIG_UPDATED'
+  | 'ADVANCE_DISBURSED'
+  | 'ADVANCE_RECOVERED'
+  | 'PAYROLL_SAVED'
+  | 'PAYROLL_DISBURSED'
   | 'CUSTOMER_DATA_CHANGED'
   | 'USER_LOGIN'
   | 'USER_LOGOUT';
@@ -28,6 +35,7 @@ export type EntityType =
   | 'Customer'
   | 'Inventory'
   | 'Attendance'
+  | 'Payroll'
   | 'User'
   | 'Permission'
   | 'Payment';

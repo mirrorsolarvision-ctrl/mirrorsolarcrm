@@ -6,9 +6,11 @@ import {
   TrendingUp, Activity, AlertCircle, ArrowRight,
   UserPlus, CheckCircle2, Sun, Wallet, CheckCircle, PieChart,
   CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck,
-  FileText, Megaphone, History, Award
+  FileText, Megaphone, History, Award, Plus
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
+import PageHero from './components/PageHero';
+import { formatCustomerCode } from './utils/idUtils';
 import './AdminDashboard.css';
 
 import RouteLoadingFallback from './components/RouteLoadingFallback';
@@ -25,6 +27,7 @@ const TasksPage = lazy(() => import('./TasksPage'));
 const CalendarPage = lazy(() => import('./CalendarPage'));
 const PaymentsPage = lazy(() => import('./PaymentsPage'));
 const MilestonesPage = lazy(() => import('./MilestonesPage'));
+const AdminPayrollPage = lazy(() => import('./pages/AdminPayrollPage'));
 
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
@@ -278,6 +281,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     { name: 'Quotations', icon: <FileText size={20} /> },
     { name: 'Users & Access', icon: <Users size={20} /> },
     { name: 'Attendance', icon: <UserCheck size={20} /> },
+    { name: 'Payroll & Advance', icon: <Wallet size={20} /> },
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
     { name: 'Milestones', icon: <Award size={20} /> },
@@ -438,6 +442,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               />
             ) : activeTab === 'Attendance' ? (
               <AdminAttendancePage />
+            ) : activeTab === 'Payroll & Advance' || activeTab === 'Payroll' ? (
+              <AdminPayrollPage />
             ) : activeTab === 'Leads' ? (
               <LeadsPage />
             ) : activeTab === 'Payments' ? (
@@ -451,12 +457,24 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
             ) : activeTab === 'Calendar' ? (
               <CalendarPage onNavigate={handleNavClick} />
             ) : (
-            <div className="dashboard-content">
-              <div className={`welcome-section ${stageAnimation >= 3 ? 'reveal' : ''}`}>
-                <h1>Good morning, Admin</h1>
-                <div className="welcome-accent"></div>
-                <p>Here’s what’s happening across your solar operations today.</p>
-              </div>
+            <div className="dashboard-page-container">
+              <PageHero
+                badge="Solar Command Center"
+                icon={<Activity size={24} />}
+                title={`Welcome back, ${currentUser?.name || 'Admin'}`}
+                subtitle="Live solar pipeline metrics, material allocations, and staff operations."
+                actions={
+                  <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <button className="btn-hero-secondary" onClick={() => handleNavClick('Quotations')}>
+                      <FileText size={16} /> Quotations
+                    </button>
+                    <button className="btn-hero-primary" onClick={() => handleNavClick('Leads')}>
+                      <Plus size={16} /> View Leads
+                    </button>
+                  </div>
+                }
+              />
+              <div className="dashboard-content">
 
           <div className={`overview-grid ${stageAnimation >= 4 ? 'reveal' : ''}`}>
             <div className="overview-card interactive-card" style={{animationDelay: '0s'}} onClick={() => handleNavClick('Leads')}>
@@ -906,7 +924,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
             </div>
           </div>
         </div>
-        )}
+      </div>
+      )}
           </Suspense>
         </ErrorBoundary>
       </main>
@@ -924,7 +943,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
             <div className="lead-detail-content">
               <div className="detail-group">
                 <span className="detail-value text-xl font-semibold text-navy">{selectedLead.customer}</span>
-                <span className="detail-label">Lead ID: {selectedLead.id}</span>
+                <span className="detail-label">Customer ID: {formatCustomerCode(selectedLead)}</span>
               </div>
               
               <div className="detail-group">

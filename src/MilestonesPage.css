@@ -992,8 +992,11 @@
 
 @media (max-width: 900px) {
   .milestones-page {
-    padding: 1rem;
+    padding: 1rem 1rem 6.5rem 1rem !important;
     gap: 1rem;
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
   }
 
   .mandatory-milestone-banner {
@@ -1039,5 +1042,12 @@
 
   .payout-distribution-row {
     grid-template-columns: 1fr;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .milestones-page {
+    padding: 0.85rem 0.75rem 7rem 0.75rem !important;
   }
 }

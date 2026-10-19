@@ -18,6 +18,7 @@ import type {
 import { useUI } from './context/UIContext';
 import { uploadFileToStorage } from './utils/cloudStorageUtils';
 import PageHero from './components/PageHero';
+import { isLeadAssignedToEmployee, isSuryaGharEmployee } from './utils/employeeCalculations';
 import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
 import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
 import './PaymentsPage.css';
@@ -41,6 +42,8 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
 
   const isAdmin = currentUser?.role === 'Admin';
   const isDealer = currentUser?.role === 'Dealer';
+  const isEmployee = currentUser?.role === 'Employee';
+  const isSuryaGhar = isEmployee && isSuryaGharEmployee(currentUser);
 
   // Primary Tab: 'customer_to_admin' | 'admin_to_dealer' | 'overview'
   const [activePaymentTab, setActivePaymentTab] = useState<'customer_to_admin' | 'admin_to_dealer' | 'overview'>('customer_to_admin');
@@ -111,24 +114,33 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
   const [showProofLightbox, setShowProofLightbox] = useState(false);
   const [activeProof, setActiveProof] = useState<{ url: string; fileName: string; title: string } | null>(null);
 
-  // Eligible Leads for Admin to Dealer milestone payouts (Converted stage or beyond)
-  const eligibleDealerLeads = useMemo(() => {
-    return leads.filter(l => {
-      if (isDealer && l.dealer !== currentUser?.name) return false;
-      if (l.archived) return false;
-      const isConvertedOrBeyond = l.stage === 'Converted' || l.stage === 'Loan' || l.stage === 'Material' || l.stage === 'Installation' || l.stage === 'Completed';
-      return isConvertedOrBeyond;
-    });
-  }, [leads, isDealer, currentUser]);
-
-  // All accessible leads for Customer Payments (all active leads Dealer / Admin can access)
+  // All accessible leads for Customer Payments (Strict individual data scoping)
   const accessibleLeads = useMemo(() => {
     return leads.filter(l => {
-      if (isDealer && l.dealer !== currentUser?.name) return false;
       if (l.archived) return false;
+      if (isDealer) {
+        const curName = (currentUser?.name || '').trim().toLowerCase();
+        const curId = (currentUser?.id || '').trim().toLowerCase();
+        const dlr = (l.dealer || '').trim().toLowerCase();
+        const dlrId = (l.dealerId || '').trim().toLowerCase();
+        const createdBy = (l.createdBy || '').trim().toLowerCase();
+        const matchesDealer = (dlr && (dlr === curName || dlr.includes(curName) || curName.includes(dlr))) ||
+                              (dlrId && dlrId === curId) ||
+                              (createdBy && (createdBy === curId || createdBy === curName));
+        if (!matchesDealer) return false;
+      } else if (isEmployee && !isSuryaGhar) {
+        if (!isLeadAssignedToEmployee(currentUser, l)) return false;
+      }
       return true;
     });
-  }, [leads, isDealer, currentUser]);
+  }, [leads, isDealer, isEmployee, isSuryaGhar, currentUser]);
+
+  // Eligible Leads for Admin to Dealer milestone payouts (Converted stage or beyond)
+  const eligibleDealerLeads = useMemo(() => {
+    return accessibleLeads.filter(l => {
+      return l.stage === 'Converted' || l.stage === 'Loan' || l.stage === 'Material' || l.stage === 'Installation' || l.stage === 'Completed';
+    });
+  }, [accessibleLeads]);
 
   // Synchronize modal targets if leads update in real-time
   useEffect(() => {

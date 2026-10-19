@@ -19,6 +19,7 @@ import { useQuotations } from '../context/QuotationContext';
 import { useCRM } from '../context/CRMContext';
 import { useUI } from '../context/UIContext';
 import logoUrl from '../assets/mirrorsolarlogo.png';
+import { formatCustomerCode } from '../utils/idUtils';
 import SolarRoiCalculatorModal from './SolarRoiCalculatorModal';
 import WhatsAppDispatchModal from './WhatsAppDispatchModal';
 import './QuotationEditor.css';
@@ -350,27 +351,11 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
           <div className="qe-topbar-actions">
             <button 
               type="button" 
-              className="btn-hero-secondary qe-roi-btn" 
-              onClick={() => setShowRoiModal(true)}
-              title="Calculate solar generation, monthly savings & 25-yr ROI"
+              className="btn-hero-primary qe-finalize-btn" 
+              onClick={() => handleSave(true)} 
+              disabled={isSubmitting}
             >
-              <Zap size={15} color="#f59e0b" /> <span>Solar ROI</span>
-            </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary qe-whatsapp-btn" 
-              onClick={() => setShowWhatsAppModal(true)}
-              title="Share quotation proposal directly on WhatsApp"
-            >
-              <Share2 size={15} /> <span>Send WhatsApp</span>
-            </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary" 
-              onClick={handlePrint}
-              title="Save or print official A4 PDF Bill-Book Proposal"
-            >
-              <Printer size={15} /> <span>Save / Print A4 PDF</span>
+              <CheckCircle2 size={16} /> Finalize Quotation
             </button>
             <button 
               type="button" 
@@ -382,11 +367,27 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
             </button>
             <button 
               type="button" 
-              className="btn-hero-primary" 
-              onClick={() => handleSave(true)} 
-              disabled={isSubmitting}
+              className="btn-hero-secondary" 
+              onClick={handlePrint}
+              title="Save or print official A4 PDF Bill-Book Proposal"
             >
-              <CheckCircle2 size={16} /> Finalize Quotation
+              <Printer size={15} /> <span>Print A4 PDF</span>
+            </button>
+            <button 
+              type="button" 
+              className="btn-hero-secondary qe-whatsapp-btn" 
+              onClick={() => setShowWhatsAppModal(true)}
+              title="Share quotation proposal directly on WhatsApp"
+            >
+              <Share2 size={15} /> <span>Send WhatsApp</span>
+            </button>
+            <button 
+              type="button" 
+              className="btn-hero-secondary qe-roi-btn" 
+              onClick={() => setShowRoiModal(true)}
+              title="Calculate solar generation, monthly savings & 25-yr ROI"
+            >
+              <Zap size={15} color="#f59e0b" /> <span>Solar ROI</span>
             </button>
             <button 
               type="button" 
@@ -473,7 +474,7 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                     <option value="">-- Choose a lead --</option>
                     {leads.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.customer} ({l.id}) - {l.dealer} • {l.location}
+                        {l.customer} ({formatCustomerCode(l)}) - {l.dealer} • {l.location}
                       </option>
                     ))}
                   </select>
@@ -491,7 +492,7 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                     autoComplete="name"
                     value={customer.customerName} 
                     onChange={(e) => setCustomer({ ...customer, customerName: e.target.value })}
-                    placeholder="e.g. Balaji Rao"
+                    placeholder="Customer Name"
                   />
                 </div>
                 <div className="qe-input-group">
@@ -519,6 +520,30 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                   />
                 </div>
                 <div className="qe-input-group">
+                  <label htmlFor="qeCity">City / Town *</label>
+                  <input 
+                    id="qeCity"
+                    name="city"
+                    type="text" 
+                    autoComplete="address-level2"
+                    value={customer.city} 
+                    onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
+                    placeholder="e.g. Vijayawada / Hyderabad"
+                  />
+                </div>
+                <div className="qe-input-group">
+                  <label htmlFor="qePinCode">PIN Code</label>
+                  <input 
+                    id="qePinCode"
+                    name="pinCode"
+                    type="text" 
+                    autoComplete="postal-code"
+                    value={customer.pinCode} 
+                    onChange={(e) => setCustomer({ ...customer, pinCode: e.target.value })}
+                    placeholder="500081"
+                  />
+                </div>
+                <div className="qe-input-group">
                   <label htmlFor="qeCustomerType">Customer Type</label>
                   <select 
                     id="qeCustomerType"
@@ -533,7 +558,7 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                     <option value="Institutional">Institutional</option>
                   </select>
                 </div>
-                <div className="qe-input-group qe-col-span-2">
+                <div className="qe-input-group qe-col-span-3">
                   <label htmlFor="qeAddress">Site / Installation Address</label>
                   <input 
                     id="qeAddress"
@@ -543,29 +568,6 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                     value={customer.address} 
                     onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
                     placeholder="House/Plot No, Street, Landmark"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeCity">City / Town</label>
-                  <input 
-                    id="qeCity"
-                    name="city"
-                    type="text" 
-                    autoComplete="address-level2"
-                    value={customer.city} 
-                    onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qePinCode">PIN Code</label>
-                  <input 
-                    id="qePinCode"
-                    name="pinCode"
-                    type="text" 
-                    autoComplete="postal-code"
-                    value={customer.pinCode} 
-                    onChange={(e) => setCustomer({ ...customer, pinCode: e.target.value })}
-                    placeholder="500081"
                   />
                 </div>
               </div>
@@ -800,6 +802,118 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Touch-Friendly Card View (Zero horizontal scroll lag) */}
+              <div className="qe-bom-cards-list">
+                {items.map((item, idx) => (
+                  <div key={item.id} className="qe-bom-item-card">
+                    <div className="qe-bic-header">
+                      <div className="qe-bic-num-name">
+                        <span className="qe-bic-idx">#{idx + 1}</span>
+                        <input 
+                          type="text" 
+                          className="qe-bic-name-input font-bold" 
+                          value={item.name} 
+                          onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                          placeholder="Item Name"
+                        />
+                      </div>
+                      <button 
+                        type="button"
+                        className="qe-bic-del-btn" 
+                        title="Delete Item" 
+                        onClick={() => handleDeleteItem(idx)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+
+                    <div className="qe-bic-body">
+                      <div className="qe-bic-specs-row">
+                        <select 
+                          value={item.category} 
+                          onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
+                          className="qe-bic-cat-select"
+                        >
+                          <option value="Solar Panel">Solar Panel</option>
+                          <option value="Inverter">Inverter</option>
+                          <option value="Structure">Structure</option>
+                          <option value="DC Cable">DC Cable</option>
+                          <option value="AC Cable">AC Cable</option>
+                          <option value="Earthing & Lightning">Earthing & LA</option>
+                          <option value="ACDB & DCDB">ACDB / DCDB</option>
+                          <option value="Battery Storage">Battery Storage</option>
+                          <option value="Installation & Commissioning">Installation</option>
+                          <option value="Transportation & Logistics">Transportation</option>
+                          <option value="Civil Works & Foundation">Civil Works</option>
+                          <option value="Accessories">Accessories</option>
+                          <option value="Custom Item">Custom Item</option>
+                        </select>
+                        <input 
+                          type="text" 
+                          className="qe-bic-brand-input" 
+                          value={item.brand || ''} 
+                          onChange={(e) => handleItemChange(idx, 'brand', e.target.value)}
+                          placeholder="Brand / Model / Specs"
+                        />
+                      </div>
+
+                      <div className="qe-bic-qty-row">
+                        <div className="qe-bic-stepper">
+                          <span className="qe-bic-stepper-lbl">Qty:</span>
+                          <button 
+                            type="button" 
+                            className="qe-bic-step-btn" 
+                            onClick={() => handleItemChange(idx, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
+                          >
+                            -
+                          </button>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            className="qe-bic-qty-input" 
+                            value={item.quantity} 
+                            onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value) || 1)}
+                          />
+                          <button 
+                            type="button" 
+                            className="qe-bic-step-btn" 
+                            onClick={() => handleItemChange(idx, 'quantity', (item.quantity || 1) + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <select 
+                          value={item.unit} 
+                          onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
+                          className="qe-bic-unit-select"
+                        >
+                          <option value="Nos">Nos</option>
+                          <option value="Watts">Watts</option>
+                          <option value="kW">kW</option>
+                          <option value="Sets">Sets</option>
+                          <option value="Meters">Meters</option>
+                          <option value="Lots">Lots</option>
+                          <option value="Unit">Unit</option>
+                        </select>
+
+                        <div className="qe-bic-move-acts">
+                          <button title="Move Up" onClick={() => handleMoveItem(idx, 'up')} disabled={idx === 0}>
+                            <ArrowUp size={13} />
+                          </button>
+                          <button title="Move Down" onClick={() => handleMoveItem(idx, 'down')} disabled={idx === items.length - 1}>
+                            <ArrowDown size={13} />
+                          </button>
+                          <button title="Duplicate" onClick={() => handleDuplicateItem(idx)}>
+                            <Copy size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="qe-add-bar">

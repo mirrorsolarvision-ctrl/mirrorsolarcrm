@@ -4,11 +4,12 @@ import {
   CheckCircle2, Plus, Box, Package, Activity as ActivityIcon,
   CheckSquare, Calendar, Truck, Layers, FileSpreadsheet,
   Sun, UserCheck, ShieldCheck, ArrowRight, Clock, AlertTriangle,
-  FileText, Sparkles, Send, Eye, Award
+  FileText, Sparkles, Send, Eye, Award, Wallet, IndianRupee, CalendarDays
 } from 'lucide-react';
 import { useCRM, STAGES } from '../context/CRMContext';
 import { useStock } from '../context/StockContext';
 import { useAttendance } from '../context/AttendanceContext';
+import { usePayroll } from '../context/PayrollContext';
 import { useUI } from '../context/UIContext';
 import { canAccessRoute, canManageModule } from '../utils/permissionCalculations';
 import { 
@@ -29,7 +30,11 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
     totalItems, availableUnits, lowStockCount, outOfStockCount 
   } = useStock();
   const { todayRecord } = useAttendance();
+  const { getSalaryConfig, getEmployeeOutstandingAdvance } = usePayroll();
   const { showToast, showConfirmModal } = useUI();
+
+  const mySalaryConfig = currentUser ? getSalaryConfig(currentUser.id) : undefined;
+  const myOutstandingAdvance = currentUser ? getEmployeeOutstandingAdvance(currentUser.id) : 0;
 
   const [isUpdatingFollowUp, setIsUpdatingFollowUp] = useState(false);
 
@@ -167,6 +172,55 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
     }
   };
 
+  const renderRemunerationCard = () => (
+    <div style={{
+      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+      border: '1px solid #e2e8f0',
+      borderRadius: '14px',
+      padding: '1.1rem 1.35rem',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '1rem',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(2, 132, 199, 0.25)' }}>
+          <Wallet size={22} />
+        </div>
+        <div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>STAFF REMUNERATION & ATTENDANCE</div>
+          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span>Base Salary: ₹{(mySalaryConfig?.baseSalary || 25000).toLocaleString()}/mo</span>
+            {myOutstandingAdvance > 0 && (
+              <span style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                Active Advance: ₹{myOutstandingAdvance.toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button 
+          className="btn-primary" 
+          onClick={() => onNavigate('/employee/attendance', { tab: 'payroll' })}
+          style={{ fontSize: '0.82rem', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#0284c7', borderColor: '#0284c7', color: '#ffffff', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          <IndianRupee size={15} /> My Salary & Payslips →
+        </button>
+        <button 
+          className="btn-outline" 
+          onClick={() => onNavigate('/employee/attendance')}
+          style={{ fontSize: '0.82rem', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          <CalendarDays size={15} /> Punch & Calendar →
+        </button>
+      </div>
+    </div>
+  );
+
   // ==========================================================================
   // VIEW 1: STOCK INCHARGE DASHBOARD
   // ==========================================================================
@@ -205,6 +259,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
             </div>
           </div>
         )}
+
+        {/* Staff Remuneration & Payslips Hub */}
+        {renderRemunerationCard()}
 
         {/* Stock KPI Summary Cards */}
         <div className="emp-grid-4">
@@ -441,6 +498,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
           </div>
         )}
 
+        {/* Staff Remuneration & Payslips Hub */}
+        {renderRemunerationCard()}
+
         {/* PM Surya Ghar Summary Cards */}
         <div className="emp-grid-4">
           <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads')}>
@@ -620,6 +680,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
           </div>
         </div>
       )}
+
+      {/* Staff Remuneration & Payslips Hub */}
+      {renderRemunerationCard()}
 
       {/* MANDATORY MONTHLY SALES MILESTONE CARD */}
       <div className="emp-monthly-milestone-card" style={{

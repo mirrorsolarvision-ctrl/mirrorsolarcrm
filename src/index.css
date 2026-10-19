@@ -19,6 +19,22 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 14.25px; /* Clean, refined enterprise scaling that tightens all rem values across the entire CRM */
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 13.5px; /* Crisp and proportioned for mobile screens */
+  }
+}
+
+@media (min-width: 1600px) {
+  html {
+    font-size: 15px; /* Refined proportion for large monitors */
+  }
+}
+
 body, html {
   margin: 0;
   padding: 0;
@@ -55,13 +71,13 @@ body, html {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1050;
+  z-index: 2500;
   padding: 1rem;
   box-sizing: border-box;
 }
@@ -69,31 +85,32 @@ body, html {
 .modal-content {
   background: #ffffff;
   border-radius: 14px;
-  padding: 2rem;
+  padding: 1.35rem 1.5rem;
   width: 100%;
-  max-width: 520px;
+  max-width: 500px;
   max-height: 90vh;
   max-height: 90dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border: 1px solid #e2e8f0;
   position: relative;
   box-sizing: border-box;
 }
 
-.modal-content h2 {
-  font-size: 1.25rem;
+.modal-content h2,
+.modal-content h3 {
+  font-size: 1.15rem;
   font-weight: 800;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   color: var(--color-navy);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
+  gap: 0.5rem;
+  margin-top: 1.15rem;
   flex-wrap: wrap;
 }
 
@@ -284,54 +301,103 @@ a:focus-visible {
 }
 
 @media (max-width: 768px) {
-  /* Prevent iOS zoom on inputs by ensuring at least 16px font size */
-  input[type="text"],
-  input[type="password"],
-  input[type="email"],
-  input[type="tel"],
-  input[type="date"],
-  input[type="time"],
-  input[type="number"],
-  select,
-  textarea {
-    font-size: 16px !important;
+  /* Fluid typography scaling on mobile devices */
+  h1 { font-size: clamp(1.2rem, 4vw, 1.55rem) !important; line-height: 1.25 !important; }
+  h2 { font-size: clamp(1.05rem, 3.5vw, 1.3rem) !important; line-height: 1.3 !important; }
+  h3 { font-size: clamp(0.92rem, 3vw, 1.15rem) !important; line-height: 1.35 !important; }
+
+  /* Global Container and Card Safety - Zero Horizontal Overflow */
+  .card, .panel, .dashboard-card, .user-hub-card, .payroll-card {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Universal Touch-Accelerated Table Scrolling */
+  .table-responsive, 
+  .payroll-table-wrapper, 
+  .stock-table-wrapper, 
+  .matrix-table-wrap, 
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .modal-overlay {
-    padding: 0.5rem;
-    align-items: flex-end; /* Sheet appearance on mobile */
+    padding: 0.5rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2500 !important;
   }
 
   .modal-content {
-    padding: 1.5rem 1.25rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: 92vh !important;
-    max-height: 92dvh !important;
-    border-radius: 16px 16px 0 0 !important;
-    margin-bottom: 0 !important;
+    padding: 1.15rem 1rem !important;
+    width: 95% !important;
+    max-width: 480px !important;
+    max-height: 88vh !important;
+    max-height: 88dvh !important;
+    border-radius: 14px !important;
+    margin: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-content h2,
+  .modal-content h3 {
+    font-size: 1.05rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  .modal-content p {
+    font-size: 0.82rem !important;
+    margin-bottom: 0.75rem !important;
   }
 
   .form-grid {
     grid-template-columns: 1fr !important;
-    gap: 0.75rem !important;
+    gap: 0.65rem !important;
+  }
+
+  .form-group {
+    gap: 0.25rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.74rem !important;
+    font-weight: 700 !important;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.5rem 0.65rem !important;
+    font-size: 0.86rem !important;
+    min-height: 38px !important;
+    border-radius: 8px !important;
   }
 
   .modal-actions {
-    flex-direction: column-reverse !important;
+    display: flex !important;
+    flex-direction: row !important;
     gap: 0.5rem !important;
-    margin-top: 1.25rem !important;
+    margin-top: 1rem !important;
+    justify-content: flex-end !important;
   }
 
-  .modal-actions button {
-    width: 100% !important;
-    padding: 0.75rem 1rem !important;
+  .modal-actions button,
+  .btn-modal-cancel,
+  .btn-modal-confirm {
+    flex: 1 1 50% !important;
+    width: auto !important;
+    padding: 0.5rem 0.75rem !important;
     justify-content: center !important;
-    min-height: 44px !important;
+    min-height: 38px !important;
+    font-size: 0.82rem !important;
+    border-radius: 8px !important;
   }
 
   .btn-primary, .btn-outline {
-    min-height: 44px; /* Touch-friendly 44px target on mobile */
+    min-height: 38px;
   }
 }
 

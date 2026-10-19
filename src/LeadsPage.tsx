@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, Plus, X, 
   ChevronLeft, ChevronRight, Calendar, 
@@ -45,6 +45,7 @@ import {
   getWhatsAppDirectUrl, 
   normalizePhoneForWhatsApp 
 } from './utils/whatsappTemplates';
+import { formatCustomerCode } from './utils/idUtils';
 import './LeadsPage.css';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
@@ -100,6 +101,50 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   
   const [selectedLead, setSelectedLead] = useState<MockLead | null>(null);
   const [leadDetailTab, setLeadDetailTab] = useState<'overview' | 'specs' | 'docs' | 'financials' | 'activity'>('overview');
+
+  // Mobile Card Slide Carousel state
+  const [mobileViewMode, setMobileViewMode] = useState<'slides' | 'list'>('slides');
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const mobileSliderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setActiveSlideIndex(0);
+    if (mobileSliderRef.current) {
+      mobileSliderRef.current.scrollLeft = 0;
+    }
+  }, [currentPage, stageFilter, priorityFilter, searchQuery, statusFilter]);
+
+  const handleSliderScroll = () => {
+    if (mobileSliderRef.current) {
+      const scrollLeft = mobileSliderRef.current.scrollLeft;
+      const cardWidth = mobileSliderRef.current.offsetWidth * 0.88 + 12;
+      const idx = Math.round(scrollLeft / cardWidth);
+      setActiveSlideIndex(Math.min(Math.max(idx, 0), Math.max(paginatedLeads.length - 1, 0)));
+    }
+  };
+
+  const scrollToSlide = (index: number) => {
+    if (mobileSliderRef.current) {
+      const cardWidth = mobileSliderRef.current.offsetWidth * 0.88 + 12;
+      mobileSliderRef.current.scrollTo({
+        left: index * cardWidth,
+        behavior: 'smooth'
+      });
+      setActiveSlideIndex(index);
+    }
+  };
+
+  const nextSlide = () => {
+    if (activeSlideIndex < paginatedLeads.length - 1) {
+      scrollToSlide(activeSlideIndex + 1);
+    }
+  };
+
+  const prevSlide = () => {
+    if (activeSlideIndex > 0) {
+      scrollToSlide(activeSlideIndex - 1);
+    }
+  };
 
   // Auto-sync open lead details drawer with live real-time Firestore updates
   useEffect(() => {
@@ -1405,7 +1450,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
         {/* SEARCH & FILTERS */}
         <div className="leads-filters">
-          <div className="leads-filters-row">
+          <div className="leads-search-row">
             <div className="search-box">
               <Search size={18} color="#94a3b8" />
               <input 
@@ -1431,90 +1476,115 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 </button>
               )}
             </div>
-            
-            <select 
-              id="leads-filter-leadType"
-              name="leadTypeFilter"
-              aria-label="Filter by Lead Type"
-              className="filter-select" 
-              value={leadTypeFilter} 
-              onChange={e => setLeadTypeFilter(e.target.value)}
-            >
-              <option value="All">All Lead Types</option>
-              <option value="tracking">Tracking Leads</option>
-              <option value="project">Project / Document Leads</option>
-            </select>
+            {(leadTypeFilter !== 'All' || stageFilter !== 'All' || dlrFilter !== 'All' || empFilter !== 'All' || priorityFilter !== 'All' || sortBy !== 'Updated' || searchQuery) && (
+              <button 
+                type="button"
+                className="leads-reset-btn"
+                onClick={handleClearFilters}
+                title="Reset all filters"
+              >
+                <RefreshCw size={13} /> Reset
+              </button>
+            )}
+          </div>
+          
+          {/* Horizontal Slide Bar for Filters Under Search Bar */}
+          <div className="leads-filter-slides">
+            <div className={`filter-slide-item ${leadTypeFilter !== 'All' ? 'active' : ''}`}>
+              <select 
+                id="leads-filter-leadType"
+                name="leadTypeFilter"
+                aria-label="Filter by Lead Type"
+                className="filter-slide-select" 
+                value={leadTypeFilter} 
+                onChange={e => setLeadTypeFilter(e.target.value)}
+              >
+                <option value="All">All Lead Types</option>
+                <option value="tracking">Tracking Leads</option>
+                <option value="project">Project / Document Leads</option>
+              </select>
+            </div>
 
-            <select 
-              id="leads-filter-stage"
-              name="stageFilter"
-              aria-label="Filter by Stage"
-              className="filter-select" 
-              value={stageFilter} 
-              onChange={e => setStageFilter(e.target.value)}
-            >
-              <option value="All">All Stages</option>
-              {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div className={`filter-slide-item ${stageFilter !== 'All' ? 'active' : ''}`}>
+              <select 
+                id="leads-filter-stage"
+                name="stageFilter"
+                aria-label="Filter by Stage"
+                className="filter-slide-select" 
+                value={stageFilter} 
+                onChange={e => setStageFilter(e.target.value)}
+              >
+                <option value="All">All Stages</option>
+                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
 
             {/* Dealer Filter - Visible to Admin & PM Surya Ghar */}
             {isCompanyWideManager && (
-              <select 
-                id="leads-filter-dealer"
-                name="dealerFilter"
-                aria-label="Filter by Dealer"
-                className="filter-select" 
-                value={dlrFilter} 
-                onChange={e => setDlrFilter(e.target.value)}
-              >
-                <option value="All">All Dealers</option>
-                {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
+              <div className={`filter-slide-item ${dlrFilter !== 'All' ? 'active' : ''}`}>
+                <select 
+                  id="leads-filter-dealer"
+                  name="dealerFilter"
+                  aria-label="Filter by Dealer"
+                  className="filter-slide-select" 
+                  value={dlrFilter} 
+                  onChange={e => setDlrFilter(e.target.value)}
+                >
+                  <option value="All">All Dealers</option>
+                  {dealers.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                </select>
+              </div>
             )}
 
             {/* Employee Filter - Visible to Admin & PM Surya Ghar */}
             {isCompanyWideManager && (
-              <select 
-                id="leads-filter-employee"
-                name="employeeFilter"
-                aria-label="Filter by Employee"
-                className="filter-select" 
-                value={empFilter} 
-                onChange={e => setEmpFilter(e.target.value)}
-              >
-                <option value="All">All Employees</option>
-                <option value="Unassigned">Unassigned</option>
-                {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-              </select>
+              <div className={`filter-slide-item ${empFilter !== 'All' ? 'active' : ''}`}>
+                <select 
+                  id="leads-filter-employee"
+                  name="employeeFilter"
+                  aria-label="Filter by Employee"
+                  className="filter-slide-select" 
+                  value={empFilter} 
+                  onChange={e => setEmpFilter(e.target.value)}
+                >
+                  <option value="All">All Employees</option>
+                  <option value="Unassigned">Unassigned</option>
+                  {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                </select>
+              </div>
             )}
 
-            <select 
-              id="leads-filter-priority"
-              name="priorityFilter"
-              aria-label="Filter by Priority"
-              className="filter-select" 
-              value={priorityFilter} 
-              onChange={e => setPriorityFilter(e.target.value)}
-            >
-              <option value="All">All Priorities</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
+            <div className={`filter-slide-item ${priorityFilter !== 'All' ? 'active' : ''}`}>
+              <select 
+                id="leads-filter-priority"
+                name="priorityFilter"
+                aria-label="Filter by Priority"
+                className="filter-slide-select" 
+                value={priorityFilter} 
+                onChange={e => setPriorityFilter(e.target.value)}
+              >
+                <option value="All">All Priorities</option>
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
+              </select>
+            </div>
             
-            <select 
-              id="leads-filter-sortBy"
-              name="sortBy"
-              aria-label="Sort Leads By"
-              className="filter-select" 
-              value={sortBy} 
-              onChange={e => setSortBy(e.target.value)}
-            >
-              <option value="Updated">Recently Updated</option>
-              <option value="Newest">Newest</option>
-              <option value="Oldest">Oldest</option>
-              <option value="Follow-up">Follow-up Date</option>
-            </select>
+            <div className={`filter-slide-item ${sortBy !== 'Updated' ? 'active' : ''}`}>
+              <select 
+                id="leads-filter-sortBy"
+                name="sortBy"
+                aria-label="Sort Leads By"
+                className="filter-slide-select" 
+                value={sortBy} 
+                onChange={e => setSortBy(e.target.value)}
+              >
+                <option value="Updated">Recently Updated</option>
+                <option value="Newest">Newest</option>
+                <option value="Oldest">Oldest</option>
+                <option value="Follow-up">Follow-up Date</option>
+              </select>
+            </div>
           </div>
           
           {/* Active Chips */}
@@ -1566,6 +1636,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                         <div className="customer-info">
                           <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
                             {lead.customer}
+                            <span className="lead-code-pill">{formatCustomerCode(lead)}</span>
                             <span style={{
                               fontSize: '0.65rem', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 600,
                               background: (lead.leadType || 'tracking') === 'project' ? '#e0e7ff' : '#f1f5f9', 
@@ -1638,6 +1709,196 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           </div>
         )}
 
+        {/* MOBILE VIEW: INTERACTIVE CARD SLIDES CAROUSEL & CARDS DECK */}
+        <div className="leads-mobile-container">
+          <div className="leads-mobile-controls-bar">
+            <div className="mobile-slide-counter">
+              <span className="slide-counter-chip">
+                {paginatedLeads.length > 0 
+                  ? `Lead ${activeSlideIndex + 1} of ${paginatedLeads.length}` 
+                  : '0 Leads'}
+              </span>
+              <span className="mobile-page-pill">Page {currentPage} of {totalPages}</span>
+            </div>
+            
+            <div className="mobile-view-actions">
+              <div className="view-mode-pill-group">
+                <button 
+                  type="button" 
+                  className={`btn-mode-pill ${mobileViewMode === 'slides' ? 'active' : ''}`}
+                  onClick={() => setMobileViewMode('slides')}
+                  title="Swipeable Card Slides"
+                >
+                  🎴 Slides
+                </button>
+                <button 
+                  type="button" 
+                  className={`btn-mode-pill ${mobileViewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setMobileViewMode('list')}
+                  title="Stacked Cards List"
+                >
+                  📋 List
+                </button>
+              </div>
+              
+              {mobileViewMode === 'slides' && paginatedLeads.length > 1 && (
+                <div className="slide-nav-arrow-btns">
+                  <button 
+                    type="button" 
+                    className="btn-slide-nav"
+                    onClick={prevSlide}
+                    disabled={activeSlideIndex === 0}
+                    aria-label="Previous Lead"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn-slide-nav"
+                    onClick={nextSlide}
+                    disabled={activeSlideIndex >= paginatedLeads.length - 1}
+                    aria-label="Next Lead"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* SLIDES OR LIST VIEW */}
+          {paginatedLeads.length > 0 ? (
+            <div 
+              ref={mobileSliderRef}
+              onScroll={handleSliderScroll}
+              className={`leads-mobile-deck ${mobileViewMode === 'slides' ? 'is-slider' : 'is-vertical-list'}`}
+            >
+              {paginatedLeads.map((lead, idx) => (
+                <div 
+                  key={lead.id} 
+                  className={`lead-slide-card ${activeSlideIndex === idx && mobileViewMode === 'slides' ? 'active-slide' : ''}`}
+                  onClick={() => setSelectedLead(lead)}
+                >
+                  {/* Top header row */}
+                  <div className="slide-card-header">
+                    <div className="slide-avatar-name">
+                      <div className="slide-avatar">{lead.customer.charAt(0).toUpperCase()}</div>
+                      <div className="slide-name-wrap">
+                        <h4 className="slide-customer-name">
+                          {lead.customer}
+                          <span className="lead-code-pill">{formatCustomerCode(lead)}</span>
+                        </h4>
+                        <div className="slide-tags-row">
+                          <span className={`slide-type-pill ${(lead.leadType || 'tracking') === 'project' ? 'type-project' : 'type-tracking'}`}>
+                            {(lead.leadType || 'tracking') === 'project' ? 'PROJECT' : 'TRACKING'}
+                          </span>
+                          <span className={`slide-priority-pill ${getPriorityClass(lead.priority)}`}>
+                            {lead.priority}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`stage-badge ${getStageBadgeClass(lead.stage)}`}>
+                      {lead.stage}
+                    </span>
+                  </div>
+
+                  {/* Attribution Origin */}
+                  <div className="slide-origin-pill">
+                    {lead.marketingEmployee || lead.sourceMarketingEmployee ? (
+                      <span className="origin-marketer">🧑‍💼 Marketer: {lead.marketingEmployee || lead.sourceMarketingEmployee}</span>
+                    ) : lead.sourceDealer || (lead.dealer && lead.dealer !== 'Direct (Company)') ? (
+                      <span className="origin-dealer">🏢 Dealer: {lead.sourceDealer || lead.dealer}</span>
+                    ) : lead.createdByName && lead.createdByName !== 'User' ? (
+                      <span className="origin-user">👤 Added by: {lead.createdByName}</span>
+                    ) : (
+                      <span className="origin-direct">🏛 Direct Mirror Solar</span>
+                    )}
+                  </div>
+
+                  {/* Details Grid (Dealer, Staff, Follow-up) */}
+                  <div className="slide-details-grid">
+                    {!isDealer && (
+                      <div className="slide-detail-item">
+                        <span className="detail-item-lbl">Dealer</span>
+                        <span className="detail-item-val">{lead.dealer || 'Direct (Company)'}</span>
+                      </div>
+                    )}
+                    {(!isEmployee || isSuryaGhar) && (
+                      <div className="slide-detail-item">
+                        <span className="detail-item-lbl">Assigned Staff</span>
+                        <span className="detail-item-val">{lead.assignedEmployee || 'Unassigned'}</span>
+                      </div>
+                    )}
+                    <div className="slide-detail-item full-width">
+                      <span className="detail-item-lbl">Next Follow-up</span>
+                      <span className="detail-item-val">
+                        {lead.followUp ? (
+                          <span className={`slide-followup-badge ${lead.followUp.status.toLowerCase().replace(' ', '-')}`}>
+                            <Clock size={12} /> {lead.followUp.date} • {lead.followUp.status}
+                          </span>
+                        ) : (
+                          <span className="text-muted">No follow-up scheduled</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fast Contact Actions: Direct Call & Direct WhatsApp */}
+                  <div className="slide-contact-actions" onClick={e => e.stopPropagation()}>
+                    <a 
+                      href={`tel:${lead.phone}`} 
+                      className="btn-slide-contact call-btn"
+                    >
+                      <Phone size={14} /> Call
+                    </a>
+                    <a 
+                      href={getWhatsAppDirectUrl(lead.phone, `Hello ${lead.customer}, this is from Mirror Solar regarding your solar project.`)} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn-slide-contact wa-btn"
+                    >
+                      <MessageSquare size={14} /> WhatsApp
+                    </a>
+                  </div>
+
+                  {/* Primary Tap Target Action */}
+                  <button 
+                    type="button" 
+                    className="btn-slide-open-lead" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedLead(lead);
+                    }}
+                  >
+                    <span>View Complete Lead & Docs</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="leads-mobile-empty">
+              <p>{unassignedLeads.length > 0 ? "No assigned leads found." : "No leads found matching your criteria."}</p>
+            </div>
+          )}
+
+          {/* Carousel Dot Indicators */}
+          {mobileViewMode === 'slides' && paginatedLeads.length > 1 && (
+            <div className="slide-dots-indicator">
+              {paginatedLeads.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`slide-dot ${activeSlideIndex === i ? 'active' : ''}`}
+                  onClick={() => scrollToSlide(i)}
+                  aria-label={`Jump to lead card ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* MAIN TABLE */}
         <div className="leads-table-container">
           <table className="leads-table">
@@ -1661,6 +1922,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       <div className="customer-info">
                         <span className="customer-name" style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
                           {lead.customer}
+                          <span className="lead-code-pill">{formatCustomerCode(lead)}</span>
                           <span style={{
                             fontSize: '0.65rem', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 600,
                             background: (lead.leadType || 'tracking') === 'project' ? '#e0e7ff' : '#f1f5f9', 
@@ -1768,7 +2030,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     </span>
                   </div>
                   <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '2px', fontSize: '0.8rem', color: '#64748b'}}>
-                    <span className="lead-id">{selectedLead.id}</span>
+                    <span className="lead-id">{formatCustomerCode(selectedLead)}</span>
                     {selectedLead.phone && (
                       <span style={{display: 'flex', alignItems: 'center', gap: '0.2rem'}}>
                         • <Phone size={12} /> {selectedLead.phone}
@@ -2350,13 +2612,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               {/* TAB 2: TECHNICAL SPECIFICATIONS                           */}
               {/* ========================================================= */}
               {leadDetailTab === 'specs' && (
-                <div style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  padding: '1.5rem',
-                  boxShadow: '0 4px 12px rgba(11, 31, 58, 0.04)'
-                }}>
+                <div className="specs-tab-container">
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem'}}>
                     <div>
                       <h4 style={{margin: 0, fontSize: '1.05rem', color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
@@ -2672,87 +2928,71 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               {/* ========================================================= */}
               {leadDetailTab === 'docs' && (
                 <div className="detail-section">
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
-                    <div>
-                      <h3 style={{margin: 0, fontSize: '1.2rem', color: '#0b1f3a'}}>Project Documents & Verification</h3>
-                      <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0'}}>
-                        5-Stage lifecycle documentation, KYC, site installation photos, and linked bank/grid paperwork
+                  {/* Executive Documents & Verification Hero Card */}
+                  <div className="doc-section-hero">
+                    <div className="doc-hero-left">
+                      <div className="doc-hero-badge">PROJECT DOCUMENTS & VERIFICATION</div>
+                      <h3 className="doc-hero-title">5-Stage Lifecycle Documentation</h3>
+                      <p className="doc-hero-sub">
+                        KYC, site installation photos, and linked bank/grid paperwork
                       </p>
                     </div>
                     {selectedLead.documents && selectedLead.documents.length > 0 && (
-                      <button className="btn-outline" style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} onClick={() => setShowDownloadSectionModal(true)}>
+                      <button className="doc-hero-dl-btn" onClick={() => setShowDownloadSectionModal(true)}>
                         <Download size={15} /> Download Files ({selectedLead.documents.length})
                       </button>
                     )}
                   </div>
 
-                  {/* 5-Section Category Navigation Pills */}
-                  <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.35rem'}}>
+                  {/* 5-Section Category Horizontal Slides */}
+                  <div className="doc-stage-slides">
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'all' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'all' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'all' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'all' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('all')}
                     >
-                      🌐 All Stages ({ALL_DOCUMENT_TYPES.length})
+                      <span className="doc-pill-icon">🌐</span>
+                      <span>All Stages</span>
+                      <span className="doc-pill-count">({ALL_DOCUMENT_TYPES.length})</span>
                     </button>
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'section1' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'section1' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('section1')}
                     >
-                      📁 1. Dealer KYC ({SECTION_1_DEALER_KYC_DOCS.length})
+                      <span className="doc-pill-icon">📁</span>
+                      <span>1. Dealer KYC</span>
+                      <span className="doc-pill-count">({SECTION_1_DEALER_KYC_DOCS.length})</span>
                     </button>
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'section2' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'section2' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('section2')}
                     >
-                      🏦 2. Bank 1st Payment ({SECTION_2_BANK_FIRST_PAYMENT_DOCS.length})
+                      <span className="doc-pill-icon">🏦</span>
+                      <span>2. Bank 1st Payment</span>
+                      <span className="doc-pill-count">({SECTION_2_BANK_FIRST_PAYMENT_DOCS.length})</span>
                     </button>
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'section3' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'section3' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('section3')}
                     >
-                      ⚡ 3. Site Installation ({SECTION_3_SITE_INSTALLATION_DOCS.length})
+                      <span className="doc-pill-icon">⚡</span>
+                      <span>3. Site Installation</span>
+                      <span className="doc-pill-count">({SECTION_3_SITE_INSTALLATION_DOCS.length})</span>
                     </button>
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'section4' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'section4' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('section4')}
                     >
-                      💳 4. Bank 2nd Payment ({SECTION_4_BANK_SECOND_PAYMENT_DOCS.length})
+                      <span className="doc-pill-icon">💳</span>
+                      <span>4. Bank 2nd Payment</span>
+                      <span className="doc-pill-count">({SECTION_4_BANK_SECOND_PAYMENT_DOCS.length})</span>
                     </button>
                     <button 
-                      className="filter-pill-btn" 
-                      style={{
-                        background: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#f8fafc',
-                        color: docCategoryTab === 'section5' ? '#fff' : '#475569',
-                        borderColor: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#cbd5e1'
-                      }}
+                      className={`doc-stage-slide-pill ${docCategoryTab === 'section5' ? 'active' : ''}`}
                       onClick={() => setDocCategoryTab('section5')}
                     >
-                      🏢 5. Grid / DISCOM Docs ({SECTION_5_GRID_OFFICE_DOCS.length})
+                      <span className="doc-pill-icon">🏢</span>
+                      <span>5. Grid / DISCOM Docs</span>
+                      <span className="doc-pill-count">({SECTION_5_GRID_OFFICE_DOCS.length})</span>
                     </button>
                   </div>
 
@@ -3343,8 +3583,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
       {/* Admin Assign / Send Lead Full Details Modal */}
       {showChangeEmpModal && selectedLead && (
-        <div className="modal-overlay" style={{zIndex: 1100}}>
-          <div className="modal-content" style={{maxWidth: '540px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '540px', width: '95%'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
               <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                 <Send size={20} color="#2563eb" /> Assign / Send Full Lead Details
@@ -3436,8 +3676,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
       {/* Staff Lead Transfer Request Modal (Requires Admin Permission) */}
       {showRequestTransferModal && selectedLead && (
-        <div className="modal-overlay" style={{zIndex: 1100}}>
-          <div className="modal-content" style={{maxWidth: '540px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '540px', width: '95%'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
               <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                 <ArrowRight size={20} color="#3b82f6" /> Request Lead Transfer
@@ -3533,8 +3773,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
       {/* Admin Reject Reassignment Modal */}
       {showRejectTransferModal && selectedLead && (
-        <div className="modal-overlay" style={{zIndex: 1150}}>
-          <div className="modal-content" style={{maxWidth: '460px', width: '95%', borderRadius: '14px', padding: '1.75rem'}}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '460px', width: '95%'}}>
             <h2 style={{fontSize: '1.25rem', color: '#991b1b', marginBottom: '0.5rem'}}>Reject Transfer Request</h2>
             <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem'}}>
               Please specify the reason for rejecting the transfer request for <strong>{selectedLead.customer}</strong>.
@@ -3560,8 +3800,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
       {/* Share Document Modal (Native / WhatsApp / Email / Copy Link) */}
       {showShareModal && shareModalDoc && (
-        <div className="modal-overlay" style={{zIndex: 1200}}>
-          <div className="modal-content" style={{maxWidth: '480px', width: '95%', padding: '1.75rem', borderRadius: '16px'}}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '480px', width: '95%'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem'}}>
               <h2 style={{margin: 0, fontSize: '1.2rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                 <Share2 size={20} color="#2563eb" /> Share Project Document
@@ -3871,6 +4111,41 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 <label htmlFor="new-lead-location">Location / City</label>
                 <input id="new-lead-location" name="location" type="text" placeholder="City or Region" value={newLeadForm.location} onChange={e => setNewLeadForm({...newLeadForm, location: e.target.value})} />
               </div>
+
+              {/* Dealer Selector */}
+              <div className="form-group">
+                <label htmlFor="new-lead-dealer">Dealer</label>
+                {isDealer ? (
+                  <input id="new-lead-dealer" type="text" value={currentUser?.name || 'Dealer'} disabled style={{ background: '#f1f5f9', cursor: 'not-allowed' }} />
+                ) : (
+                  <select 
+                    id="new-lead-dealer" 
+                    value={newLeadForm.dealer} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, dealer: e.target.value })}
+                  >
+                    <option value="Direct (Company)">Direct (Company)</option>
+                    {dealers.map(d => (
+                      <option key={d.id} value={d.name}>{d.name} {d.address ? `(${d.address})` : ''}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Assigned Employee Selector */}
+              <div className="form-group">
+                <label htmlFor="new-lead-employee">Assigned Employee</label>
+                <select 
+                  id="new-lead-employee" 
+                  value={newLeadForm.assignedEmployee} 
+                  onChange={e => setNewLeadForm({ ...newLeadForm, assignedEmployee: e.target.value })}
+                >
+                  <option value="">{isEmployee ? `Auto-assign to Me (${currentUser?.name || 'Employee'})` : 'Unassigned (Company Pool)'}</option>
+                  {employees.filter(e => e.status === 'Active').map(e => (
+                    <option key={e.id} value={e.name}>{e.name} {e.employeeCategory ? `(${e.employeeCategory})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="form-group" style={{gridColumn: '1 / -1'}}>
                 <label htmlFor="new-lead-notes">Initial Requirements / Notes</label>
                 <textarea id="new-lead-notes" name="notes" placeholder="Solar capacity requirements, site address, or customer remarks..." value={newLeadForm.notes} onChange={e => setNewLeadForm({...newLeadForm, notes: e.target.value})}></textarea>
@@ -3880,44 +4155,65 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <div className="modal-actions" style={{marginTop: '1rem'}}>
               <button type="button" className="btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
               <button type="button" className="btn-primary" onClick={async () => {
-                if (!newLeadForm.customer || !newLeadForm.phone) {
-                  showToast("Please fill in required fields (Customer Name & Phone).");
+                if (!newLeadForm.customer?.trim() || !newLeadForm.phone?.trim()) {
+                  showToast("Please fill in required fields (Customer Name & Phone).", "error");
                   return;
                 }
                 try {
-                  const actualDealer = isDealer && currentUser ? currentUser.name : 'Direct (Company)';
-                  const actualDealerId = isDealer && currentUser ? currentUser.id : '';
-                  const actualEmployee = isDealer ? '' : (isEmployee ? (currentUser?.name || 'Sunkara Siva') : (currentUser?.name || 'Direct (Company)'));
-                  const actualEmployeeId = isEmployee ? (currentUser?.id || (currentUser as any)?.employeeId || (currentUser as any)?.employeeCode || 'MSV-SIVA-001') : '';
-                  
+                  // Resolve Dealer
+                  let targetDealer = 'Direct (Company)';
+                  let targetDealerId = '';
+                  if (isDealer && currentUser) {
+                    targetDealer = currentUser.name || 'Dealer';
+                    targetDealerId = currentUser.id || '';
+                  } else if (newLeadForm.dealer && newLeadForm.dealer !== 'Direct (Company)') {
+                    targetDealer = newLeadForm.dealer;
+                    const matchedDlr = dealers.find(d => d.name === newLeadForm.dealer);
+                    targetDealerId = matchedDlr?.id || '';
+                  }
+
+                  // Resolve Assigned Employee
+                  let targetEmployee = newLeadForm.assignedEmployee || '';
+                  let targetEmployeeId = '';
+                  if (!targetEmployee && isEmployee && !isDealer && currentUser) {
+                    targetEmployee = currentUser.name || '';
+                    targetEmployeeId = currentUser.id || '';
+                  } else if (targetEmployee) {
+                    const matchedEmp = employees.find(e => e.name === targetEmployee);
+                    targetEmployeeId = matchedEmp?.id || '';
+                  }
+
+                  const nowIso = new Date().toISOString();
                   await addLead({
-                    customer: newLeadForm.customer,
-                    phone: newLeadForm.phone,
-                    email: newLeadForm.email || '',
-                    location: newLeadForm.location || '',
-                    dealer: actualDealer,
-                    dealerId: actualDealerId,
-                    assignedEmployee: actualEmployee,
-                    assignedEmployeeId: actualEmployeeId,
-                    createdBy: currentUser?.id || currentUser?.name || 'Employee',
-                    createdByName: currentUser?.name || 'Employee',
+                    customer: newLeadForm.customer.trim(),
+                    phone: newLeadForm.phone.trim(),
+                    email: newLeadForm.email ? newLeadForm.email.trim() : '',
+                    location: newLeadForm.location ? newLeadForm.location.trim() : '',
+                    dealer: targetDealer,
+                    dealerId: targetDealerId,
+                    assignedEmployee: targetEmployee,
+                    assignedEmployeeId: targetEmployeeId,
+                    createdBy: currentUser?.id || currentUser?.name || 'Staff',
+                    createdByName: currentUser?.name || 'Staff',
                     createdByRole: (currentUser as any)?.role || 'Admin',
-                    notes: newLeadForm.notes || '',
+                    marketingEmployee: isEmployee ? (currentUser?.name || '') : '',
+                    sourceMarketingEmployee: isEmployee ? (currentUser?.name || '') : '',
+                    notes: newLeadForm.notes ? newLeadForm.notes.trim() : '',
                     stage: 'Lead',
                     priority: 'Medium',
                     leadType: newLeadForm.leadType || 'project',
                     followUp: { date: '', time: '', type: 'Other', status: 'No Follow-up' },
-                    createdAt: new Date().toISOString(),
-                    updatedAt: 'Just now',
+                    createdAt: nowIso,
+                    updatedAt: nowIso,
                     archived: false
                   });
                   
-                  showToast("Lead created successfully", "success");
+                  showToast("✓ Lead created successfully!", "success");
                   setShowAddModal(false);
                   setNewLeadForm({ customer: '', phone: '', email: '', location: '', dealer: 'Direct (Company)', assignedEmployee: '', notes: '', leadType: 'project' });
                 } catch (err: any) {
                   console.error("Failed to create lead:", err);
-                  showToast(`Failed to create lead: ${err.message || String(err)}`);
+                  showToast(`Failed to create lead: ${err.message || String(err)}`, "error");
                 }
               }}>Create Lead</button>
             </div>
@@ -4322,8 +4618,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
       {/* Download Section Selector Modal */}
       {showDownloadSectionModal && selectedLead && (
-        <div className="modal-overlay" style={{zIndex: 1100}}>
-          <div className="modal-content" style={{maxWidth: '560px', width: '100%', borderRadius: '14px', padding: '1.75rem'}}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '560px', width: '100%'}}>
             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem'}}>
               <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
                 <div style={{width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb'}}>

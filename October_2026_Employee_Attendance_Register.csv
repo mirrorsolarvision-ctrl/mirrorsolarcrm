@@ -1,0 +1,38 @@
+﻿EMPLOYEE ATTENDANCE REGISTER — OCTOBER 2026,,,,,
+Attendance codes: P = Present | A = Absent | L = Leave | Sundays and listed holidays are marked in the Holiday column.,,,,,
+Date,Day,Kumari,Gopal,Shiva,Holiday / Notes
+1,Thursday,P,P,P,
+2,Friday,L,L,L,Gandhi Jayanti (National Holiday)
+3,Saturday,P,P,P,
+4,Sunday,,,,SUNDAY — WEEKLY HOLIDAY
+5,Monday,P,P,P,
+6,Tuesday,P,P,P,
+7,Wednesday,P,P,P,
+8,Thursday,P,P,P,
+9,Friday,P,A,P,
+10,Saturday,P,P,P,
+11,Sunday,,,,SUNDAY — WEEKLY HOLIDAY
+12,Monday,P,A,P,
+13,Tuesday,P,A,P,
+14,Wednesday,P,A,P,
+15,Thursday,P,A,P,
+16,Friday,,,,
+17,Saturday,,,A,
+18,Sunday,,,,SUNDAY — WEEKLY HOLIDAY
+19,Monday,,,A,
+20,Tuesday,L,L,L,Dussehra / Vijayadashami (Major Festival)
+21,Wednesday,,,,
+22,Thursday,,,,
+23,Friday,,,,
+24,Saturday,,,,
+25,Sunday,,,,SUNDAY — WEEKLY HOLIDAY
+26,Monday,,,,
+27,Tuesday,,,,
+28,Wednesday,,,,
+29,Thursday,,,,
+30,Friday,,,,
+31,Saturday,,,,
+MONTHLY TOTALS,Count,14,14,16,SIVA - ADVANCE AMOUNT - 6000/-
+Present (P),Days,12,7,12
+Absent (A),Days,0,5,2
+Leave (L),Days,2,2,2

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, X, Activity, UserPlus, 
   MapPin, Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List,
-  Sliders, Shield, CheckSquare, Briefcase, Zap, Award, Gauge
+  Sliders, Shield, CheckSquare, Briefcase, Zap, Award, Gauge, Trash2
 } from 'lucide-react';
 import PageHero from './components/PageHero';
 import { useCRM, defaultDealerFeatures } from './context/CRMContext';
@@ -19,6 +19,7 @@ import {
   DEALER_TARGET_KW,
   DEALER_TARGET_MONTHS
 } from './utils/dealerCalculations';
+import { formatDealerCode } from './utils/idUtils';
 import './AdminDealersPage.css';
 
 interface AdminDealersPageProps {
@@ -26,7 +27,7 @@ interface AdminDealersPageProps {
 }
 
 export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPageProps) {
-  const { leads, dealers, employees, activities, addDealer, updateDealer, updateDealerFeatures, addActivity, currentUser } = useCRM();
+  const { leads, dealers, employees, activities, addDealer, updateDealer, deleteDealer, updateDealerFeatures, addActivity, currentUser } = useCRM();
   const { stockRequests } = useStock();
   const { showToast, showConfirmModal } = useUI();
 
@@ -169,6 +170,27 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
         showToast(`Dealer ${newStatus.toLowerCase()} successfully.`, 'success');
         addActivity({ type: 'Dealer Status Updated', message: `${dealer.name} marked as ${newStatus}`, user: currentUser?.name || 'Admin', dealer: dealer.name });
         setSelectedDealer(null);
+      }
+    );
+  };
+
+  const handleDeleteDealer = (dealer: Dealer) => {
+    showConfirmModal(
+      `Delete Dealer ${dealer.name}?`,
+      `Are you sure you want to permanently delete dealer "${dealer.name}"? This will remove their credentials, staff access, and permissions permanently. This action cannot be undone.`,
+      async () => {
+        try {
+          await deleteDealer(dealer.id);
+          setSelectedDealer(null);
+          showToast(`Dealer "${dealer.name}" deleted successfully.`, 'success');
+          addActivity({ 
+            type: 'Dealer Deleted', 
+            message: `Dealer ${dealer.name} (${dealer.id}) was permanently deleted by Admin`, 
+            user: currentUser?.name || 'Admin' 
+          });
+        } catch (err: any) {
+          showToast(err.message || 'Failed to delete dealer', 'error');
+        }
       }
     );
   };
@@ -363,7 +385,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                       <div className="dealer-avatar">{dealer.initials}</div>
                       <div className="dealer-info-text">
                         <span>{dealer.name}</span>
-                        <span className="dealer-id">{dealer.id}</span>
+                        <span className="dealer-id">{formatDealerCode(dealer)}</span>
                       </div>
                     </div>
                   </td>
@@ -630,6 +652,13 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                       {selectedDealer.status === 'Active' ? 'Deactivate' : 'Reactivate'}
                     </button>
                   </div>
+                  <button 
+                    className="btn-danger" 
+                    style={{marginTop: '4px', background: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'}}
+                    onClick={() => handleDeleteDealer(selectedDealer)}
+                  >
+                    <Trash2 size={16} /> Delete Dealer Permanently
+                  </button>
                 </div>
               </div>
               

@@ -551,13 +551,75 @@
 }
 
 @media (max-width: 640px) {
+  .unified-record-modal-overlay {
+    padding: 0.5rem;
+    z-index: 3000;
+  }
+
+  .unified-record-modal-card {
+    padding: 1.15rem 1rem !important;
+    gap: 0.85rem !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    border-radius: 14px !important;
+  }
+
+  .modal-title-group h2 {
+    font-size: 1.1rem !important;
+  }
+
+  .modal-title-group p {
+    font-size: 0.8rem !important;
+  }
+
+  .modal-title-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+  }
+
   .payment-type-selector-bar {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
+
   .form-two-col {
     grid-template-columns: 1fr;
+    gap: 0.65rem;
   }
+
   .lead-summary-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 0.5rem 0.65rem !important;
+    font-size: 0.85rem !important;
+    min-height: 38px !important;
+    border-radius: 8px !important;
+  }
+
+  .form-label {
+    font-size: 0.72rem !important;
+  }
+
+  .unified-modal-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.5rem !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .btn-cancel,
+  .btn-submit {
+    flex: 1 1 50% !important;
+    min-height: 38px !important;
+    font-size: 0.84rem !important;
+    padding: 0.5rem 0.75rem !important;
+    justify-content: center !important;
   }
 }

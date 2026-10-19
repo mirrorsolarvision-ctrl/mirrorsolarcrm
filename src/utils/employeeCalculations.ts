@@ -15,9 +15,20 @@ export interface EmployeePerformance {
 export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead): boolean => {
   const name = typeof employee === 'string' ? employee : (employee?.name || '');
   const id = typeof employee === 'object' ? (employee?.id || '') : '';
+  const empNameLower = name.trim().toLowerCase();
+  const empIdLower = id.trim().toLowerCase();
+
+  const assignedName = (lead.assignedEmployee || '').trim().toLowerCase();
+  const assignedId = (lead.assignedEmployeeId || '').trim().toLowerCase();
+  const createdByName = (lead.createdByName || '').trim().toLowerCase();
+  const createdById = (lead.createdBy || '').trim().toLowerCase();
+  const mktName = ((lead as any).marketingEmployee || (lead as any).sourceMarketingEmployee || '').trim().toLowerCase();
+
   return (
-    lead.assignedEmployee === name ||
-    (Boolean(id) && lead.assignedEmployeeId === id)
+    (Boolean(empNameLower) && (assignedName === empNameLower || assignedName.includes(empNameLower) || empNameLower.includes(assignedName))) ||
+    (Boolean(empIdLower) && assignedId === empIdLower) ||
+    (Boolean(empNameLower) && (createdByName === empNameLower || mktName === empNameLower)) ||
+    (Boolean(empIdLower) && createdById === empIdLower)
   );
 };
 

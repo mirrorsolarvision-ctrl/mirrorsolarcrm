@@ -393,33 +393,55 @@
 /* Form Grid */
 .qe-form-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.85rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 }
 
-@media (max-width: 1024px) {
-  .qe-form-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 600px) {
-  .qe-form-grid { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .qe-form-grid { grid-template-columns: 1fr !important; }
 }
 
 .qe-col-span-2 {
   grid-column: span 2;
 }
 
+.qe-col-span-3 {
+  grid-column: span 3;
+}
+
+@media (max-width: 900px) {
+  .qe-col-span-2,
+  .qe-col-span-3 {
+    grid-column: span 1 !important;
+  }
+}
+
 .qe-input-group {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
+  width: 100%;
 }
 
 .qe-input-group label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #64748B;
+  color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.qe-input-group input,
+.qe-input-group select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
 }
 
 .qe-estimate-btn {
@@ -448,6 +470,190 @@
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
   margin-bottom: 0.75rem;
+}
+
+/* ========================================================= */
+/* RESPONSIVE TOUCH-FRIENDLY CARD VIEW FOR BOM ITEMS        */
+/* ========================================================= */
+.qe-bom-cards-list {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.qe-bom-item-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.qe-bic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.qe-bic-num-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.qe-bic-idx {
+  background: #0b1f3a;
+  color: #f4c430;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.qe-bic-name-input {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.qe-bic-del-btn {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.qe-bic-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.qe-bic-specs-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 0.5rem;
+}
+
+.qe-bic-cat-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+}
+
+.qe-bic-brand-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.qe-bic-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+}
+
+.qe-bic-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.qe-bic-stepper-lbl {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.qe-bic-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qe-bic-qty-input {
+  width: 45px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.2rem;
+}
+
+.qe-bic-unit-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  background: #ffffff;
+  font-weight: 600;
+}
+
+.qe-bic-move-acts {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.qe-bic-move-acts button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .qe-table-wrapper {
+    display: none !important;
+  }
+  .qe-bom-cards-list {
+    display: flex !important;
+  }
 }
 
 .qe-table {
@@ -1248,15 +1454,35 @@
     justify-content: flex-start !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 2px !important;
+    padding: 0.35rem 0.45rem !important;
     flex-wrap: nowrap !important;
-    gap: 0.4rem !important;
+    gap: 0.5rem !important;
+    background: rgba(11, 31, 58, 0.5) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(244, 196, 48, 0.3) !important;
+    scrollbar-width: thin !important;
   }
 
   .qe-topbar-actions button {
     flex-shrink: 0 !important;
-    font-size: 0.76rem !important;
-    padding: 0.4rem 0.7rem !important;
+    font-size: 0.8rem !important;
+    padding: 0.45rem 0.85rem !important;
+    border-radius: 8px !important;
+  }
+
+  .qe-topbar-actions .btn-hero-primary {
+    background: #f4c430 !important;
+    color: #0b1f3a !important;
+    border: 1.5px solid #eab308 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 2px 8px rgba(244, 196, 48, 0.4) !important;
+  }
+
+  .qe-topbar-actions .btn-hero-secondary {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    font-weight: 700 !important;
   }
 
   .qe-hero-company-strip {

@@ -5,6 +5,7 @@ import {
 import { useCRM, STAGES } from './context/CRMContext';
 import type { Employee, EmployeeStatus } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import { formatEmployeeCode } from './utils/idUtils';
 import './EmployeesPage.css';
 
 export default function EmployeesPage() {
@@ -169,7 +170,7 @@ export default function EmployeesPage() {
                     <div className="ep-avatar">{emp.initials}</div>
                     <div>
                       <h3 className="ep-emp-name">{emp.name}</h3>
-                      <p className="ep-emp-id">{emp.id}</p>
+                      <p className="ep-emp-id">{formatEmployeeCode(emp)}</p>
                     </div>
                   </div>
                   <div className={`ep-status-pill ${emp.status.toLowerCase()}`}>
@@ -276,7 +277,7 @@ export default function EmployeesPage() {
                         </div>
                         <div className="ep-table-emp-info">
                           <span className="ep-table-emp-name">{emp.name}</span>
-                          <span className="ep-table-emp-id">{emp.id}</span>
+                          <span className="ep-table-emp-id">{formatEmployeeCode(emp)}</span>
                         </div>
                       </div>
                     </td>

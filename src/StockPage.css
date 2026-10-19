@@ -86,7 +86,7 @@
 }
 
 .stock-summary-card .card-value {
-  font-size: 2.25rem;
+  font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -1111,9 +1111,27 @@
 }
 
 @media (max-width: 480px) {
+  .stock-page {
+    padding: 0.75rem 0.5rem 6.5rem 0.5rem !important;
+  }
+
   .stock-summary-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .stock-summary-card {
+    padding: 0.75rem 0.65rem !important;
+    gap: 0.35rem !important;
+    border-radius: 10px !important;
+  }
+
+  .stock-summary-card .card-value {
+    font-size: 1.35rem !important;
+  }
+
+  .stock-summary-card .card-label {
+    font-size: 0.7rem !important;
   }
 
   .stock-header-actions button {

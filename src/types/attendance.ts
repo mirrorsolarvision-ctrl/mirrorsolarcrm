@@ -63,6 +63,36 @@ export interface AttendanceCorrectionRequest {
   createdAt: string;
 }
 
+export type LeaveType = 'CASUAL' | 'SICK' | 'PAID' | 'UNPAID' | 'EMERGENCY';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface LeaveRequest {
+  id: string; // e.g. LEAVE_EMP01_20261015
+  employeeId: string;
+  employeeName: string;
+  employeeRole: 'Employee' | 'Dealer' | 'Admin';
+  dealerId?: string | null;
+  leaveType: LeaveType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  isHalfDay?: boolean;
+  halfDaySession?: 'FIRST_HALF' | 'SECOND_HALF';
+  totalDays: number; // e.g. 1.0 or 0.5 or 3.0
+  reason: string;
+  status: LeaveStatus;
+  appliedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+export interface LeaveQuota {
+  employeeId: string;
+  totalEntitled: number; // e.g. 18 days/year
+  used: number;
+  pending: number;
+}
+
 export interface AttendanceConfig {
   officeStartTime: string; // e.g. "09:00"
   officeEndTime: string; // e.g. "18:00"

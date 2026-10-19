@@ -345,7 +345,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder={
                     role === 'Dealer' 
-                      ? "Enter username (e.g. hussain or balaji)" 
+                      ? "Enter username (e.g. hussain or jagapathi)" 
                       : role === 'Admin' 
                         ? "e.g. 9849810668 or mirroraquaro@gmail.com" 
                         : "Enter username (e.g. siva, kumari, gopal)"

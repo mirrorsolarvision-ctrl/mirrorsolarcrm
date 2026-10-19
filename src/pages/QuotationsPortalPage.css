@@ -529,6 +529,10 @@
 
 /* Responsive Adjustments for Mobile Viewports */
 @media (max-width: 768px) {
+  .quotations-portal-body {
+    padding: 0.85rem 0.65rem 6.5rem 0.65rem !important;
+  }
+
   .qp-stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.85rem;
@@ -583,6 +587,237 @@
   .qp-stats-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+}
+
+/* ==========================================================================
+   Mobile Swipeable Quotation Cards & Slides Deck
+   ========================================================================== */
+.qp-mobile-slides-container {
+  display: none;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .qp-table-wrapper {
+    display: none !important;
+  }
+
+  .qp-mobile-slides-container {
+    display: block !important;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .qp-mobile-slides-track {
+    display: flex;
+    gap: 0.85rem;
+    overflow-x: auto;
+    padding: 0.25rem 0.25rem 1rem 0.25rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .qp-mobile-slides-track::-webkit-scrollbar {
+    height: 5px;
+  }
+
+  .qp-mobile-slides-track::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .qp-slide-card {
+    flex: 0 0 88%;
+    min-width: 280px;
+    max-width: 360px;
+    scroll-snap-align: start;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    box-shadow: 0 8px 24px -4px rgba(11, 31, 58, 0.08);
+    position: relative;
+    box-sizing: border-box;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .qp-slide-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .qp-slide-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .qp-slide-qnum {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #0b1f3a;
+    font-family: monospace;
+  }
+
+  .qp-slide-customer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .qp-slide-cust-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0b1f3a 0%, #1e3a8a 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .qp-slide-cust-info {
+    min-width: 0;
+  }
+
+  .qp-slide-cust-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .qp-slide-cust-sub {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 1px;
+  }
+
+  .qp-slide-specs-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .qp-slide-financials-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.75rem;
+  }
+
+  .qp-slide-fin-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .qp-slide-fin-item.full {
+    grid-column: span 2;
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .qp-slide-fin-item .fin-lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  .qp-slide-fin-item .fin-val {
+    font-size: 0.92rem;
+    color: #0f172a;
+  }
+
+  .qp-slide-fin-item .fin-val.text-green {
+    color: #16a34a;
+    font-weight: 700;
+  }
+
+  .qp-slide-fin-item .fin-val.text-navy {
+    color: #0b1f3a;
+  }
+
+  .qp-slide-date-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: #94a3b8;
+  }
+
+  .qp-slide-actions-row {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .qp-slide-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .qp-slide-btn.primary {
+    background: #0b1f3a;
+    color: #ffffff;
+    border-color: #0b1f3a;
+    flex: 1;
+  }
+
+  .qp-slide-btn.whatsapp {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+  }
+
+  .qp-slide-btn.danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+  }
+
+  .qp-slide-empty {
+    width: 100%;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #94a3b8;
   }
 }
 

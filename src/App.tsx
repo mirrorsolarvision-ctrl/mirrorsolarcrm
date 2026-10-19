@@ -23,6 +23,7 @@ import { AuditLogProvider } from './context/AuditLogContext';
 import { QuotationProvider } from './context/QuotationContext';
 import { AttendanceProvider } from './context/AttendanceContext';
 import { MarketingProvider } from './context/MarketingContext';
+import { PayrollProvider } from './context/PayrollContext';
 import { useCRM } from './context/CRMContext';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
@@ -250,9 +251,11 @@ function App() {
                 <QuotationProvider>
                   <AttendanceProvider>
                     <MarketingProvider>
-                      <UIProvider>
-                        <AppContent />
-                      </UIProvider>
+                      <PayrollProvider>
+                        <UIProvider>
+                          <AppContent />
+                        </UIProvider>
+                      </PayrollProvider>
                     </MarketingProvider>
                   </AttendanceProvider>
                 </QuotationProvider>

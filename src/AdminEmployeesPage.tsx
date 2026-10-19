@@ -14,6 +14,7 @@ import {
   getEmployeeFollowUps
 } from './utils/employeeCalculations';
 import PageHero from './components/PageHero';
+import { formatEmployeeCode } from './utils/idUtils';
 import './AdminEmployeesPage.css';
 
 interface AdminEmployeesPageProps {
@@ -366,7 +367,7 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                       <div className="emp-avatar">{emp.initials}</div>
                       <div className="emp-info-text">
                         <span>{emp.name}</span>
-                        <span className="emp-id">{emp.id}</span>
+                        <span className="emp-id">{formatEmployeeCode(emp)}</span>
                       </div>
                     </div>
                   </td>

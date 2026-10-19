@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, query, orderBy } from 'firebase/firestore';
-import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, GeoLocationPoint, AttendanceCorrectionRequest } from '../types/attendance';
+import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, GeoLocationPoint, AttendanceCorrectionRequest, LeaveRequest, LeaveType } from '../types/attendance';
 import { DEFAULT_ATTENDANCE_CONFIG, calculateGeofenceDistance } from '../types/attendance';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
@@ -12,15 +12,19 @@ interface AttendanceContextType {
   config: AttendanceConfig;
   loading: boolean;
   correctionRequests: AttendanceCorrectionRequest[];
+  leaveRequests: LeaveRequest[];
   checkIn: (options?: { notes?: string }) => Promise<AttendanceRecord>;
   checkOut: (options?: { notes?: string }) => Promise<AttendanceRecord>;
   markAttendance: (type: 'FULL_DAY' | 'HALF_DAY', notes?: string) => Promise<AttendanceRecord>;
   adminUpdateRecord: (id: string, updates: Partial<AttendanceRecord>, reason?: string) => Promise<void>;
   requestCorrection: (attendanceId: string, date: string, requestedCheckIn: string, requestedCheckOut: string, reason: string) => Promise<void>;
   reviewCorrection: (requestId: string, approved: boolean, reviewNotes?: string) => Promise<void>;
+  applyLeave: (leaveData: Omit<LeaveRequest, 'id' | 'status' | 'appliedAt'>) => Promise<LeaveRequest>;
+  reviewLeave: (requestId: string, approved: boolean, reviewNotes?: string) => Promise<void>;
   updateConfig: (newConfig: Partial<AttendanceConfig>) => void;
   getRecordsByEmployee: (employeeId: string) => AttendanceRecord[];
   getRecordsByDateRange: (startDate: string, endDate: string) => AttendanceRecord[];
+  getEmployeeLeaves: (employeeId: string) => LeaveRequest[];
 }
 
 const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined);
@@ -34,6 +38,7 @@ export const useAttendance = () => {
 export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [correctionRequests, setCorrectionRequests] = useState<AttendanceCorrectionRequest[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [config, setConfig] = useState<AttendanceConfig>(DEFAULT_ATTENDANCE_CONFIG);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
@@ -67,9 +72,21 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
         console.warn('Correction requests fallback:', err.message);
       });
 
+      const leavesQ = query(collection(db, 'employee_leaves'), orderBy('appliedAt', 'desc'));
+      const unsubLeaves = onSnapshot(leavesQ, (snapshot) => {
+        const fetchedLeaves: LeaveRequest[] = [];
+        snapshot.forEach((d) => {
+          fetchedLeaves.push({ id: d.id, ...d.data() } as LeaveRequest);
+        });
+        setLeaveRequests(fetchedLeaves);
+      }, (err) => {
+        console.warn('Leave requests fallback:', err.message);
+      });
+
       return () => {
         unsubscribe();
         unsubCorr();
+        unsubLeaves();
       };
     } catch (err) {
       console.warn('Attendance init fallback:', err);
@@ -403,6 +420,129 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const applyLeave = async (
+    leaveData: Omit<LeaveRequest, 'id' | 'status' | 'appliedAt'>
+  ): Promise<LeaveRequest> => {
+    if (!currentUser) throw new Error('User must be logged in to apply for leave');
+
+    const leaveId = `LEAVE_${currentUser.id}_${Date.now()}`;
+    const newLeave: LeaveRequest = {
+      ...leaveData,
+      id: leaveId,
+      status: 'PENDING',
+      appliedAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(doc(db, 'employee_leaves', leaveId), newLeave);
+    } catch (err) {
+      console.warn('Leave request local fallback:', err);
+      setLeaveRequests((prev) => [newLeave, ...prev]);
+    }
+
+    await logAction({
+      action: 'LEAVE_REQUESTED',
+      entityType: 'Attendance',
+      entityId: leaveId,
+      entityLabel: `${newLeave.employeeName} applied for ${newLeave.leaveType} (${newLeave.totalDays} day(s))`,
+      newValue: newLeave,
+      reason: newLeave.reason
+    });
+
+    return newLeave;
+  };
+
+  const reviewLeave = async (
+    requestId: string,
+    approved: boolean,
+    reviewNotes?: string
+  ) => {
+    if (currentUser?.role !== 'Admin') throw new Error('Only admins can approve leave requests');
+    const leaveReq = leaveRequests.find((l) => l.id === requestId);
+    if (!leaveReq) return;
+
+    const status = approved ? 'APPROVED' : 'REJECTED';
+    const payload = {
+      status,
+      reviewedBy: currentUser.name,
+      reviewedAt: new Date().toISOString(),
+      reviewNotes: reviewNotes || (approved ? 'Leave Approved by Admin' : 'Leave Rejected by Admin')
+    };
+
+    try {
+      await updateDoc(doc(db, 'employee_leaves', requestId), payload);
+    } catch (err) {
+      setLeaveRequests((prev) =>
+        prev.map((l) => (l.id === requestId ? ({ ...l, ...payload } as any) : l))
+      );
+    }
+
+    // If approved, create or update attendance records for each date in the range as LEAVE
+    if (approved) {
+      const cur = new Date(leaveReq.startDate + 'T00:00:00');
+      const end = new Date(leaveReq.endDate + 'T00:00:00');
+
+      while (cur <= end) {
+        const dateStr = cur.toISOString().split('T')[0];
+        const isSunday = cur.getDay() === 0;
+
+        // Skip sundays since they are weekly off
+        if (!isSunday) {
+          const recordId = `ATT_${leaveReq.employeeId}_${dateStr}`;
+          const isHalf = !!leaveReq.isHalfDay;
+          const statusVal: AttendanceStatus = isHalf ? 'HALF_DAY' : 'LEAVE';
+          const workingMins = isHalf ? 240 : 0;
+
+          const leaveAttendanceRecord: AttendanceRecord = {
+            id: recordId,
+            employeeId: leaveReq.employeeId,
+            employeeName: leaveReq.employeeName,
+            employeeRole: leaveReq.employeeRole,
+            dealerId: leaveReq.dealerId || undefined,
+            date: dateStr,
+            checkInTime: null,
+            checkOutTime: null,
+            totalWorkingMinutes: workingMins,
+            lateMinutes: 0,
+            overtimeMinutes: 0,
+            checkInLocation: null,
+            checkOutLocation: null,
+            status: statusVal,
+            notes: `Approved Leave: ${leaveReq.leaveType} (${leaveReq.reason})`,
+            verifiedByAdmin: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          try {
+            await setDoc(doc(db, 'attendance', recordId), leaveAttendanceRecord, { merge: true });
+          } catch (err) {
+            console.error('Failed to write leave attendance record:', err);
+          }
+
+          setRecords((prev) => {
+            const idx = prev.findIndex((r) => r.id === recordId);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = leaveAttendanceRecord;
+              return updated;
+            }
+            return [leaveAttendanceRecord, ...prev];
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+
+    await logAction({
+      action: 'LEAVE_REVIEWED',
+      entityType: 'Attendance',
+      entityId: requestId,
+      entityLabel: `Admin ${approved ? 'Approved' : 'Rejected'} leave for ${leaveReq.employeeName}`,
+      reason: reviewNotes || (approved ? 'Leave approved' : 'Leave rejected')
+    });
+  };
+
   const updateConfig = (newConfig: Partial<AttendanceConfig>) => {
     setConfig((prev) => ({ ...prev, ...newConfig }));
   };
@@ -410,6 +550,7 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
   const getRecordsByEmployee = (employeeId: string) => records.filter((r) => r.employeeId === employeeId);
   const getRecordsByDateRange = (startDate: string, endDate: string) =>
     records.filter((r) => r.date >= startDate && r.date <= endDate);
+  const getEmployeeLeaves = (employeeId: string) => leaveRequests.filter((l) => l.employeeId === employeeId);
 
   return (
     <AttendanceContext.Provider
@@ -419,15 +560,19 @@ export const AttendanceProvider: React.FC<{ children: ReactNode }> = ({ children
         config,
         loading,
         correctionRequests,
+        leaveRequests,
         checkIn,
         checkOut,
         markAttendance,
         adminUpdateRecord,
         requestCorrection,
         reviewCorrection,
+        applyLeave,
+        reviewLeave,
         updateConfig,
         getRecordsByEmployee,
-        getRecordsByDateRange
+        getRecordsByDateRange,
+        getEmployeeLeaves
       }}
     >
       {children}

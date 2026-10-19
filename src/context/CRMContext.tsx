@@ -275,6 +275,8 @@ export interface MockLead {
   sourceMarketingEmployee?: string;
   sourceDealer?: string;
   reassignmentRequest?: LeadReassignmentRequest;
+  customerCode?: string;
+  code?: string;
 }
 
 export interface LeadReassignmentRequest {
@@ -458,6 +460,10 @@ export interface User {
   password?: string; // Stored securely for Admin credential management
   employeeCategory?: 'Surya Ghar Incharge' | 'Commercial Project Incharge' | 'Stock Incharge' | string;
   employeeId?: string;
+  employeeCode?: string;
+  dealerCode?: string;
+  code?: string;
+  displayId?: string;
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -595,12 +601,14 @@ interface CRMContextType {
   activities: Activity[];
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  addEmployee: (emp: Omit<Employee, 'id' | 'permissions' | 'role'>) => void;
+  addEmployee: (emp: Omit<Employee, 'id' | 'permissions' | 'role'> & { id?: string; password?: string }) => void;
   updateEmployee: (id: string, updates: Partial<Employee>) => void;
-  addDealer: (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string }) => Promise<void>;
+  addDealer: (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string; password?: string }) => Promise<void>;
   updateDealer: (id: string, updates: Partial<Dealer>) => Promise<void>;
   deleteDealer: (id: string) => Promise<void>;
-  addLead: (lead: Omit<MockLead, 'id'>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
+  deleteUser: (id: string, role?: string) => Promise<void>;
+  addLead: (lead: Omit<MockLead, 'id'>) => Promise<string | void>;
   updateLead: (id: string, updates: Partial<MockLead>) => Promise<void>;
   updateLeadStage: (leadId: string, newStage: Stage) => void;
   updateUserPermissions: (userId: string, permissions: UserPermissions) => void;
@@ -672,7 +680,7 @@ interface CRMContextType {
       address?: string;
     }
   ) => Promise<void>;
-  addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => Promise<void>;
+  addDealerEmployee: (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'> & { id?: string; password?: string }) => Promise<void>;
   updateDealerEmployee: (employeeId: string, dealerId: string, updates: Partial<Employee>) => Promise<void>;
 
   // Responsibilities Management
@@ -706,7 +714,19 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [dealers, setDealers] = useState<Dealer[]>(() => {
     try {
       const cached = localStorage.getItem('crm_dealers_cache');
-      return cached ? JSON.parse(cached) : [];
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed.filter((d: any) => 
+          d.id !== 'DLR1790601644299' &&
+          d.id !== 'dealer_balaji' &&
+          d.id !== 'DLR1790302393152' &&
+          d.id !== 'dealer_hussain' &&
+          d.id !== 'hussain_dealer_in' &&
+          !((d.name || '').toLowerCase().includes('balaji peruri')) &&
+          (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
+        );
+      }
+      return [];
     } catch {
       return [];
     }
@@ -727,7 +747,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (dealers.length > 0) {
       try {
-        localStorage.setItem('crm_dealers_cache', JSON.stringify(dealers));
+        const sanitized = dealers.filter(d => 
+          d.id !== 'DLR1790601644299' &&
+          d.id !== 'dealer_balaji' &&
+          !((d.name || '').toLowerCase().includes('balaji peruri')) &&
+          (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
+        );
+        localStorage.setItem('crm_dealers_cache', JSON.stringify(sanitized));
       } catch (e) {
         console.warn("Could not cache dealers:", e);
       }
@@ -765,14 +791,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userMap.set(key, { ...data, id: data.id || docSnap.id });
       });
       const allUsers = Array.from(userMap.values());
-      // Deduplicate users by role + unique identifier (email, phone, or name)
+      // Deduplicate users by role + unique identifier (email, phone, or doc ID)
       const uniqueUsers: User[] = [];
       const seenIdentity = new Set<string>();
       allUsers.forEach(u => {
-        const emailKey = (u.email || '').trim().toLowerCase();
-        const phoneKey = (u.phone || '').replace(/\D/g, '').slice(-10);
-        const nameRoleKey = `${u.role}_${(u.name || '').trim().toLowerCase()}`;
-        const identityKey = emailKey ? `${u.role}_${emailKey}` : (phoneKey ? `${u.role}_${phoneKey}` : nameRoleKey);
+        const rawEmail = (u.email || '').trim().toLowerCase();
+        const isValidEmail = rawEmail.includes('@') && rawEmail.length > 5 && rawEmail !== '-';
+        const emailKey = isValidEmail ? rawEmail : '';
+
+        const rawDigits = (u.phone || '').replace(/\D/g, '').slice(-10);
+        const isValidPhone = rawDigits.length === 10 && !/^0+$/.test(rawDigits);
+        const phoneKey = isValidPhone ? rawDigits : '';
+
+        const nameKey = (u.name || '').trim().toLowerCase();
+        const docId = (u.id || '').trim().toLowerCase();
+        // Fallback to name or unique docId so distinct users without email/phone are never dropped
+        const fallbackKey = nameKey ? `${u.role}_${nameKey}` : `${u.role}_${docId}`;
+        const identityKey = emailKey ? `${u.role}_${emailKey}` : (phoneKey ? `${u.role}_${phoneKey}` : fallbackKey);
         
         if (!seenIdentity.has(identityKey)) {
           seenIdentity.add(identityKey);
@@ -781,25 +816,66 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       const empList = uniqueUsers.filter(u => u.role === 'Employee') as Employee[];
-      const dealerList = uniqueUsers.filter(u => u.role === 'Dealer') as Dealer[];
+      
+      // Strict Dealers Sanitization:
+      // 1. Exclude both Balaji Peruri dealers (Balaji is strictly an Admin)
+      // 2. Discard legacy duplicate Hussain documents so Hussain only appears once
+      const filteredDealers = uniqueUsers.filter(u => {
+        if (u.role !== 'Dealer') return false;
+        const nameLower = (u.name || '').toLowerCase().trim();
+        const emailLower = (u.email || '').toLowerCase().trim();
+        const idLower = (u.id || '').toLowerCase().trim();
+        
+        if (
+          idLower === 'dlr1790601644299' ||
+          idLower === 'dealer_balaji' ||
+          idLower === 'dlr1790302393152' ||
+          nameLower.includes('balaji peruri') ||
+          emailLower === 'balajiperuri09@gmail.com'
+        ) {
+          return false;
+        }
+
+        if (idLower === 'dealer_hussain' || idLower === 'hussain_dealer_in') {
+          return false;
+        }
+
+        return true;
+      }) as Dealer[];
+
+      // Ensure single instance per dealer name (e.g. Hussain single registered dealer)
+      const seenDealerNames = new Set<string>();
+      const finalDealers: Dealer[] = [];
+      filteredDealers.forEach(d => {
+        const normName = (d.name || '').toLowerCase().trim();
+        if (!seenDealerNames.has(normName)) {
+          seenDealerNames.add(normName);
+          finalDealers.push(d);
+        }
+      });
+
       setEmployees(empList);
-      if (dealerList.length > 0) {
-        setDealers(prev => {
-          const map = new Map<string, Dealer>();
-          prev.forEach(d => map.set(d.id, d));
-          dealerList.forEach(d => map.set(d.id, { ...map.get(d.id), ...d }));
-          return Array.from(map.values());
-        });
-      }
+      setDealers(finalDealers);
     }, (err) => {
       console.warn("Users listener error:", err);
     });
 
-    // 1b. Listen for Dedicated Dealers Collection in Firestore
+    // 1b. Listen for Dedicated Dealers Collection in Firestore (if used)
     const unsubscribeDealers = onSnapshot(collection(db, 'dealers'), (snapshot) => {
       const explicitDealers: Dealer[] = [];
       snapshot.forEach(docSnap => {
-        explicitDealers.push({ id: docSnap.id, ...docSnap.data() } as Dealer);
+        const d = { id: docSnap.id, ...docSnap.data() } as Dealer;
+        const nameLower = (d.name || '').toLowerCase().trim();
+        const idLower = (d.id || '').toLowerCase().trim();
+        if (
+          idLower !== 'dlr1790601644299' &&
+          idLower !== 'dealer_balaji' &&
+          idLower !== 'dealer_hussain' &&
+          idLower !== 'hussain_dealer_in' &&
+          !nameLower.includes('balaji peruri')
+        ) {
+          explicitDealers.push(d);
+        }
       });
       if (explicitDealers.length > 0) {
         setDealers(prev => {
@@ -923,37 +999,61 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const users: User[] = [adminUser, ...employees, ...dealers];
 
-  const addEmployee = async (emp: Omit<Employee, 'id' | 'permissions' | 'role'>) => {
+  const addEmployee = async (emp: Omit<Employee, 'id' | 'permissions' | 'role'> & { id?: string; password?: string }) => {
     if (authUser?.role !== 'Admin') {
       console.error("Unauthorized: Only Admins can add employees");
       return;
     }
-    const newId = `EMP${Date.now()}`;
-    const newEmployee: Employee = { ...emp, id: newId, role: 'Employee', permissions: { ...defaultEmployeePermissions } };
+    const cleanName = (emp.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const empCode = emp.id?.startsWith('MSV/EMP/') ? emp.id : `MSV/EMP/${cleanName || String(employees.length + 1).padStart(2, '0')}`;
+    const newId = emp.id?.trim() || empCode;
+    const newEmployee: Employee = { 
+      ...emp, 
+      id: newId, 
+      employeeCode: empCode,
+      code: empCode,
+      displayId: empCode,
+      role: 'Employee', 
+      permissions: { ...defaultEmployeePermissions },
+      status: emp.status || 'Active',
+      features: (emp as any).features || { ...defaultEmployeeFeatures },
+      password: (emp as any).password || 'Mirror@1432'
+    };
+    
+    // Optimistic local state update
+    setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
+
     try {
-      await setDoc(doc(db, 'users', newId), newEmployee);
+      await setDoc(doc(db, 'users', newId), sanitizeForFirestore(newEmployee));
     } catch (err) {
       console.error("Error adding employee:", err);
     }
   };
 
   const updateEmployee = async (id: string, updates: Partial<Employee>) => {
+    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
     try {
-      await updateDoc(doc(db, 'users', id), updates);
+      await updateDoc(doc(db, 'users', id), sanitizeForFirestore(updates));
     } catch (err) {
       console.error("Error updating employee:", err);
     }
   };
 
-  const addDealer = async (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string }) => {
-    const newId = dealer.id?.trim() || `DLR${Date.now()}`;
+  const addDealer = async (dealer: Omit<Dealer, 'id' | 'permissions' | 'role'> & { id?: string; password?: string }) => {
+    const cleanName = (dealer.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const dealerCode = dealer.id?.startsWith('MSV/DLR/') ? dealer.id : `MSV/DLR/${cleanName || String(dealers.length + 1).padStart(2, '0')}`;
+    const newId = dealer.id?.trim() || dealerCode;
     const newDealer: Dealer = { 
       ...dealer, 
       id: newId, 
+      dealerCode: dealerCode,
+      code: dealerCode,
+      displayId: dealerCode,
       role: 'Dealer', 
       permissions: { ...defaultDealerPermissions },
       status: dealer.status || 'Active',
-      features: dealer.features || { ...defaultDealerFeatures }
+      features: dealer.features || { ...defaultDealerFeatures },
+      password: (dealer as any).password || 'Mirror@1432'
     };
 
     // 1. Optimistic local state update
@@ -970,13 +1070,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Persist to Firestore: BOTH 'users' AND 'dealers' collections!
     try {
-      await setDoc(doc(db, 'users', newId), newDealer, { merge: true });
+      await setDoc(doc(db, 'users', newId), sanitizeForFirestore(newDealer), { merge: true });
     } catch (err) {
       console.warn("Firestore users collection write warning:", err);
     }
 
     try {
-      await setDoc(doc(db, 'dealers', newId), newDealer, { merge: true });
+      await setDoc(doc(db, 'dealers', newId), sanitizeForFirestore(newDealer), { merge: true });
     } catch (err) {
       console.warn("Firestore dealers collection write warning:", err);
     }
@@ -985,12 +1085,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateDealer = async (id: string, updates: Partial<Dealer>) => {
     setDealers(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     try {
-      await updateDoc(doc(db, 'users', id), updates);
+      await updateDoc(doc(db, 'users', id), sanitizeForFirestore(updates));
     } catch (err) {
       console.warn("Error updating dealer in users:", err);
     }
     try {
-      await setDoc(doc(db, 'dealers', id), updates, { merge: true });
+      await setDoc(doc(db, 'dealers', id), sanitizeForFirestore(updates), { merge: true });
     } catch (err) {
       console.warn("Error updating dealer in dealers:", err);
     }
@@ -1008,24 +1108,80 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.warn("Error deleting dealer from dealers:", err);
     }
+    try {
+      const cached = localStorage.getItem('crm_dealers_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const filtered = parsed.filter((d: any) => d.id !== id);
+        localStorage.setItem('crm_dealers_cache', JSON.stringify(filtered));
+      }
+    } catch (e) {}
+  };
+
+  const deleteEmployee = async (id: string) => {
+    setEmployees(prev => prev.filter(e => e.id !== id));
+    try {
+      await deleteDoc(doc(db, 'users', id));
+    } catch (err) {
+      console.warn("Error deleting employee from users:", err);
+    }
+    try {
+      await deleteDoc(doc(db, 'employees', id));
+    } catch (err) {}
+  };
+
+  const deleteUser = async (id: string, role?: string) => {
+    if (role === 'Dealer') {
+      await deleteDealer(id);
+    } else {
+      await deleteEmployee(id);
+    }
   };
 
   const addLead = async (lead: Omit<MockLead, 'id'>) => {
     try {
-      const assignedEmp = lead.assignedEmployee || (authUser?.role === 'Employee' ? authUser.name : '');
-      const assignedEmpId = lead.assignedEmployeeId || (authUser?.role === 'Employee' ? authUser.id : '') || '';
-      const dealer = lead.dealer || (authUser?.role === 'Dealer' ? authUser.name : 'Direct (Company)');
-      const dealerId = lead.dealerId || (authUser?.role === 'Dealer' ? authUser.id : '') || '';
+      const assignedEmp = lead.assignedEmployee !== undefined && lead.assignedEmployee !== null
+        ? lead.assignedEmployee
+        : (authUser?.role === 'Employee' ? authUser.name : '');
+      const assignedEmpId = lead.assignedEmployeeId !== undefined && lead.assignedEmployeeId !== null
+        ? lead.assignedEmployeeId
+        : (authUser?.role === 'Employee' ? authUser.id : '');
+      const dealer = lead.dealer !== undefined && lead.dealer !== null
+        ? lead.dealer
+        : (authUser?.role === 'Dealer' ? authUser.name : 'Direct (Company)');
+      const dealerId = lead.dealerId !== undefined && lead.dealerId !== null
+        ? lead.dealerId
+        : (authUser?.role === 'Dealer' ? authUser.id : '');
+
+      const nextNum = String(leads.length + 1).padStart(3, '0');
+      const customerCode = (lead as any).customerCode?.startsWith('MSV/CUS/')
+        ? (lead as any).customerCode
+        : `MSV/CUS/${nextNum}`;
 
       const leadPayload = {
         ...lead,
-        dealerId,
-        dealer,
-        assignedEmployee: assignedEmp,
-        assignedEmployeeId: assignedEmpId
+        customerCode: customerCode,
+        code: customerCode,
+        dealerId: dealerId || '',
+        dealer: dealer || 'Direct (Company)',
+        assignedEmployee: assignedEmp || '',
+        assignedEmployeeId: assignedEmpId || '',
+        createdAt: lead.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       const cleanPayload = sanitizeForFirestore(leadPayload);
-      await addDoc(collection(db, 'leads'), cleanPayload);
+      const docRef = await addDoc(collection(db, 'leads'), cleanPayload);
+
+      // Optimistic local state update so the new lead is immediately available in UI
+      const createdLead: MockLead = {
+        ...cleanPayload,
+        id: docRef.id,
+        customerCode: customerCode,
+        code: customerCode
+      } as MockLead;
+      setLeads(prev => [createdLead, ...prev.filter(l => l.id !== docRef.id)]);
+
+      return docRef.id;
     } catch (err: any) {
       console.error("Error adding lead:", err);
       dispatchToast(`Failed to save lead: ${err.message || String(err)}`, 'error');
@@ -1564,20 +1720,22 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addDealerEmployee = async (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'>) => {
-    const newId = `EMP${Date.now()}`;
+  const addDealerEmployee = async (dealerId: string, emp: Omit<Employee, 'id' | 'permissions' | 'role' | 'dealerId'> & { id?: string; password?: string }) => {
+    const newId = emp.id?.trim() || `EMP${Date.now()}`;
     const newEmployee: Employee = {
       ...emp,
       id: newId,
       dealerId,
       role: 'Employee',
-      permissions: { ...defaultEmployeePermissions }
+      permissions: { ...defaultEmployeePermissions },
+      status: emp.status || 'Active',
+      password: (emp as any).password || 'Mirror@1432'
     };
 
-    setEmployees(prev => [...prev, newEmployee]);
+    setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
 
     try {
-      await setDoc(doc(db, 'users', newId), newEmployee);
+      await setDoc(doc(db, 'users', newId), sanitizeForFirestore(newEmployee));
     } catch (err) {
       console.warn("Error adding dealer employee to Firestore:", err);
     }
@@ -1587,7 +1745,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEmployees(prev => prev.map(e => (e.id === employeeId && e.dealerId === dealerId) ? { ...e, ...updates } : e));
 
     try {
-      await updateDoc(doc(db, 'users', employeeId), updates);
+      await updateDoc(doc(db, 'users', employeeId), sanitizeForFirestore(updates));
     } catch (err) {
       console.warn("Error updating dealer employee in Firestore:", err);
     }
@@ -1796,8 +1954,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
-      addEmployee, updateEmployee, 
-      addDealer, updateDealer, deleteDealer,
+      addEmployee, updateEmployee, deleteEmployee,
+      addDealer, updateDealer, deleteDealer, deleteUser,
       addLead, updateLead, updateLeadStage,
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,

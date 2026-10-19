@@ -85,7 +85,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
       case '/employee/dashboard':
         return <EmployeeDashboard onNavigate={handleNavigate} />;
       case '/employee/attendance':
-        return <EmployeeAttendancePage />;
+        return <EmployeeAttendancePage initialTab={routeFilters?.tab} />;
       case '/employee/leads':
         return <LeadsPage {...(routeFilters || {})} />;
       case '/employee/milestones':

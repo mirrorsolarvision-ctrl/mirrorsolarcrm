@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   Search, Plus, X, List, TrendingUp, History, ClipboardCheck, CheckCircle2,
   Package, Box, AlertTriangle, AlertCircle, Truck, Layers, FileSpreadsheet,
-  Check, ArrowRight, UserCheck, ShieldCheck, ChevronRight, Clock, Trash2, ArrowUpRight
+  Check, ArrowRight, UserCheck, ShieldCheck, ChevronRight, Clock, Trash2, ArrowUpRight, RotateCcw
 } from 'lucide-react';
 import { useStock } from './context/StockContext';
 import type { 
@@ -16,7 +16,7 @@ import './StockPage.css';
 
 export default function StockPage() {
   const { 
-    stockItems, stockRequests, dealerStockList, stockDispatches, materialConsumptions,
+    stockItems, stockRequests, dealerStockList, stockDispatches, materialConsumptions, materialReturns,
     addStockItem, updateStockItem, adjustStock, reserveStock, releaseStock, archiveStock, 
     updateStockRequestStatus, addStockRequest, dispatchStockToDealer,
     totalItems, availableUnits, reservedUnits, lowStockCount, outOfStockCount, categorySummary 
@@ -29,7 +29,7 @@ export default function StockPage() {
   const isDealer = currentUser?.role === 'Dealer';
   const canManageStock = canManageModule(currentUser, 'stock');
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'dispatches' | 'dealer_stock' | 'consumptions' | 'requests'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'dispatches' | 'dealer_stock' | 'consumptions' | 'returns' | 'requests'>('inventory');
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,6 +135,15 @@ export default function StockPage() {
       return true;
     });
   }, [materialConsumptions, selectedDealerFilter, searchQuery]);
+
+  const filteredReturns = useMemo(() => {
+    return (materialReturns || []).filter(r => {
+      if (selectedDealerFilter !== 'All Dealers' && r.dealer !== selectedDealerFilter) return false;
+      const q = searchQuery.toLowerCase();
+      if (q && !(r.customerName?.toLowerCase().includes(q) || r.dealer.toLowerCase().includes(q) || r.itemName.toLowerCase().includes(q) || r.itemSku.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [materialReturns, selectedDealerFilter, searchQuery]);
 
   const pendingRequests = useMemo(() => {
     return stockRequests.filter(r => r.status === 'Pending').length;
@@ -515,6 +524,19 @@ export default function StockPage() {
           }}
         >
           <FileSpreadsheet size={18} /> Material Deductions
+        </button>
+
+        <button 
+          className={`tab-btn ${activeTab === 'returns' ? 'active' : ''}`}
+          onClick={() => setActiveTab('returns')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', 
+            fontWeight: 700, fontSize: '0.92rem', border: 'none', background: 'transparent',
+            borderBottom: activeTab === 'returns' ? '3px solid #0284c7' : '3px solid transparent',
+            color: activeTab === 'returns' ? '#0284c7' : '#64748b', cursor: 'pointer'
+          }}
+        >
+          <RotateCcw size={18} /> Recoveries & Returns ({filteredReturns.length})
         </button>
 
         <button 
@@ -1040,6 +1062,92 @@ export default function StockPage() {
                       </td>
                       <td style={{fontSize: '0.85rem', color: '#475569'}}>
                         {c.notes || 'Standard Solar Sizing Deductions'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: SITE MATERIAL RECOVERIES & RETURNS                                   */}
+      {/* ========================================================================= */}
+      {activeTab === 'returns' && (
+        <div className="stock-panel">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem'}}>
+            <h2><RotateCcw size={20} className="icon" /> Site Material Recoveries & Returns</h2>
+            <div className="text-muted text-sm">
+              Live tracking of excess, leftover, and recovered equipment from customer installation sites
+            </div>
+          </div>
+
+          <div className="stock-table-wrapper">
+            <table className="stock-table">
+              <thead>
+                <tr>
+                  <th>RETURN ID</th>
+                  <th>CUSTOMER / SITE</th>
+                  <th>DEALER</th>
+                  <th>RECOVERED EQUIPMENT</th>
+                  <th>DESTINATION</th>
+                  <th>CONDITION</th>
+                  <th>REASON & LOGGED BY</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReturns.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{textAlign: 'center', padding: '2.5rem', color: '#64748b'}}>
+                      <RotateCcw size={40} style={{color: '#cbd5e1', marginBottom: '0.5rem'}} />
+                      <p>No material returns logged yet. When dealers log recovered or excess materials from customer sites, they will appear here.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredReturns.map(r => (
+                    <tr key={r.id}>
+                      <td className="font-bold text-navy">{r.id}</td>
+                      <td>
+                        <div style={{display: 'flex', flexDirection: 'column'}}>
+                          <strong style={{color: '#0f172a'}}>{r.customerName}</strong>
+                          {r.leadId && <span className="text-muted text-sm">Lead: {r.leadId}</span>}
+                        </div>
+                      </td>
+                      <td className="font-bold">{r.dealer}</td>
+                      <td>
+                        <div style={{display: 'flex', flexDirection: 'column'}}>
+                          <span style={{fontSize: '0.9rem', color: '#16a34a', fontWeight: 800}}>
+                            +{r.quantity} {r.unit}
+                          </span>
+                          <span style={{fontSize: '0.78rem', color: '#64748b'}}>{r.itemName} ({r.itemSku})</span>
+                        </div>
+                      </td>
+                      <td>
+                        {r.destination === 'dealer_stock' ? (
+                          <span style={{background: '#dcfce7', border: '1px solid #bbf7d0', color: '#15803d', padding: '3px 9px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700}}>
+                            🏢 Kept in Dealer Stock
+                          </span>
+                        ) : (
+                          <span style={{background: '#e0f2fe', border: '1px solid #bae6fd', color: '#0369a1', padding: '3px 9px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700}}>
+                            🏭 Central Warehouse
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{
+                          background: r.condition === 'Good / Reusable' ? '#f0fdf4' : '#fef2f2',
+                          color: r.condition === 'Good / Reusable' ? '#166534' : '#991b1b',
+                          border: `1px solid ${r.condition === 'Good / Reusable' ? '#dcfce7' : '#fee2e2'}`,
+                          padding: '2px 8px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 600
+                        }}>
+                          {r.condition}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{fontSize: '0.85rem', color: '#334155'}}>{r.reason}</div>
+                        <div style={{fontSize: '0.75rem', color: '#64748b'}}>{r.loggedAt} by {r.loggedBy}</div>
                       </td>
                     </tr>
                   ))

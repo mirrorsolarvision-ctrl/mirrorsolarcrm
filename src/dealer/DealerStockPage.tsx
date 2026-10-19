@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { 
   Package, AlertTriangle, Search, Truck, Layers, FileSpreadsheet,
-  CheckCircle2, Clock, X, Plus, ShieldCheck, Box, AlertCircle
+  CheckCircle2, Clock, X, Plus, ShieldCheck, Box, AlertCircle,
+  RotateCcw, ArrowDownLeft, Check
 } from 'lucide-react';
 import { useStock } from '../context/StockContext';
 import { useCRM } from '../context/CRMContext';
@@ -11,14 +12,14 @@ import '../StockPage.css';
 
 export default function DealerStockPage() {
   const { 
-    stockItems, dealerStockList, stockDispatches, materialConsumptions,
-    confirmDealerDispatch, rejectDealerDispatch, addStockRequest
+    stockItems, dealerStockList, stockDispatches, materialConsumptions, materialReturns,
+    confirmDealerDispatch, rejectDealerDispatch, addStockRequest, returnMaterialFromSite
   } = useStock();
-  const { addActivity, currentUser } = useCRM();
+  const { addActivity, currentUser, leads } = useCRM();
   const { showToast } = useUI();
   const dealerName = currentUser?.name || 'Dealer';
   
-  const [activeTab, setActiveTab] = useState<'my_stock' | 'dispatches' | 'consumptions' | 'request'>('my_stock');
+  const [activeTab, setActiveTab] = useState<'my_stock' | 'dispatches' | 'consumptions' | 'returns' | 'request'>('my_stock');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
@@ -33,6 +34,19 @@ export default function DealerStockPage() {
     requiredDate: '', 
     notes: '' 
   });
+
+  // Return from site form state
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnForm, setReturnForm] = useState({
+    leadId: '',
+    customerName: '',
+    itemSku: '',
+    quantity: 1,
+    destination: 'dealer_stock' as 'dealer_stock' | 'central_warehouse',
+    condition: 'Good / Reusable' as 'Good / Reusable' | 'Damaged / Faulty',
+    reason: ''
+  });
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
 
   // Filtered Dealer Inventory
   const myStock = useMemo(() => {
@@ -61,6 +75,82 @@ export default function DealerStockPage() {
   const myConsumptions = useMemo(() => {
     return materialConsumptions.filter(c => c.dealer === dealerName);
   }, [materialConsumptions, dealerName]);
+
+  // Filtered Site Recoveries & Returns for this dealer
+  const myReturns = useMemo(() => {
+    return (materialReturns || []).filter(r => r.dealer === dealerName);
+  }, [materialReturns, dealerName]);
+
+  // Accessible Leads for site material attribution
+  const myLeads = useMemo(() => {
+    const curName = (dealerName || '').toLowerCase().trim();
+    const curId = (currentUser?.id || '').toLowerCase().trim();
+    return (leads || []).filter(l => {
+      const dlr = (l.dealer || '').toLowerCase().trim();
+      const dlrId = (l.dealerId || '').toLowerCase().trim();
+      return (dlr && (dlr === curName || dlr.includes(curName) || curName.includes(dlr))) ||
+             (dlrId && dlrId === curId);
+    });
+  }, [leads, dealerName, currentUser]);
+
+  // Handle Log Site Material Return Submit
+  const handleReturnSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returnForm.itemSku || returnForm.quantity <= 0) {
+      showToast('Please select equipment and enter a valid quantity.', 'error');
+      return;
+    }
+    const selectedItem = stockItems.find(i => i.sku === returnForm.itemSku) || myStock.find(i => i.itemSku === returnForm.itemSku);
+    const itemName = selectedItem ? (selectedItem as any).name || (selectedItem as any).itemName : returnForm.itemSku;
+    const unit = selectedItem?.unit || 'Units';
+
+    const customerObj = myLeads.find(l => l.id === returnForm.leadId);
+    const customerLabel = customerObj ? `${customerObj.customer} (${customerObj.location || 'Site'})` : (returnForm.customerName || 'General Site Recovery');
+
+    setIsSubmittingReturn(true);
+    const res = await returnMaterialFromSite({
+      dealer: dealerName,
+      leadId: returnForm.leadId || undefined,
+      customerName: customerLabel,
+      itemSku: returnForm.itemSku,
+      itemName,
+      quantity: returnForm.quantity,
+      unit,
+      destination: returnForm.destination,
+      condition: returnForm.condition,
+      reason: returnForm.reason.trim() || 'Leftover material returned from installation site',
+      loggedBy: currentUser?.name || dealerName
+    });
+    setIsSubmittingReturn(false);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to record site material return', 'error');
+    } else {
+      showToast(
+        returnForm.destination === 'dealer_stock'
+          ? `✓ ${returnForm.quantity} ${unit} credited back to your active Dealer Stock!`
+          : `✓ ${returnForm.quantity} ${unit} logged as return shipment to Central Warehouse!`,
+        'success'
+      );
+      addActivity({
+        type: 'Material Returned',
+        message: `${dealerName} logged site return of ${returnForm.quantity} ${unit} (${itemName}) -> ${returnForm.destination === 'dealer_stock' ? 'Dealer Stock' : 'Central Warehouse'}`,
+        user: dealerName,
+        dealer: dealerName
+      });
+      setShowReturnModal(false);
+      setReturnForm({
+        leadId: '',
+        customerName: '',
+        itemSku: '',
+        quantity: 1,
+        destination: 'dealer_stock',
+        condition: 'Good / Reusable',
+        reason: ''
+      });
+      setActiveTab('returns');
+    }
+  };
 
   // Derived Summary
   const totalStockUnits = myStock.reduce((acc, item) => acc + item.quantity, 0);
@@ -139,11 +229,20 @@ export default function DealerStockPage() {
         badge="Dealer Stock & Materials Hub"
         icon={<Package size={26} />}
         title="Dealer Stock & Materials Hub"
-        subtitle="Manage on-hand inventory, confirm incoming dispatches, and request materials from Admin."
+        subtitle="Manage on-hand inventory, confirm incoming dispatches, and log site material consumption & recoveries."
         actions={
-          <button className="btn-hero-primary" onClick={() => setActiveTab('request')}>
-            <Plus size={16} /> Request Material from Admin
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button 
+              className="btn-hero-primary" 
+              onClick={() => setShowReturnModal(true)}
+              style={{ background: '#0284c7', borderColor: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RotateCcw size={16} /> Log Return from Site / Customer
+            </button>
+            <button className="btn-hero-primary" onClick={() => setActiveTab('request')}>
+              <Plus size={16} /> Request Material from Admin
+            </button>
+          </div>
         }
       />
 
@@ -266,6 +365,19 @@ export default function DealerStockPage() {
           }}
         >
           <FileSpreadsheet size={16} /> Consumed for Projects ({myConsumptions.length})
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('returns')}
+          style={{
+            flex: 1, padding: '0.65rem 1.25rem', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+            background: activeTab === 'returns' ? '#ffffff' : 'transparent',
+            color: activeTab === 'returns' ? '#0f172a' : '#64748b',
+            boxShadow: activeTab === 'returns' ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '180px'
+          }}
+        >
+          <RotateCcw size={16} /> Site Returns & Recoveries ({myReturns.length})
         </button>
 
         <button 
@@ -503,6 +615,96 @@ export default function DealerStockPage() {
         </div>
       )}
 
+      {/* TAB: SITE RECOVERIES & RETURNS */}
+      {activeTab === 'returns' && (
+        <div style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem'}}>
+            <div>
+              <h2 style={{fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0}}>Site Material Recoveries & Returns</h2>
+              <p style={{fontSize: '0.85rem', color: '#64748b', margin: '3px 0 0'}}>
+                Trace materials returned from customer installations, excess balance, and items sent back to Central Warehouse.
+              </p>
+            </div>
+            <button 
+              className="btn-primary" 
+              onClick={() => setShowReturnModal(true)}
+              style={{ background: '#0284c7', borderColor: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RotateCcw size={15} /> Log Return from Site
+            </button>
+          </div>
+
+          <div className="table-responsive" style={{background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'}}>
+            <table className="admin-roster-table">
+              <thead>
+                <tr>
+                  <th>Return ID</th>
+                  <th>Customer / Site</th>
+                  <th>Material & Quantity</th>
+                  <th>Destination</th>
+                  <th>Condition</th>
+                  <th>Reason / Notes</th>
+                  <th>Date & Logger</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myReturns.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{textAlign: 'center', padding: '3rem', color: '#94a3b8'}}>
+                      <RotateCcw size={36} style={{margin: '0 auto 0.5rem', opacity: 0.5}} />
+                      <div style={{fontWeight: 700, fontSize: '1rem', color: '#475569'}}>No Site Recoveries Logged Yet</div>
+                      <div style={{fontSize: '0.85rem'}}>When leftover pipes, cables, or panels return from site, click "Log Return from Site".</div>
+                    </td>
+                  </tr>
+                ) : (
+                  myReturns.map(r => (
+                    <tr key={r.id}>
+                      <td style={{fontWeight: 700, color: '#0284c7'}}>{r.id}</td>
+                      <td>
+                        <div style={{fontWeight: 700, color: '#0f172a'}}>{r.customerName || 'General Site Recovery'}</div>
+                        {r.leadId && <div style={{fontSize: '0.75rem', color: '#64748b'}}>Lead #{r.leadId}</div>}
+                      </td>
+                      <td>
+                        <div style={{fontWeight: 800, color: '#0f172a'}}>+{r.quantity} {r.unit}</div>
+                        <div style={{fontSize: '0.78rem', color: '#64748b'}}>{r.itemName} ({r.itemSku})</div>
+                      </td>
+                      <td>
+                        {r.destination === 'dealer_stock' ? (
+                          <span style={{background: '#dcfce7', border: '1px solid #bbf7d0', color: '#15803d', padding: '3px 9px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                            🏢 Kept in Dealer Stock
+                          </span>
+                        ) : (
+                          <span style={{background: '#e0f2fe', border: '1px solid #bae6fd', color: '#0369a1', padding: '3px 9px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                            🏭 Central Warehouse
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{
+                          background: r.condition === 'Good / Reusable' ? '#f0fdf4' : '#fef2f2',
+                          color: r.condition === 'Good / Reusable' ? '#166534' : '#991b1b',
+                          border: `1px solid ${r.condition === 'Good / Reusable' ? '#dcfce7' : '#fee2e2'}`,
+                          padding: '2px 8px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 600
+                        }}>
+                          {r.condition}
+                        </span>
+                      </td>
+                      <td style={{fontSize: '0.82rem', color: '#475569', maxWidth: '220px'}}>
+                        {r.reason}
+                      </td>
+                      <td>
+                        <div style={{fontSize: '0.85rem', color: '#334155'}}>{r.loggedAt}</div>
+                        <div style={{fontSize: '0.75rem', color: '#64748b'}}>By: {r.loggedBy}</div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* TAB 4: REQUEST MATERIAL FROM ADMIN */}
       {activeTab === 'request' && (
         <div style={{maxWidth: '650px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '2rem', margin: '0 auto', width: '100%'}}>
@@ -589,6 +791,152 @@ export default function DealerStockPage() {
                 Confirm Rejection
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ↩️ RETURN MATERIAL FROM SITE MODAL */}
+      {showReturnModal && (
+        <div className="modal-overlay" onClick={() => !isSubmittingReturn && setShowReturnModal(false)}>
+          <div className="modal-content" style={{maxWidth: '560px'}} onClick={e => e.stopPropagation()}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                <div style={{width: '38px', height: '38px', borderRadius: '10px', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <RotateCcw size={20} />
+                </div>
+                <div>
+                  <h2 style={{fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0}}>Log Material Return from Site</h2>
+                  <p style={{fontSize: '0.8rem', color: '#64748b', margin: 0}}>Recover excess, unused, or returned equipment from customer site</p>
+                </div>
+              </div>
+              <button className="detail-close" onClick={() => setShowReturnModal(false)} disabled={isSubmittingReturn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleReturnSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+              <div className="form-group">
+                <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Customer Installation / Site</label>
+                <select 
+                  value={returnForm.leadId} 
+                  onChange={e => {
+                    const lead = myLeads.find(l => l.id === e.target.value);
+                    setReturnForm({
+                      ...returnForm, 
+                      leadId: e.target.value,
+                      customerName: lead ? lead.customer : ''
+                    });
+                  }}
+                  style={{width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600}}
+                >
+                  <option value="">-- General Site / Warehouse Recovery --</option>
+                  {myLeads.map(l => (
+                    <option key={l.id} value={l.id}>{l.customer} - {l.location || 'Site'} ({l.stage})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Equipment / Material Returned *</label>
+                <select 
+                  value={returnForm.itemSku} 
+                  onChange={e => setReturnForm({...returnForm, itemSku: e.target.value})}
+                  style={{width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600}}
+                  required
+                >
+                  <option value="">-- Choose Returned Equipment --</option>
+                  {stockItems.filter(i => !i.archived).map(i => (
+                    <option key={i.sku} value={i.sku}>{i.name} ({i.sku})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                <div className="form-group">
+                  <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Returned Quantity *</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={returnForm.quantity} 
+                    onChange={e => setReturnForm({...returnForm, quantity: parseInt(e.target.value) || 1})}
+                    style={{width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700}}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Item Condition *</label>
+                  <select 
+                    value={returnForm.condition} 
+                    onChange={e => setReturnForm({...returnForm, condition: e.target.value as any})}
+                    style={{width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}
+                  >
+                    <option value="Good / Reusable">✓ Good / Reusable</option>
+                    <option value="Damaged / Faulty">⚠️ Damaged / Faulty</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Where Should This Material Go? *</label>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '4px'}}>
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', gap: '4px', padding: '0.85rem',
+                    borderRadius: '10px', border: `2px solid ${returnForm.destination === 'dealer_stock' ? '#0284c7' : '#e2e8f0'}`,
+                    background: returnForm.destination === 'dealer_stock' ? '#f0f9ff' : '#ffffff',
+                    cursor: 'pointer'
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#0f172a', fontSize: '0.88rem'}}>
+                      <input 
+                        type="radio" 
+                        name="dest" 
+                        checked={returnForm.destination === 'dealer_stock'} 
+                        onChange={() => setReturnForm({...returnForm, destination: 'dealer_stock'})} 
+                      />
+                      🏢 Store in My Stock
+                    </div>
+                    <span style={{fontSize: '0.75rem', color: '#64748b'}}>Credited back to your dealer inventory for the next site.</span>
+                  </label>
+
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', gap: '4px', padding: '0.85rem',
+                    borderRadius: '10px', border: `2px solid ${returnForm.destination === 'central_warehouse' ? '#0284c7' : '#e2e8f0'}`,
+                    background: returnForm.destination === 'central_warehouse' ? '#f0f9ff' : '#ffffff',
+                    cursor: 'pointer'
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#0f172a', fontSize: '0.88rem'}}>
+                      <input 
+                        type="radio" 
+                        name="dest" 
+                        checked={returnForm.destination === 'central_warehouse'} 
+                        onChange={() => setReturnForm({...returnForm, destination: 'central_warehouse'})} 
+                      />
+                      🏭 Send to Warehouse
+                    </div>
+                    <span style={{fontSize: '0.75rem', color: '#64748b'}}>Returned back to Admin Central Warehouse.</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{fontWeight: 700, fontSize: '0.85rem'}}>Reason / Return Notes</label>
+                <textarea 
+                  placeholder="E.g. Unused 2 GI pipes, leftover 15m DC cable from 3kW installation, customer roof layout change..."
+                  value={returnForm.reason}
+                  onChange={e => setReturnForm({...returnForm, reason: e.target.value})}
+                  style={{width: '100%', minHeight: '80px', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1'}}
+                />
+              </div>
+
+              <div style={{display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem'}}>
+                <button type="button" className="btn-outline" onClick={() => setShowReturnModal(false)} disabled={isSubmittingReturn}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{background: '#0284c7', borderColor: '#0284c7', fontWeight: 700}} disabled={isSubmittingReturn}>
+                  {isSubmittingReturn ? 'Recording Return...' : 'Confirm & Save Return'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

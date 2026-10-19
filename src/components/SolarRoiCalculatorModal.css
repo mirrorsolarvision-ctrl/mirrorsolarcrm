@@ -300,3 +300,55 @@
     transform: scale(1);
   }
 }
+
+@media (max-width: 640px) {
+  .solar-roi-modal-overlay {
+    padding: 0.5rem;
+    z-index: 3000;
+  }
+
+  .solar-roi-modal-card {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    border-radius: 14px !important;
+  }
+
+  .solar-roi-modal-header {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .roi-header-icon {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .roi-header-title {
+    font-size: 1.05rem !important;
+  }
+
+  .solar-roi-modal-body {
+    padding: 0.85rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .roi-controls-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+
+  .solar-roi-modal-actions {
+    padding: 0.75rem 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .roi-btn {
+    width: 100% !important;
+    min-height: 38px !important;
+    font-size: 0.84rem !important;
+    justify-content: center !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+}

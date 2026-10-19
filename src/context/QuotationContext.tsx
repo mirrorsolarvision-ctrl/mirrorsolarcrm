@@ -83,16 +83,29 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, []);
 
-  // Filtered quotations based on user role (Strict Dealer Isolation)
+  // Filtered quotations based on user role (Strict Dealer & Employee Isolation)
   const myQuotations = useMemo(() => {
     if (!currentUser) return quotations;
     if (currentUser.role === 'Admin') return quotations;
     if (currentUser.role === 'Dealer') {
       const dealerId = (currentUser as any).dealerId || currentUser.id;
-      return quotations.filter((q) => q.dealerId === dealerId || q.createdById === currentUser.id);
+      const curName = (currentUser.name || '').trim().toLowerCase();
+      return quotations.filter((q) => 
+        q.dealerId === dealerId || 
+        q.createdById === currentUser.id ||
+        (curName && q.dealerName && q.dealerName.trim().toLowerCase() === curName)
+      );
     }
-    // Employee: see all quotations
-    return quotations;
+    // Employee: PM Surya Ghar Incharge gets company-wide view for central DISCOM/project processing
+    if ((currentUser as any).employeeCategory === 'PM Surya Ghar Incharge' || currentUser.name?.includes('Surya Ghar')) {
+      return quotations;
+    }
+    // Regular Marketing / Field Employee: only see quotations created by themselves
+    const curName = (currentUser.name || '').trim().toLowerCase();
+    return quotations.filter((q) => 
+      q.createdById === currentUser.id || 
+      (curName && q.createdBy && q.createdBy.trim().toLowerCase() === curName)
+    );
   }, [quotations, currentUser]);
 
   const generateQuotationNumber = (version: number = 1) => {

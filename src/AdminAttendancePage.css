@@ -330,3 +330,752 @@
   color: #0F172A;
   margin: 8px 0 4px 0;
 }
+
+/* ==========================================================================
+   MONTHLY ATTENDANCE MATRIX & LEAVE MANAGEMENT STYLES
+   ========================================================================== */
+
+.admin-subnav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-subnav-pill:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.admin-subnav-pill.active {
+  background: #0284C7;
+  color: #FFFFFF;
+  border-color: #0284C7;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+}
+
+.subnav-badge-count {
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+.admin-subnav-pill.active .subnav-badge-count {
+  background: #FFFFFF;
+  color: #EF4444;
+}
+
+/* Monthly Matrix Toolbar */
+.matrix-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #F1F5F9;
+  background: #FFFFFF;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.matrix-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.month-picker-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  padding: 6px 12px;
+  border-radius: 10px;
+}
+
+.month-picker-pill input[type="month"] {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0F172A;
+  outline: none;
+  cursor: pointer;
+}
+
+.matrix-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Matrix Table Grid */
+.matrix-scroll-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  background: #FFFFFF;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8rem;
+}
+
+.matrix-table th,
+.matrix-table td {
+  padding: 8px 4px;
+  text-align: center;
+  border-bottom: 1px solid #F1F5F9;
+  border-right: 1px solid #F1F5F9;
+  min-width: 28px;
+}
+
+.matrix-table th {
+  background: #F8FAFC;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.matrix-table th.emp-col-header,
+.matrix-table td.emp-col-cell {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #FFFFFF;
+  text-align: left;
+  min-width: 170px;
+  padding-left: 14px;
+  border-right: 2px solid #E2E8F0;
+}
+
+.matrix-table th.emp-col-header {
+  background: #F8FAFC;
+  z-index: 4;
+}
+
+.matrix-table th.sun-header,
+.matrix-table td.sun-cell {
+  background: #F1F5F9;
+  color: #94A3B8;
+}
+
+.matrix-table th.summary-col-header {
+  background: #EFF6FF;
+  color: #1E40AF;
+  min-width: 44px;
+}
+
+.matrix-table td.summary-col-cell {
+  background: #F8FAFC;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+/* Status Chips inside Matrix */
+.matrix-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.matrix-chip:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.matrix-chip.chip-p {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+}
+
+.matrix-chip.chip-h {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FCD34D;
+}
+
+.matrix-chip.chip-l {
+  background: #E0E7FF;
+  color: #4338CA;
+  border: 1px solid #C7D2FE;
+}
+
+.matrix-chip.chip-a {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+}
+
+.matrix-chip.chip-sun {
+  background: transparent;
+  color: #94A3B8;
+  cursor: default;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.matrix-chip.chip-future {
+  background: transparent;
+  color: #CBD5E1;
+  cursor: default;
+}
+
+/* Leave Requests Badges & Layout */
+.badge-leave-pending {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FCD34D;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-leave-approved {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-leave-rejected {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.leave-type-chip {
+  background: #F1F5F9;
+  color: #0F172A;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.leave-date-range {
+  font-weight: 600;
+  color: #0F172A;
+  font-size: 0.85rem;
+}
+
+.leave-duration-badge {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+
+/* Inline Edit Popover for Day in Matrix */
+.matrix-cell-popover {
+  position: absolute;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  z-index: 50;
+  min-width: 180px;
+  text-align: left;
+}
+
+.popover-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.popover-btn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popover-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: #F8FAFC;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.popover-btn:hover {
+  background: #F1F5F9;
+}
+
+/* ========================================================================= */
+/* ATTENDANCE IMPORT MODAL STYLES */
+/* ========================================================================= */
+.attendance-import-modal {
+  background: #FFFFFF;
+  border-radius: 20px;
+  width: 95%;
+  max-width: 760px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+.import-modal-header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #E2E8F0;
+  background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+}
+
+.import-modal-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ECFDF5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.import-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.import-modal-header p {
+  margin: 3px 0 0 0;
+  font-size: 0.82rem;
+  color: #64748B;
+}
+
+.import-mode-switch {
+  display: flex;
+  padding: 12px 24px 0 24px;
+  gap: 8px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.import-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.import-mode-tab.active {
+  background: #FFFFFF;
+  color: #0284C7;
+  font-weight: 700;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.03);
+}
+
+.import-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.import-guidance-card {
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn-download-template {
+  background: #FFFFFF;
+  border: 1.5px solid #0284C7;
+  color: #0284C7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-download-template:hover {
+  background: #0284C7;
+  color: #FFFFFF;
+}
+
+.import-dropzone {
+  border: 2px dashed #CBD5E1;
+  border-radius: 14px;
+  padding: 32px 20px;
+  text-align: center;
+  background: #F8FAFC;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.import-dropzone:hover {
+  border-color: #0284C7;
+  background: #F0F9FF;
+}
+
+.dropzone-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.dropzone-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.dropzone-subtitle {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.selected-filename-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  background: #E0F2FE;
+  color: #0369A1;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.import-textarea {
+  width: 100%;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: #0F172A;
+  resize: vertical;
+  outline: none;
+}
+
+.import-textarea:focus {
+  border-color: #0284C7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.import-preview-section {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.preview-summary-bar {
+  background: #F8FAFC;
+  padding: 10px 16px;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-badges-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.stat-pill {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.stat-pill.total { background: #E2E8F0; color: #334155; }
+.stat-pill.valid { background: #DCFCE7; color: #166534; }
+.stat-pill.error { background: #FEE2E2; color: #991B1B; }
+
+.preview-table-container {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.preview-table th {
+  background: #F1F5F9;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.preview-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.preview-table tr.invalid-row {
+  background: #FEF2F2;
+}
+
+.import-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #F8FAFC;
+}
+
+.btn-modal-cancel {
+  padding: 8px 18px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #475569;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-confirm {
+  padding: 8px 22px;
+  border: none;
+  background: #10B981;
+  color: #FFFFFF;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-modal-confirm:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-modal-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE OVERHAUL (Attendance Page)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .admin-attendance-container {
+    padding: 10px 10px 6.5rem 10px !important;
+    gap: 14px;
+  }
+
+  .admin-attendance-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .admin-date-picker-wrap {
+    width: 100%;
+    justify-content: space-between;
+    box-sizing: border-box;
+  }
+
+  .admin-date-summary-banner {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .admin-att-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .metric-card {
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .metric-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .metric-icon-wrap svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .metric-number {
+    font-size: 1.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.68rem;
+  }
+
+  .admin-subnav-bar,
+  .admin-attendance-subnav {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+
+  .admin-subnav-pill {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .matrix-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    border-radius: 10px;
+  }
+
+  .matrix-table {
+    min-width: 900px;
+  }
+
+  .admin-roster-table {
+    min-width: 650px;
+  }
+
+  .matrix-table th.emp-name-cell,
+  .matrix-table td.emp-name-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #FFFFFF;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  }
+
+  .matrix-table th.emp-name-cell {
+    background: #F8FAFC;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-attendance-container {
+    padding: 8px 8px 6.5rem 8px !important;
+  }
+
+  .metric-number {
+    font-size: 1.15rem;
+  }
+
+  .metric-label {
+    font-size: 0.62rem;
+  }
+}
+
+

@@ -2,13 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { 
   Users, Briefcase, Search, Plus, X, Shield, Lock, Eye, EyeOff, 
   CheckCircle2, Key, Sliders, CheckSquare, Calendar, CreditCard, 
-  Package, FileText, UserCheck, TrendingUp, AlertTriangle, ArrowRight, UserPlus, Phone, Mail, MapPin, Zap, Edit3, Save
+  Package, FileText, UserCheck, TrendingUp, AlertTriangle, ArrowRight, UserPlus, Phone, Mail, MapPin, Zap, Edit3, Save, Trash2
 } from 'lucide-react';
 import PageHero from './components/PageHero';
 import { useCRM, defaultDealerFeatures, defaultEmployeeFeatures } from './context/CRMContext';
 import { useUI } from './context/UIContext';
 import type { Employee, Dealer, DealerFeatures, UserStatus } from './context/CRMContext';
 import { DEALER_TARGET_KW } from './utils/dealerCalculations';
+import { formatDealerCode, formatEmployeeCode } from './utils/idUtils';
 import './AdminUsersDirectoryPage.css';
 
 interface AdminUsersDirectoryPageProps {
@@ -23,6 +24,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     addDealer, 
     updateEmployee, 
     updateDealer, 
+    deleteDealer,
+    deleteEmployee,
     updateUserFeatures, 
     updateUserPassword,
     updateUserCredentials,
@@ -272,6 +275,25 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     });
   };
 
+  const handleDeleteUser = (user: (Employee | Dealer) & { userType: 'Employee' | 'Dealer' }) => {
+    showConfirmModal(
+      `Delete ${user.userType}?`,
+      `Are you sure you want to permanently delete "${user.name}" (${user.role})? This cannot be undone.`,
+      async () => {
+        try {
+          if (user.role === 'Dealer') {
+            await deleteDealer(user.id);
+          } else {
+            await deleteEmployee(user.id);
+          }
+          showToast(`Successfully deleted ${user.role} "${user.name}"`, 'success');
+        } catch (err: any) {
+          showToast(err.message || 'Failed to delete user', 'error');
+        }
+      }
+    );
+  };
+
   return (
     <div className="users-hub-container" style={{ padding: 0 }}>
       <PageHero
@@ -390,12 +412,14 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     <div className={`user-hub-avatar ${isDealer ? 'dealer-avatar' : 'employee-avatar'}`}>
                       {user.initials || user.name.substring(0, 2).toUpperCase()}
                     </div>
-                    <div>
-                      <h4 className="user-hub-name">{user.name}</h4>
+                    <div className="user-name-id-wrap">
+                      <h4 className="user-hub-name" title={user.name}>{user.name}</h4>
                       <div className="user-id-role-row">
-                        <span className="user-hub-id">{user.id}</span>
+                        <span className="user-hub-id" title={isDealer ? formatDealerCode(user) : formatEmployeeCode(user)}>
+                          {isDealer ? formatDealerCode(user) : formatEmployeeCode(user)}
+                        </span>
                         {!isDealer && empCat && (
-                          <span className="emp-category-pill">{empCat}</span>
+                          <span className="emp-category-pill" title={empCat}>{empCat}</span>
                         )}
                       </div>
                     </div>
@@ -498,6 +522,15 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     onClick={() => handleToggleStatus(user)}
                   >
                     {user.status === 'Active' ? 'Disable' : 'Enable'}
+                  </button>
+
+                  <button 
+                    className="action-btn delete-btn"
+                    onClick={() => handleDeleteUser(user)}
+                    title={`Delete ${user.role} permanently`}
+                    style={{ color: '#ef4444', borderColor: '#fee2e2' }}
+                  >
+                    <Trash2 size={15} /> Delete
                   </button>
                 </div>
               </div>

@@ -181,46 +181,141 @@
   width: 100%;
 }
 
-/* Mobile adjustments (98% mobile usage) */
+/* High contrast for outline buttons placed inside PageHero */
+.page-hero-header .btn-outline {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.page-hero-header .btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Tablet adjustments */
+@media (max-width: 900px) {
+  .page-hero-header {
+    padding: 1.5rem 1.5rem 1.25rem 1.5rem;
+  }
+}
+
+/* Mobile adjustments (Comfortable, uncompressed executive banner) */
 @media (max-width: 768px) {
   .page-hero-header {
-    padding: 1.15rem 0.9rem 1rem 0.9rem;
+    padding: 1.35rem 1.15rem 1.25rem 1.15rem !important;
+  }
+
+  .page-hero-content {
+    gap: 1rem !important;
   }
   
   .hero-title-row {
     min-width: 0 !important;
-    gap: 0.85rem !important;
+    gap: 0.95rem !important;
   }
 
   .hero-icon-badge {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+  }
+
+  .hero-icon-badge svg {
+    width: 24px !important;
+    height: 24px !important;
   }
   
   .hero-title-area {
-    min-width: 0;
-    flex: 1;
+    min-width: 0 !important;
+    flex: 1 !important;
+    gap: 0.35rem !important;
+  }
+
+  .hero-badge-pill {
+    font-size: 0.72rem !important;
+    padding: 0.2rem 0.65rem !important;
   }
 
   .hero-title-area h1 {
-    font-size: 1.35rem;
-    word-break: break-word;
+    font-size: 1.4rem !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
+    margin: 0.15rem 0 !important;
   }
   
   .hero-title-area p {
-    font-size: 0.84rem;
-    line-height: 1.35;
+    font-size: 0.86rem !important;
+    line-height: 1.45 !important;
+    color: #cbd5e1 !important;
+    margin-top: 0.15rem !important;
   }
 
   .hero-action-container {
-    width: 100%;
-    justify-content: flex-start;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 0.65rem !important;
+    margin-top: 0.25rem !important;
   }
 
   .btn-hero-primary,
   .btn-hero-secondary {
-    padding: 0.6rem 0.95rem;
-    font-size: 0.85rem;
+    padding: 0.6rem 1rem !important;
+    font-size: 0.84rem !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+  }
+
+  .hero-bottom-slot {
+    margin-top: 0.85rem !important;
+  }
+}
+
+/* Compact mobile devices (< 420px: iPhone SE, Galaxy A-series, etc.) */
+@media (max-width: 420px) {
+  .page-hero-header {
+    padding: 1.15rem 0.95rem 1.05rem 0.95rem !important;
+  }
+
+  .hero-title-row {
+    gap: 0.8rem !important;
+  }
+
+  .hero-icon-badge {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+
+  .hero-icon-badge svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .hero-badge-pill {
+    font-size: 0.68rem !important;
+    padding: 0.18rem 0.55rem !important;
+  }
+
+  .hero-title-area h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.28 !important;
+  }
+
+  .hero-title-area p {
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .hero-action-container {
+    gap: 0.5rem !important;
+  }
+
+  .btn-hero-primary,
+  .btn-hero-secondary {
+    font-size: 0.8rem !important;
+    padding: 0.55rem 0.85rem !important;
+    min-height: 38px !important;
   }
 }

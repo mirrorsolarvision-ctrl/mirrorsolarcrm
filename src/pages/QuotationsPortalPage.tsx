@@ -322,6 +322,98 @@ export default function QuotationsPortalPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Swipeable Quotation Cards Deck */}
+        <div className="qp-mobile-slides-container">
+          <div className="qp-mobile-slides-track">
+            {filteredQuotations.map((q) => (
+              <div key={q.id} className={`qp-slide-card status-${(q.status || 'Draft').toLowerCase()}`}>
+                <div className="qp-slide-card-header">
+                  <div className="qp-slide-title-wrap">
+                    <span className="qp-slide-qnum">{q.quotationNumber || 'MSV-QT-Draft'}</span>
+                    {(q.version || 1) > 1 && <span className="qp-ver-tag">V{q.version}</span>}
+                  </div>
+                  <span className={`qp-status-pill status-${(q.status || 'Draft').toLowerCase()}`}>
+                    {q.status || 'Draft'}
+                  </span>
+                </div>
+
+                <div className="qp-slide-customer-row">
+                  <div className="qp-slide-cust-avatar">
+                    {(q.customer?.customerName || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="qp-slide-cust-info">
+                    <div className="qp-slide-cust-name">{q.customer?.customerName || 'Customer'}</div>
+                    <div className="qp-slide-cust-sub">
+                      {q.customer?.mobileNumber || '—'} {q.customer?.city ? `• ${q.customer.city}` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="qp-slide-specs-row">
+                  <span className="qp-cap-badge">{q.project?.systemCapacityKw || 3} kW</span>
+                  <span className="qp-plant-type">{q.project?.structureType || q.project?.plantType || 'Residential On-Grid'}</span>
+                </div>
+
+                <div className="qp-slide-financials-grid">
+                  <div className="qp-slide-fin-item">
+                    <span className="fin-lbl">Total (5% GST Incl)</span>
+                    <span className="fin-val font-semibold">₹{(q.financials?.grandTotal || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="qp-slide-fin-item">
+                    <span className="fin-lbl">PM Surya Ghar Subsidy</span>
+                    <span className="fin-val text-green">₹{(q.financials?.subsidyAmount || 78000).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="qp-slide-fin-item full">
+                    <span className="fin-lbl">Net Payable to Company</span>
+                    <span className="fin-val font-bold text-navy text-lg">₹{(q.financials?.grandTotal || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+
+                <div className="qp-slide-date-row">
+                  <Clock size={12} /> {q.createdAt ? new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today'}
+                </div>
+
+                <div className="qp-slide-actions-row">
+                  {q.status === 'Draft' ? (
+                    <button className="qp-slide-btn primary" onClick={() => handleEdit(q)}>
+                      <Edit3 size={14} /> Edit
+                    </button>
+                  ) : (
+                    <button className="qp-slide-btn" onClick={() => handleAmend(q)}>
+                      <Plus size={14} /> Amend (V{(q.version || 1) + 1})
+                    </button>
+                  )}
+                  <button className="qp-slide-btn whatsapp" onClick={() => handleShareWhatsApp(q)} title="Share via WhatsApp">
+                    <Share2 size={14} /> WhatsApp
+                  </button>
+                  {(q.version > 1 || q.parentQuotationId) && (
+                    <button className="qp-slide-btn" onClick={() => handleCompare(q)} title="Compare Versions">
+                      <Layers size={14} /> Diff
+                    </button>
+                  )}
+                  <button className="qp-slide-btn" onClick={() => handleDuplicate(q)} title="Duplicate">
+                    <Copy size={14} />
+                  </button>
+                  {q.status === 'Draft' && (
+                    <button className="qp-slide-btn danger" onClick={() => handleCancel(q)} title="Cancel">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {filteredQuotations.length === 0 && (
+              <div className="qp-slide-empty">
+                <FileText size={36} />
+                <p>No quotations found</p>
+                <button className="btn-primary" onClick={() => handleOpenNew()}>
+                  <Plus size={15} /> Create First Quotation
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       </div>
 

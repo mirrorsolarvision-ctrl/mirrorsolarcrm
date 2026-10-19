@@ -71,15 +71,24 @@ export default function MilestonesPage({ onNavigate, defaultTab = 'marketing' }:
 
   // --------------------------------------------------------------------------
   // 1. MARKETING EMPLOYEES & MONTHLY SALES MILESTONES
-  // --------------------------------------------------------------------------
   const marketingEmployees = useMemo(() => {
     return employees.filter(emp => {
+      // Strict individual scoping: Regular employees only see their own milestone record
+      if (isEmployee && !isAdmin) {
+        const curName = (currentUser?.name || '').toLowerCase().trim();
+        const curId = (currentUser?.id || '').toLowerCase().trim();
+        const empName = (emp.name || '').toLowerCase().trim();
+        const empId = (emp.id || '').toLowerCase().trim();
+        const isMatch = (curName && (empName === curName || empName.includes(curName) || curName.includes(empName))) ||
+                        (curId && empId === curId);
+        if (!isMatch) return false;
+      }
       const cat = (emp.employeeCategory || (emp as any).category || '').toLowerCase();
       // Exclude dedicated warehouse stock incharge and PM surya central lead processing
       if (cat.includes('stock incharge')) return false;
       return true;
     });
-  }, [employees]);
+  }, [employees, isEmployee, isAdmin, currentUser]);
 
   // Derived: Converted leads per marketing employee for the selected month
   const marketingMilestoneStats = useMemo(() => {

@@ -105,12 +105,30 @@ export interface MaterialConsumptionRecord {
   notes?: string;
 }
 
+export interface MaterialReturnRecord {
+  id: string;
+  dealer: string;
+  leadId?: string;
+  customerName?: string;
+  itemSku: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  destination: 'dealer_stock' | 'central_warehouse';
+  condition: 'Good / Reusable' | 'Damaged / Faulty';
+  reason: string;
+  loggedBy: string;
+  loggedAt: string;
+  status: 'Completed' | 'Pending Warehouse Acknowledgment';
+}
+
 interface StockContextType {
   stockItems: StockItem[];
   stockRequests: StockRequest[];
   dealerStockList: DealerStockItem[];
   stockDispatches: StockDispatch[];
   materialConsumptions: MaterialConsumptionRecord[];
+  materialReturns: MaterialReturnRecord[];
   
   // Warehouse Actions
   addStockItem: (item: Omit<StockItem, 'id' | 'status' | 'updatedAt' | 'history' | 'archived'>) => Promise<{ success: boolean; error?: string }>;
@@ -129,6 +147,19 @@ interface StockContextType {
   confirmDealerDispatch: (dispatchId: string, dealerName: string, confirmedBy?: string) => Promise<{ success: boolean; error?: string }>;
   rejectDealerDispatch: (dispatchId: string, dealerName: string, reason: string) => Promise<{ success: boolean; error?: string }>;
   deductDealerStockForLeadMaterial: (leadId: string, customerName: string, dealer: string, specs: DealerProjectSpecifications, approvedBy: string) => Promise<{ success: boolean; error?: string; deductedSummary?: string }>;
+  returnMaterialFromSite: (params: {
+    dealer: string;
+    leadId?: string;
+    customerName?: string;
+    itemSku: string;
+    itemName: string;
+    quantity: number;
+    unit: string;
+    destination: 'dealer_stock' | 'central_warehouse';
+    condition?: 'Good / Reusable' | 'Damaged / Faulty';
+    reason?: string;
+    loggedBy?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
 
   // Summaries
   totalItems: number;
@@ -186,6 +217,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [dealerStockList, setDealerStockList] = useState<DealerStockItem[]>([]);
   const [stockDispatches, setStockDispatches] = useState<StockDispatch[]>([]);
   const [materialConsumptions, setMaterialConsumptions] = useState<MaterialConsumptionRecord[]>([]);
+  const [materialReturns, setMaterialReturns] = useState<MaterialReturnRecord[]>([]);
 
   useEffect(() => {
     // 1. Central Inventory listener
@@ -263,12 +295,23 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMaterialConsumptions(records);
     });
 
+    // 6. Material Returns & Recoveries listener
+    const unsubscribeReturns = onSnapshot(collection(db, 'materialReturns'), (snapshot) => {
+      const records: MaterialReturnRecord[] = [];
+      snapshot.forEach(docSnap => {
+        records.push({ id: docSnap.id, ...docSnap.data() } as MaterialReturnRecord);
+      });
+      records.sort((a, b) => new Date(b.loggedAt || 0).getTime() - new Date(a.loggedAt || 0).getTime());
+      setMaterialReturns(records);
+    });
+
     return () => {
       unsubscribeItems();
       unsubscribeRequests();
       unsubscribeDealerStock();
       unsubscribeDispatches();
       unsubscribeConsumptions();
+      unsubscribeReturns();
     };
   }, []);
 
@@ -818,6 +861,94 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, deductedSummary };
   };
 
+  // --- ↩️ 5. Log Site Return / Excess Material Flow ---
+  const returnMaterialFromSite = async (params: {
+    dealer: string;
+    leadId?: string;
+    customerName?: string;
+    itemSku: string;
+    itemName: string;
+    quantity: number;
+    unit: string;
+    destination: 'dealer_stock' | 'central_warehouse';
+    condition?: 'Good / Reusable' | 'Damaged / Faulty';
+    reason?: string;
+    loggedBy?: string;
+  }) => {
+    try {
+      const returnId = `RET-${Date.now().toString().slice(-6)}`;
+      const now = new Date().toLocaleString();
+      const condition = params.condition || 'Good / Reusable';
+      const reason = params.reason || 'Leftover material returned from customer site';
+      const loggedBy = params.loggedBy || params.dealer;
+
+      if (params.destination === 'dealer_stock') {
+        // 1. Add back into Dealer's local inventory
+        const dealerDocId = `${params.dealer}_${params.itemSku}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const existing = dealerStockList.find(d => d.id === dealerDocId || (d.dealer === params.dealer && d.itemSku === params.itemSku));
+        const currentQty = existing ? existing.quantity : 0;
+        const newQty = currentQty + params.quantity;
+
+        const updatedDealerItem: DealerStockItem = {
+          id: dealerDocId,
+          dealer: params.dealer,
+          itemSku: params.itemSku,
+          itemName: params.itemName,
+          category: existing?.category || 'General Material',
+          unit: params.unit,
+          quantity: newQty,
+          lastUpdatedAt: now
+        };
+        await setDoc(doc(db, 'dealerStock', dealerDocId), updatedDealerItem);
+      } else {
+        // 2. Return to Central Warehouse
+        const warehouseItem = stockItems.find(i => i.sku === params.itemSku && !i.archived);
+        if (warehouseItem && condition === 'Good / Reusable') {
+          const newTotal = warehouseItem.totalQuantity + params.quantity;
+          const newAvailable = newTotal - warehouseItem.reservedQuantity;
+          await updateDoc(doc(db, 'inventory', warehouseItem.id), {
+            totalQuantity: newTotal,
+            status: calculateStatus(newAvailable, warehouseItem.minimumStock, warehouseItem.maxStock),
+            updatedAt: 'Just now',
+            history: [{
+              id: generateId(),
+              date: new Date().toLocaleDateString(),
+              action: 'Returned from Site to Central Warehouse',
+              quantityChange: params.quantity,
+              before: warehouseItem.totalQuantity,
+              after: newTotal,
+              user: loggedBy,
+              reason: `Returned from ${params.dealer} / ${params.customerName || 'Site'}: ${reason}`
+            }, ...warehouseItem.history]
+          });
+        }
+      }
+
+      const returnRecord: MaterialReturnRecord = {
+        id: returnId,
+        dealer: params.dealer,
+        leadId: params.leadId,
+        customerName: params.customerName || 'General Site Recovery',
+        itemSku: params.itemSku,
+        itemName: params.itemName,
+        quantity: params.quantity,
+        unit: params.unit,
+        destination: params.destination,
+        condition,
+        reason,
+        loggedBy,
+        loggedAt: now,
+        status: 'Completed'
+      };
+
+      await setDoc(doc(db, 'materialReturns', returnId), returnRecord);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to log material return:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   // Helper getters
   const getDealerStock = (dealerName: string) => {
     return dealerStockList.filter(d => d.dealer === dealerName);
@@ -873,6 +1004,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       dealerStockList,
       stockDispatches,
       materialConsumptions,
+      materialReturns,
       addStockItem,
       updateStockItem,
       adjustStock,
@@ -885,6 +1017,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       confirmDealerDispatch,
       rejectDealerDispatch,
       deductDealerStockForLeadMaterial,
+      returnMaterialFromSite,
       getDealerStock,
       getDealerPendingDispatchesCount,
       totalItems,

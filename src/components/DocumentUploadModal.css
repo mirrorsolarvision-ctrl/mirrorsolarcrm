@@ -299,3 +299,59 @@
     transform: scale(1);
   }
 }
+
+@media (max-width: 640px) {
+  .doc-upload-modal-overlay {
+    padding: 0.5rem;
+    z-index: 3000;
+  }
+
+  .doc-upload-modal-card {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    border-radius: 14px !important;
+  }
+
+  .doc-upload-modal-header {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .doc-upload-header-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .doc-upload-title {
+    font-size: 1.05rem !important;
+  }
+
+  .doc-upload-subtitle {
+    font-size: 0.76rem !important;
+  }
+
+  .doc-upload-body {
+    padding: 0.85rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .doc-file-card {
+    padding: 0.75rem !important;
+    gap: 0.65rem !important;
+  }
+
+  .doc-upload-modal-actions {
+    padding: 0.75rem 1rem !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.5rem !important;
+  }
+
+  .doc-btn {
+    flex: 1 1 50% !important;
+    min-height: 38px !important;
+    font-size: 0.82rem !important;
+    padding: 0.5rem 0.75rem !important;
+    justify-content: center !important;
+  }
+}
