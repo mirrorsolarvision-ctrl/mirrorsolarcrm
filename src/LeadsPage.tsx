@@ -46,6 +46,7 @@ import {
   normalizePhoneForWhatsApp 
 } from './utils/whatsappTemplates';
 import { formatCustomerCode } from './utils/idUtils';
+import { findDuplicateLeadByPhone, calculateLeadScore, evaluateSlaStatus } from './utils/salesCalculations';
 import './LeadsPage.css';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
@@ -73,7 +74,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     leads, employees, dealers, currentUser, activities, tasks,
     updateLead, addActivity, addLead,
     assignLead, requestLeadReassignment, resolveLeadReassignment,
-    deleteLead, deleteBulkLeads
+    deleteLead, deleteBulkLeads,
+    recordFirstCallAttempt, updateLeadSalesStage
   } = useCRM();
   
   const { showToast, showConfirmModal } = useUI();
@@ -1775,7 +1777,26 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                       </div>
                     </td>
                     <td>{lead.dealer}</td>
-                    <td><span className={`stage-badge ${getStageBadgeClass(lead.stage)}`}>{lead.stage}</span></td>
+                    <td>
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '3px'}}>
+                        <span className={`stage-badge ${getStageBadgeClass(lead.stage)}`}>{lead.stage}</span>
+                        {lead.salesStage && (
+                          <span style={{fontSize: '0.68rem', background: '#f1f5f9', color: '#1e293b', padding: '1px 5px', borderRadius: '4px', fontWeight: 600, border: '1px solid #cbd5e1', alignSelf: 'flex-start'}}>
+                            🎯 {lead.salesStage}
+                          </span>
+                        )}
+                        {lead.leadScore && (
+                          <span style={{
+                            fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', alignSelf: 'flex-start',
+                            background: lead.leadScore.category === 'Hot' ? '#ffedd5' : lead.leadScore.category === 'Warm' ? '#fef3c7' : '#f1f5f9',
+                            color: lead.leadScore.category === 'Hot' ? '#c2410c' : lead.leadScore.category === 'Warm' ? '#b45309' : '#475569',
+                            border: `1px solid ${lead.leadScore.category === 'Hot' ? '#fed7aa' : lead.leadScore.category === 'Warm' ? '#fde68a' : '#e2e8f0'}`
+                          }}>
+                            {lead.leadScore.category === 'Hot' ? '🔥 HOT' : lead.leadScore.category === 'Warm' ? '☀️ WARM' : '❄️ COLD'} ({lead.leadScore.total})
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td><span className={getPriorityClass(lead.priority)}>{lead.priority}</span></td>
                     <td>
                       <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
@@ -1975,6 +1996,20 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
                   {/* Fast Contact Actions: Direct Call & Direct WhatsApp & Delete */}
                   <div className="slide-contact-actions" onClick={e => e.stopPropagation()}>
+                    {!lead.firstCallAttemptAt && (
+                      <button 
+                        className="btn-slide-contact" 
+                        style={{ background: '#0284c7', color: '#ffffff', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Log 1st call attempt to fulfill 15-min SLA"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await recordFirstCallAttempt(lead.id);
+                          showToast(`✓ First call attempt logged for ${lead.customer}!`, 'success');
+                        }}
+                      >
+                        <CheckCircle2 size={13} /> Log 1st Call
+                      </button>
+                    )}
                     <a 
                       href={`tel:${lead.phone}`} 
                       className="btn-slide-contact call-btn"
@@ -4386,6 +4421,31 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               <div className="form-group">
                 <label htmlFor="new-lead-phone">Phone *</label>
                 <input id="new-lead-phone" name="phone" type="text" placeholder="+91..." value={newLeadForm.phone} onChange={e => setNewLeadForm({...newLeadForm, phone: e.target.value})} />
+                {(() => {
+                  const dup = findDuplicateLeadByPhone(leads, newLeadForm.phone);
+                  if (dup.hasDuplicate) {
+                    return (
+                      <div style={{
+                        marginTop: '6px',
+                        padding: '6px 10px',
+                        background: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        borderRadius: '6px',
+                        color: '#92400e',
+                        fontSize: '0.78rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <AlertTriangle size={14} color="#d97706" />
+                        <span>
+                          <strong>Duplicate Phone:</strong> Existing lead found for <strong>{dup.customerName}</strong> ({dup.salesStage}, Owner: {dup.leadOwnerName}).
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div className="form-group">
                 <label htmlFor="new-lead-email">Email Address</label>
@@ -4468,6 +4528,12 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                   }
 
                   const nowIso = new Date().toISOString();
+                  const initialScore = calculateLeadScore({
+                    monthlyUnitsKwh: 350,
+                    roofOwnership: 'Own',
+                    roofType: 'RCC',
+                    purchaseTimeline: 'Immediate'
+                  });
                   await addLead({
                     customer: newLeadForm.customer.trim(),
                     phone: newLeadForm.phone.trim(),
@@ -4477,6 +4543,11 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     dealerId: targetDealerId,
                     assignedEmployee: targetEmployee,
                     assignedEmployeeId: targetEmployeeId,
+                    leadOwnerId: targetEmployeeId || currentUser?.id || '',
+                    leadOwnerName: targetEmployee || currentUser?.name || 'Staff',
+                    salesStage: 'New Lead',
+                    slaStatus: 'Timer Running',
+                    leadScore: initialScore,
                     createdBy: currentUser?.id || currentUser?.name || 'Staff',
                     createdByName: currentUser?.name || 'Staff',
                     createdByRole: (currentUser as any)?.role || 'Admin',
