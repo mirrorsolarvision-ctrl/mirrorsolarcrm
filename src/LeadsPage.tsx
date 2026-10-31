@@ -72,14 +72,16 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const { 
     leads, employees, dealers, currentUser, activities, tasks,
     updateLead, addActivity, addLead,
-    assignLead, requestLeadReassignment, resolveLeadReassignment
+    assignLead, requestLeadReassignment, resolveLeadReassignment,
+    deleteLead, deleteBulkLeads
   } = useCRM();
   
-  const { showToast } = useUI();
+  const { showToast, showConfirmModal } = useUI();
   const { deductDealerStockForLeadMaterial } = useStock();
 
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   
   // Scoped default filters based on role
   const isEmployee = currentUser?.role === 'Employee';
@@ -674,6 +676,80 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const totalPages = Math.ceil(mainLeads.length / PAGE_SIZE);
 
   // --- HANDLERS ---
+  const handleToggleSelectLead = (leadId: string) => {
+    setSelectedLeadIds(prev => 
+      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const handleToggleSelectAllVisible = () => {
+    const isAllVisibleSelected = paginatedLeads.length > 0 && paginatedLeads.every(l => selectedLeadIds.includes(l.id));
+    if (isAllVisibleSelected) {
+      const pageIds = new Set(paginatedLeads.map(l => l.id));
+      setSelectedLeadIds(prev => prev.filter(id => !pageIds.has(id)));
+    } else {
+      const combined = new Set([...selectedLeadIds, ...paginatedLeads.map(l => l.id)]);
+      setSelectedLeadIds(Array.from(combined));
+    }
+  };
+
+  const handleSelectAllFiltered = () => {
+    setSelectedLeadIds(filteredLeads.map(l => l.id));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLeadIds([]);
+  };
+
+  const handleDeleteSingleLead = (lead: MockLead) => {
+    showConfirmModal(
+      `Delete Lead ${lead.customer}?`,
+      `Are you sure you want to permanently delete lead "${lead.customer}" (${lead.phone || lead.id})? This will remove all associated project data, documents, and records. This action cannot be undone.`,
+      async () => {
+        try {
+          await deleteLead(lead.id);
+          if (selectedLead?.id === lead.id) {
+            setSelectedLead(null);
+          }
+          setSelectedLeadIds(prev => prev.filter(id => id !== lead.id));
+          addActivity({
+            type: 'Lead Deleted',
+            message: `Lead ${lead.customer} (${lead.id}) was permanently deleted`,
+            user: currentUser?.name || 'User',
+            leadId: lead.id
+          });
+        } catch (err: any) {
+          showToast(err.message || 'Failed to delete lead', 'error');
+        }
+      }
+    );
+  };
+
+  const handleDeleteBulkSelectedLeads = () => {
+    if (selectedLeadIds.length === 0) return;
+    showConfirmModal(
+      `Delete ${selectedLeadIds.length} Selected Leads?`,
+      `Are you sure you want to permanently delete these ${selectedLeadIds.length} selected leads? All associated project records, timelines, and details will be permanently removed. This action cannot be undone.`,
+      async () => {
+        try {
+          const count = selectedLeadIds.length;
+          await deleteBulkLeads(selectedLeadIds);
+          if (selectedLead && selectedLeadIds.includes(selectedLead.id)) {
+            setSelectedLead(null);
+          }
+          setSelectedLeadIds([]);
+          addActivity({
+            type: 'Bulk Leads Deleted',
+            message: `Permanently deleted ${count} leads in bulk`,
+            user: currentUser?.name || 'User'
+          });
+        } catch (err: any) {
+          showToast(err.message || 'Failed to delete selected leads', 'error');
+        }
+      }
+    );
+  };
+
   const handleClearFilters = () => {
     setStageFilter('All');
     setPriorityFilter('All');
@@ -1620,6 +1696,24 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <table className="leads-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox"
+                      aria-label="Select all unassigned leads"
+                      checked={unassignedLeads.length > 0 && unassignedLeads.every(l => selectedLeadIds.includes(l.id))}
+                      onChange={() => {
+                        const allSelected = unassignedLeads.every(l => selectedLeadIds.includes(l.id));
+                        if (allSelected) {
+                          const ids = new Set(unassignedLeads.map(l => l.id));
+                          setSelectedLeadIds(prev => prev.filter(id => !ids.has(id)));
+                        } else {
+                          const ids = new Set([...selectedLeadIds, ...unassignedLeads.map(l => l.id)]);
+                          setSelectedLeadIds(Array.from(ids));
+                        }
+                      }}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                  </th>
                   <th>Customer & Origin</th>
                   <th>Dealer</th>
                   <th>Stage</th>
@@ -1628,8 +1722,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 </tr>
               </thead>
               <tbody>
-                {unassignedLeads.map(lead => (
-                  <tr key={lead.id}>
+                {unassignedLeads.map(lead => {
+                  const isSelected = selectedLeadIds.includes(lead.id);
+                  return (
+                  <tr key={lead.id} style={{ background: isSelected ? '#fef3c7' : undefined }}>
+                    <td style={{ width: '40px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                      <input 
+                        type="checkbox"
+                        aria-label={`Select unassigned lead ${lead.customer}`}
+                        checked={isSelected}
+                        onChange={() => handleToggleSelectLead(lead.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </td>
                     <td>
                       <div className="customer-cell" onClick={() => setSelectedLead(lead)} style={{cursor: 'pointer'}}>
                         <div className="customer-avatar">{lead.customer.charAt(0)}</div>
@@ -1700,10 +1805,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                           <option value="" disabled>Assign To...</option>
                           {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                         </select>
+                        <button 
+                          className="btn-icon-danger" 
+                          title={`Delete Lead ${lead.customer}`}
+                          style={{padding: '6px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSingleLead(lead); }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1773,15 +1887,30 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               onScroll={handleSliderScroll}
               className={`leads-mobile-deck ${mobileViewMode === 'slides' ? 'is-slider' : 'is-vertical-list'}`}
             >
-              {paginatedLeads.map((lead, idx) => (
+              {paginatedLeads.map((lead, idx) => {
+                const isSelected = selectedLeadIds.includes(lead.id);
+                return (
                 <div 
                   key={lead.id} 
                   className={`lead-slide-card ${activeSlideIndex === idx && mobileViewMode === 'slides' ? 'active-slide' : ''}`}
                   onClick={() => setSelectedLead(lead)}
+                  style={{ border: isSelected ? '2px solid #0284c7' : undefined }}
                 >
                   {/* Top header row */}
                   <div className="slide-card-header">
                     <div className="slide-avatar-name">
+                      <div 
+                        onClick={e => e.stopPropagation()} 
+                        style={{ display: 'flex', alignItems: 'center', marginRight: '6px' }}
+                      >
+                        <input 
+                          type="checkbox"
+                          aria-label={`Select lead ${lead.customer}`}
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectLead(lead.id)}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                        />
+                      </div>
                       <div className="slide-avatar">{lead.customer.charAt(0).toUpperCase()}</div>
                       <div className="slide-name-wrap">
                         <h4 className="slide-customer-name">
@@ -1844,7 +1973,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     </div>
                   </div>
 
-                  {/* Fast Contact Actions: Direct Call & Direct WhatsApp */}
+                  {/* Fast Contact Actions: Direct Call & Direct WhatsApp & Delete */}
                   <div className="slide-contact-actions" onClick={e => e.stopPropagation()}>
                     <a 
                       href={`tel:${lead.phone}`} 
@@ -1860,6 +1989,18 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     >
                       <MessageSquare size={14} /> WhatsApp
                     </a>
+                    <button 
+                      type="button" 
+                      className="btn-slide-contact delete-btn"
+                      style={{color: '#dc2626', borderColor: '#fca5a5', background: '#fff1f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSingleLead(lead);
+                      }}
+                      title="Delete Lead"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
                   </div>
 
                   {/* Primary Tap Target Action */}
@@ -1875,7 +2016,8 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     <ArrowRight size={15} />
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="leads-mobile-empty">
@@ -1904,6 +2046,15 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           <table className="leads-table">
             <thead>
               <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input 
+                    type="checkbox"
+                    aria-label="Select all leads on current page"
+                    checked={paginatedLeads.length > 0 && paginatedLeads.every(l => selectedLeadIds.includes(l.id))}
+                    onChange={handleToggleSelectAllVisible}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                </th>
                 <th>Customer & Origin</th>
                 {!isDealer && <th>Dealer</th>}
                 {(!isEmployee || isSuryaGhar) && <th>Employee</th>}
@@ -1914,8 +2065,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               </tr>
             </thead>
             <tbody>
-              {paginatedLeads.length > 0 ? paginatedLeads.map(lead => (
-                <tr key={lead.id} onClick={() => setSelectedLead(lead)} style={{cursor: 'pointer'}}>
+              {paginatedLeads.length > 0 ? paginatedLeads.map(lead => {
+                const isSelected = selectedLeadIds.includes(lead.id);
+                return (
+                <tr key={lead.id} onClick={() => setSelectedLead(lead)} style={{cursor: 'pointer', background: isSelected ? '#f0f9ff' : undefined}}>
+                  <td style={{ width: '40px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                    <input 
+                      type="checkbox"
+                      aria-label={`Select lead ${lead.customer}`}
+                      checked={isSelected}
+                      onChange={() => handleToggleSelectLead(lead.id)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                  </td>
                   <td>
                     <div className="customer-cell">
                       <div className="customer-avatar">{lead.customer.charAt(0)}</div>
@@ -1973,12 +2135,23 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     )}
                   </td>
                   <td>
-                    <button className="btn-outline" style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>View →</button>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                      <button className="btn-outline" style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>View →</button>
+                      <button 
+                        className="btn-icon-danger" 
+                        title={`Delete Lead ${lead.customer}`}
+                        style={{padding: '6px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSingleLead(lead); }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              )) : (
+                );
+              }) : (
                 <tr>
-                  <td colSpan={8} style={{textAlign: 'center', padding: '3rem', color: '#64748b'}}>
+                  <td colSpan={9} style={{textAlign: 'center', padding: '3rem', color: '#64748b'}}>
                     {unassignedLeads.length > 0 ? "No assigned leads found." : "No leads found matching your criteria."}
                   </td>
                 </tr>
@@ -2008,6 +2181,108 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
           </div>
         )}
       </div>
+
+      {/* FLOATING BULK SELECTION ACTIONS BAR */}
+      {selectedLeadIds.length > 0 && (
+        <div 
+          className="bulk-actions-floating-bar"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: '#0f172a',
+            color: '#ffffff',
+            borderRadius: '16px',
+            padding: '12px 24px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            flexWrap: 'wrap',
+            maxWidth: '92vw',
+            border: '1px solid #334155'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span 
+              style={{
+                background: '#0284c7', 
+                color: '#fff', 
+                padding: '2px 10px', 
+                borderRadius: '999px', 
+                fontWeight: 700, 
+                fontSize: '0.85rem'
+              }}
+            >
+              {selectedLeadIds.length}
+            </span>
+            <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
+              {selectedLeadIds.length === 1 ? 'Lead Selected' : 'Leads Selected'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+            {selectedLeadIds.length < filteredLeads.length && (
+              <button
+                type="button"
+                onClick={handleSelectAllFiltered}
+                style={{
+                  background: '#1e293b',
+                  color: '#93c5fd',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Select All {filteredLeads.length} Leads
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleClearSelection}
+              style={{
+                background: 'transparent',
+                color: '#94a3b8',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Clear
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteBulkSelectedLeads}
+              style={{
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '7px 16px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)'
+              }}
+            >
+              <Trash2 size={16} /> Delete Selected ({selectedLeadIds.length})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* LEAD DETAIL DRAWER */}
       {selectedLead && (
@@ -2066,6 +2341,15 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSingleLead(selectedLead)}
+                  className="btn-outline drawer-quick-btn"
+                  style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#dc2626', borderColor: '#fca5a5', background: '#fff1f2', cursor: 'pointer'}}
+                  title="Delete Lead"
+                >
+                  <Trash2 size={14} /> <span className="hide-on-mobile">Delete</span>
+                </button>
                 <button 
                   type="button" 
                   onClick={() => setSelectedLead(null)} 

@@ -388,7 +388,7 @@ export default function AdminAttendancePage() {
       emp.id,
       `"${emp.name}"`,
       'PRESENT',
-      '09:30',
+      '09:45',
       '18:30',
       'Full Day Office Duty'
     ].join(','));
@@ -685,7 +685,7 @@ export default function AdminAttendancePage() {
           employeeName: row.employeeName,
           employeeRole: 'Employee',
           date: row.date,
-          checkInTime: row.inTime ? `${row.date}T${row.inTime}:00.000Z` : `${row.date}T09:30:00.000Z`,
+          checkInTime: row.inTime ? `${row.date}T${row.inTime}:00.000Z` : `${row.date}T09:45:00.000Z`,
           checkOutTime: row.outTime ? `${row.date}T${row.outTime}:00.000Z` : (row.status === 'HALF_DAY' ? `${row.date}T13:30:00.000Z` : `${row.date}T18:30:00.000Z`),
           totalWorkingMinutes: workingMins,
           lateMinutes: 0,
@@ -1494,7 +1494,7 @@ export default function AdminAttendancePage() {
                               </span>
                             </td>
                             <td style={{ fontSize: '0.8rem', color: '#475569' }}>
-                              {row.inTime || '09:30'} — {row.outTime || '18:30'}
+                              {row.inTime || '09:45'} — {row.outTime || '18:30'}
                             </td>
                             <td>
                               {row.isValid ? (

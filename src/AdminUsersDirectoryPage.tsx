@@ -803,6 +803,20 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 />
               </label>
 
+              {featureModalUser.role === 'Employee' && (
+                <label className="feature-toggle-item" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div className="toggle-info">
+                    <span className="toggle-name" style={{ color: '#166534', fontWeight: 700 }}>📞 Forward Call Leads to Dealers</span>
+                    <span className="toggle-desc">Grant this employee permission to forward office phone call leads directly to authorized dealers.</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={!!featureForm.forwardCallLeadToDealer} 
+                    onChange={e => setFeatureForm({ ...featureForm, forwardCallLeadToDealer: e.target.checked })} 
+                  />
+                </label>
+              )}
+
               {featureModalUser.role === 'Dealer' && (
                 <label className="feature-toggle-item">
                   <div className="toggle-info">

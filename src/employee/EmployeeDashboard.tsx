@@ -947,9 +947,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
               <FileText size={24} />
               EOD Report
             </button>
-            <button className="emp-action-btn" onClick={() => onNavigate('/employee/leads')}>
+            <button className="emp-action-btn" onClick={() => onNavigate('/employee/call-leads')}>
               <PhoneCall size={24} />
-              Today's Calls
+              Office Calls
             </button>
             <button className="emp-action-btn" onClick={() => onNavigate('/employee/attendance')}>
               <UserCheck size={24} />

@@ -14,7 +14,8 @@ import {
   Megaphone,
   X,
   Award,
-  CreditCard
+  CreditCard,
+  PhoneCall
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
@@ -50,6 +51,7 @@ export default function EmployeeSidebar({
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: isSuryaGhar ? 'All Leads & KYC' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: 'Office Call Leads', path: '/employee/call-leads', icon: PhoneCall, routeName: 'Call Leads' },
     { name: 'Sales Milestones', path: '/employee/milestones', icon: Award, routeName: 'Milestones' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
     { name: 'Finance & Payments', path: '/employee/payments', icon: CreditCard, routeName: 'Payments' },

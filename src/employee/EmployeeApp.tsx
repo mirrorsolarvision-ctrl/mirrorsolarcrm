@@ -21,6 +21,7 @@ const TasksPage = lazy(() => import('../TasksPage'));
 const CalendarPage = lazy(() => import('../CalendarPage'));
 const EmployeeEodReportPage = lazy(() => import('../pages/EmployeeEodReportPage'));
 const MilestonesPage = lazy(() => import('../MilestonesPage'));
+const CallLeadsPage = lazy(() => import('../pages/CallLeadsPage'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -67,6 +68,7 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
     const routeName = currentPath === '/employee/dashboard' ? 'Dashboard' :
                       currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
+                      currentPath === '/employee/call-leads' ? 'Call Leads' :
                       currentPath === '/employee/milestones' ? 'Milestones' :
                       currentPath === '/employee/quotations' ? 'Quotations' :
                       currentPath === '/employee/tasks' ? 'Tasks' :
@@ -88,6 +90,8 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
         return <EmployeeAttendancePage initialTab={routeFilters?.tab} />;
       case '/employee/leads':
         return <LeadsPage {...(routeFilters || {})} />;
+      case '/employee/call-leads':
+        return <CallLeadsPage />;
       case '/employee/milestones':
         return <MilestonesPage onNavigate={(tab) => handleNavigate(tab === 'Payments' ? '/employee/payments' : '/employee/dashboard')} />;
       case '/employee/quotations':

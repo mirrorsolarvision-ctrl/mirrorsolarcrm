@@ -1,10 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
 import { dispatchToast } from './UIContext';
+import type { 
+  SalesStage, 
+  LeadScoreBreakdown, 
+  AvailabilityStatus, 
+  SlaStatus, 
+  SalesLeakageMetrics 
+} from '../types/sales';
+import { evaluateSlaStatus } from '../utils/salesCalculations';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -277,6 +285,18 @@ export interface MockLead {
   reassignmentRequest?: LeadReassignmentRequest;
   customerCode?: string;
   code?: string;
+  // Sales Manager & Conversion Funnel Properties (Version 2.3)
+  salesStage?: SalesStage;
+  leadOwnerId?: string;
+  leadOwnerName?: string;
+  customerId?: string;
+  leadScore?: LeadScoreBreakdown;
+  firstCallAttemptAt?: string;
+  slaStatus?: SlaStatus;
+  financingType?: 'Bank Loan (JanSamarth)' | 'Self-Funded (Direct Payment)';
+  commercialClearanceStatus?: 'Cleared' | 'Pending';
+  handoffAcceptedAt?: string;
+  availabilityStatus?: AvailabilityStatus;
 }
 
 export interface LeadReassignmentRequest {
@@ -341,6 +361,7 @@ export interface UserPermissions {
   reports: PermissionLevel;
   access: PermissionLevel;
   profile: PermissionLevel;
+  forwardCallLeadToDealer?: boolean;
 }
 
 export type UserRole = 'Admin' | 'Employee' | 'Dealer';
@@ -356,6 +377,33 @@ export interface DealerFeatures {
   reports: boolean;
   tasks: boolean;
   calendar: boolean;
+  forwardCallLeadToDealer?: boolean;
+}
+
+export interface CallLead {
+  id: string;
+  customerName: string;
+  phone: string;
+  alternatePhone?: string;
+  location?: string;
+  capacityKw?: string;
+  callReceivedBy: string;
+  callReceivedById: string;
+  callReceivedByRole: 'Admin' | 'Employee';
+  callDate: string;
+  callTime: string;
+  notes?: string;
+  priority?: 'High' | 'Medium' | 'Low';
+  status: 'New Call' | 'In Follow-up' | 'Forwarded to Dealer' | 'Converted to Lead' | 'Dropped';
+  forwardedToDealer?: string;
+  forwardedToDealerId?: string;
+  forwardedAt?: string;
+  forwardedBy?: string;
+  forwardedById?: string;
+  forwardingNotes?: string;
+  crmLeadId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const defaultDealerFeatures: DealerFeatures = {
@@ -367,7 +415,8 @@ export const defaultDealerFeatures: DealerFeatures = {
   payments: true,
   reports: true,
   tasks: true,
-  calendar: true
+  calendar: true,
+  forwardCallLeadToDealer: false
 };
 
 export const defaultEmployeeFeatures: DealerFeatures = {
@@ -464,6 +513,7 @@ export interface User {
   dealerCode?: string;
   code?: string;
   displayId?: string;
+  canForwardToDealer?: boolean;
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -611,6 +661,8 @@ interface CRMContextType {
   addLead: (lead: Omit<MockLead, 'id'>) => Promise<string | void>;
   updateLead: (id: string, updates: Partial<MockLead>) => Promise<void>;
   updateLeadStage: (leadId: string, newStage: Stage) => void;
+  deleteLead: (id: string) => Promise<void>;
+  deleteBulkLeads: (ids: string[]) => Promise<void>;
   updateUserPermissions: (userId: string, permissions: UserPermissions) => void;
   updateUserRole: (userId: string, role: UserRole) => void;
   updateUserStatus: (userId: string, status: UserStatus) => void;
@@ -704,6 +756,11 @@ interface CRMContextType {
 
   // Seed Helper
   seedSampleLeads: () => Promise<number>;
+
+  // Sales Manager & Leakage Monitor (Version 2.3)
+  salesLeakageMetrics: SalesLeakageMetrics;
+  recordFirstCallAttempt: (leadId: string) => Promise<void>;
+  updateLeadSalesStage: (leadId: string, salesStage: SalesStage, notes?: string) => Promise<void>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
@@ -1210,6 +1267,40 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore(updates));
     } catch (err) {
       console.error("Error updating lead stage:", err);
+    }
+  };
+
+  const deleteLead = async (id: string) => {
+    setLeads(prev => prev.filter(l => l.id !== id));
+    try {
+      await deleteDoc(doc(db, 'leads', id));
+      dispatchToast('Lead deleted successfully', 'success');
+    } catch (err: any) {
+      console.error("Error deleting lead:", err);
+      dispatchToast(`Failed to delete lead: ${err.message || String(err)}`, 'error');
+      throw err;
+    }
+  };
+
+  const deleteBulkLeads = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setLeads(prev => prev.filter(l => !idSet.has(l.id)));
+    try {
+      const batchSize = 400;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = ids.slice(i, i + batchSize);
+        chunk.forEach(leadId => {
+          batch.delete(doc(db, 'leads', leadId));
+        });
+        await batch.commit();
+      }
+      dispatchToast(`${ids.length} leads deleted successfully`, 'success');
+    } catch (err: any) {
+      console.error("Error deleting bulk leads:", err);
+      dispatchToast(`Failed to delete leads: ${err.message || String(err)}`, 'error');
+      throw err;
     }
   };
 
@@ -1951,12 +2042,123 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // --- SALES LEAKAGE & EXCEPTION METRICS (Version 2.3 Architecture) ---
+  const salesLeakageMetrics = React.useMemo<SalesLeakageMetrics>(() => {
+    let unassignedCount = 0;
+    let slaBreachCount = 0;
+    let overdueFollowupCount = 0;
+    let quotationLeakageCount = 0;
+    let pendingPaymentVerificationCount = 0;
+    let pendingDealerHandoffCount = 0;
+    let hotLeadsCount = 0;
+
+    leads.forEach(l => {
+      if (l.archived) return;
+
+      // 1. Unassigned Leads
+      if (!l.leadOwnerId && !l.assignedEmployeeId && !l.assignedEmployee) {
+        unassignedCount++;
+      }
+
+      // 2. 15-Minute SLA Breach
+      if (l.slaStatus === 'SLA Breached') {
+        slaBreachCount++;
+      } else if (!l.firstCallAttemptAt && l.createdAt && (l.salesStage === 'New Lead' || !l.salesStage)) {
+        const sla = evaluateSlaStatus(l.createdAt);
+        if (sla.status === 'SLA Breached') {
+          slaBreachCount++;
+        }
+      }
+
+      // 3. Overdue Followup
+      if (l.followUp?.status === 'Overdue') {
+        overdueFollowupCount++;
+      }
+
+      // 4. Quotation Leakage (>48h in Qualified stage without proposal)
+      if (l.salesStage === 'Qualified') {
+        const daysOld = (Date.now() - new Date(l.updatedAt || l.createdAt).getTime()) / (1000 * 3600 * 24);
+        if (daysOld >= 2) quotationLeakageCount++;
+      }
+
+      // 5. Pending Payment Verification
+      const pendingPayments = l.payments?.customerPayments?.filter(p => p.status === 'Pending Verification') || [];
+      if (pendingPayments.length > 0) {
+        pendingPaymentVerificationCount += pendingPayments.length;
+      }
+
+      // 6. Pending Dealer Handoff
+      if (l.salesStage === 'Booking Confirmed' && !l.handoffAcceptedAt) {
+        pendingDealerHandoffCount++;
+      }
+
+      // 7. Hot Leads
+      if (l.leadScore?.category === 'Hot') {
+        hotLeadsCount++;
+      }
+    });
+
+    return {
+      unassignedCount,
+      slaBreachCount,
+      overdueFollowupCount,
+      quotationLeakageCount,
+      pendingPaymentVerificationCount,
+      pendingDealerHandoffCount,
+      totalLeadsInFunnel: leads.filter(l => !l.archived).length,
+      hotLeadsCount
+    };
+  }, [leads]);
+
+  // Log first phone call attempt to calculate and fulfill 15-min SLA
+  const recordFirstCallAttempt = async (leadId: string) => {
+    try {
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+      const nowIso = new Date().toISOString();
+      const sla = evaluateSlaStatus(lead.createdAt || nowIso, nowIso);
+      await updateDoc(doc(db, 'leads', leadId), {
+        firstCallAttemptAt: nowIso,
+        slaStatus: sla.status,
+        salesStage: lead.salesStage === 'New Lead' || !lead.salesStage ? 'Contacted' : lead.salesStage,
+        updatedAt: nowIso
+      });
+      addActivity({
+        type: 'Call Attempt',
+        message: `Initial call attempt logged (${sla.status})`,
+        user: currentUser?.name || 'Sales Staff',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error logging first call attempt:", err);
+    }
+  };
+
+  // Update salesStage with activity log
+  const updateLeadSalesStage = async (leadId: string, salesStage: SalesStage, notes?: string) => {
+    try {
+      const nowIso = new Date().toISOString();
+      await updateDoc(doc(db, 'leads', leadId), {
+        salesStage,
+        updatedAt: nowIso
+      });
+      addActivity({
+        type: 'Sales Stage Updated',
+        message: `Sales stage updated to ${salesStage}${notes ? ` (${notes})` : ''}`,
+        user: currentUser?.name || 'Sales Staff',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error updating sales stage:", err);
+    }
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
       addEmployee, updateEmployee, deleteEmployee,
       addDealer, updateDealer, deleteDealer, deleteUser,
-      addLead, updateLead, updateLeadStage,
+      addLead, updateLead, updateLeadStage, deleteLead, deleteBulkLeads,
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,
       addCustomerPayment, verifyCustomerPayment, deleteCustomerPayment,
@@ -1980,7 +2182,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assignLead, requestLeadReassignment, resolveLeadReassignment,
 
       // Seed Helper
-      seedSampleLeads
+      seedSampleLeads,
+
+      // Sales Manager & Leakage Monitor (Version 2.3)
+      salesLeakageMetrics,
+      recordFirstCallAttempt,
+      updateLeadSalesStage
     }}>
       {children}
     </CRMContext.Provider>

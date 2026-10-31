@@ -108,11 +108,54 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
     case 'Day End Report':
     case 'EOD':
       return true;
+    case 'Call Leads':
+    case 'Office Call Leads':
+    case 'Office Phone Leads':
+      return true; // Available to Employees and Admins
     case 'Profile':
       return true;
     default:
       return true;
   }
+};
+
+/**
+ * Check if the user is authorized to forward office phone call leads to dealers.
+ * Normally allowed only for Admin, unless an Employee has been granted this specific permission.
+ */
+export const canForwardCallLeadToDealer = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+  return !!(
+    user.features?.forwardCallLeadToDealer || 
+    user.permissions?.forwardCallLeadToDealer || 
+    user.canForwardToDealer
+  );
+};
+
+// --- Sales Manager & Commercial Workflow Helpers (Version 2.3) ---
+
+export const isSalesManager = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
+  return category.includes('sales') || resp.includes('sales');
+};
+
+export const canApproveDiscount = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.role === 'Admin'; // Admin only authorization
+};
+
+export const canVerifyPayment = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.role === 'Admin'; // Admin / Accounts verification only
+};
+
+export const canApproveDealerHandoff = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.role === 'Admin'; // Admin approval required before dealer execution
 };
 
 

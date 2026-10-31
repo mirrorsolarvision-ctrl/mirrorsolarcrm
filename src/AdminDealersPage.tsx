@@ -425,7 +425,17 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                   </td>
                   <td className="text-muted text-sm">{dealer.lastActive}</td>
                   <td>
-                    <button className="btn-action" onClick={() => setSelectedDealer(dealer)}>View →</button>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                      <button className="btn-action" onClick={() => setSelectedDealer(dealer)}>View →</button>
+                      <button 
+                        className="btn-icon-danger" 
+                        title={`Delete ${dealer.name}`}
+                        style={{padding: '6px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

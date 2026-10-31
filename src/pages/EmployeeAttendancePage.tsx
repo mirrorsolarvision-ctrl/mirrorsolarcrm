@@ -67,7 +67,7 @@ export default function EmployeeAttendancePage({ initialTab }: EmployeeAttendanc
 
   // Correction Request Modal State
   const [selectedRecordForCorrection, setSelectedRecordForCorrection] = useState<any>(null);
-  const [reqIn, setReqIn] = useState('09:30');
+  const [reqIn, setReqIn] = useState('09:45');
   const [reqOut, setReqOut] = useState('18:00');
   const [reqReason, setReqReason] = useState('');
 
@@ -91,11 +91,11 @@ export default function EmployeeAttendancePage({ initialTab }: EmployeeAttendanc
   // Sunday Check
   const isSunday = currentTime.getDay() === 0;
 
-  // Window guidance
+  // Window guidance: Morning attendance before 10:00 AM
   const currentHours = currentTime.getHours();
   const currentMinutes = currentTime.getMinutes();
   const currentTotalMins = currentHours * 60 + currentMinutes;
-  const isFullDayWindow = currentTotalMins >= 540 && currentTotalMins <= 660; // 9:00 AM to 11:00 AM
+  const isFullDayWindow = currentTotalMins >= 480 && currentTotalMins <= 600; // 8:00 AM to 10:00 AM (Before 10:00 AM)
   const isHalfDayWindow = currentTotalMins >= 750 && currentTotalMins <= 870; // 12:30 PM to 2:30 PM
 
   const myHistory = useMemo(() => {
@@ -392,7 +392,7 @@ export default function EmployeeAttendancePage({ initialTab }: EmployeeAttendanc
                     </span>
                   ) : isFullDayWindow ? (
                     <span className="ea-guide-active">
-                      🟢 Full Day Window Active: Mark Present between <strong>9:30 AM – 10:30 AM</strong>
+                      🟢 Morning Attendance Window: Mark Present <strong>Before 10:00 AM</strong>
                     </span>
                   ) : isHalfDayWindow ? (
                     <span className="ea-guide-half">
@@ -400,7 +400,7 @@ export default function EmployeeAttendancePage({ initialTab }: EmployeeAttendanc
                     </span>
                   ) : (
                     <span className="ea-guide-standard">
-                      Standard Working Hours: 9:30 AM to 6:30 PM
+                      Morning Attendance Policy: Must punch in before 10:00 AM
                     </span>
                   )}
                 </div>
@@ -436,7 +436,7 @@ export default function EmployeeAttendancePage({ initialTab }: EmployeeAttendanc
                     <Sun size={20} />
                     <span>Mark Present (Full Day)</span>
                   </div>
-                  <span className="ea-btn-sub">Click between 9:30 AM – 10:30 AM</span>
+                  <span className="ea-btn-sub">Punch in before 10:00 AM</span>
                 </button>
               </div>
 

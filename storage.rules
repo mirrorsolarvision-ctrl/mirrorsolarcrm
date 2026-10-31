@@ -1,8 +1,60 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.resource == null || request.resource.size < 25 * 1024 * 1024;
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
+
+    function isAllowedImageOrPdf() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)') || 
+             request.resource.contentType == 'application/pdf';
+    }
+
+    // 1. Customer KYC & Identity Documents
+    match /leads/{leadId}/documents/{docId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        isAllowedImageOrPdf() && 
+        request.resource.size < 15 * 1024 * 1024;
+      allow update, delete: if false; // Immutability
+    }
+
+    // 2. Customer Payment Receipts & Proofs
+    match /payments/{category}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        isAllowedImageOrPdf() && 
+        request.resource.size < 10 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    // 3. Milestone Completion Proofs
+    match /milestones/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        isAllowedImageOrPdf() && 
+        request.resource.size < 15 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    // 4. Attendance Check-in Selfies
+    match /attendance/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.auth.uid == userId &&
+        request.resource.contentType.matches('image/(jpeg|png|webp)') && 
+        request.resource.size < 5 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    // 5. Public Company Branding
+    match /branding/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated(); // Controlled branding updates
+    }
+
+    // --- NO CATCH-ALL WILDCARD ---
+    // All other file paths are DENIED by default.
   }
 }
