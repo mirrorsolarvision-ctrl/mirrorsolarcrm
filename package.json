@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy": "node scripts/verifyFirebaseAccount.cjs && npm run build && npx firebase-tools deploy",
-    "deploy:hosting": "node scripts/verifyFirebaseAccount.cjs && npm run build && npx firebase-tools deploy --only hosting",
-    "deploy:rules": "node scripts/verifyFirebaseAccount.cjs && npx firebase-tools deploy --only firestore:rules,storage",
+    "deploy": "cmd /c deploy.bat",
+    "deploy:hosting": "cmd /c deploy.bat --hosting",
+    "deploy:rules": "cmd /c deploy.bat --rules",
     "firebase:login": "npx firebase-tools login:use mirrorsolarvision@gmail.com",
     "firebase:status": "npx firebase-tools projects:list",
     "lint": "oxlint",
