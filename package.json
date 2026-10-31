@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy": "cmd /c deploy.bat",
-    "deploy:hosting": "cmd /c deploy.bat --hosting",
-    "deploy:rules": "cmd /c deploy.bat --rules",
+    "deploy": "cmd /c scripts\\deploy.bat",
+    "deploy:hosting": "cmd /c scripts\\deploy.bat --hosting",
+    "deploy:rules": "cmd /c scripts\\deploy.bat --rules",
     "firebase:login": "npx firebase-tools login:use mirrorsolarvision@gmail.com",
     "firebase:status": "npx firebase-tools projects:list",
     "lint": "oxlint",

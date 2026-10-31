@@ -8,6 +8,7 @@ export interface EmployeeSalaryConfig {
   ifscCode?: string;
   upiId?: string;
   panNumber?: string;
+  dealIncentiveRatePerKw?: number; // Solar Deal Commission / Incentive (e.g. ₹500 / kW)
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -69,8 +70,13 @@ export interface MonthlyPayrollRecord {
   bonusAmount: number;
   bonusReason?: string;
   
+  // Solar Sales Deals Incentives
+  solarDealIncentives: number; // e.g. kW * ₹500/kW
+  convertedKwInMonth: number;
+  convertedDealsCount: number;
+
   // Financial Totals
-  grossEarned: number; // baseSalary - leaveDeduction - absentDeduction
+  grossEarned: number; // baseSalary - leaveDeduction - absentDeduction + solarDealIncentives
   netPayable: number;  // Math.max(0, grossEarned - advanceDeduction - otherDeductions + bonusAmount)
   
   status: PayrollStatus;

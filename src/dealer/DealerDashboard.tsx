@@ -3,7 +3,7 @@ import {
   Users, Target, TrendingUp, AlertCircle, PhoneCall, 
   Plus, Box, Package, Activity as ActivityIcon, ShoppingCart, 
   UsersRound, Briefcase, CheckSquare, Calendar, CreditCard, Truck,
-  Zap, Award, FileText
+  Zap, Award, FileText, Wallet, Building2
 } from 'lucide-react';
 import { useCRM, STAGES } from '../context/CRMContext';
 import { useStock } from '../context/StockContext';
@@ -11,7 +11,7 @@ import { canAccessRoute } from '../utils/permissionCalculations';
 import { 
   getDealerPerformance, getDealerPipeline, getDealerFollowUpsRaw, 
   getDealerOverdueFollowUps, getDealerEmployees, getDealerActivity, 
-  getDealerLeads, getDealerLeadOverview
+  getDealerLeads, getDealerLeadOverview, getDealerCommissionSummary
 } from '../utils/dealerCalculations';
 import './DealerDashboard.css';
 
@@ -29,6 +29,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
 
   // Derived Data
   const performance = useMemo(() => getDealerPerformance(dealerName, leads), [dealerName, leads]);
+  const commissionSummary = useMemo(() => getDealerCommissionSummary(currentUser?.id || dealerName, leads, dealers), [currentUser, dealerName, leads, dealers]);
   const pipeline = useMemo(() => getDealerPipeline(dealerName, leads), [dealerName, leads]);
   const rawFollowUps = useMemo(() => getDealerFollowUpsRaw(dealerName, leads), [dealerName, leads]);
   const overdueFollowUps = useMemo(() => getDealerOverdueFollowUps(dealerName, leads), [dealerName, leads]);
@@ -196,6 +197,64 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
             <div className="dlr-target-mini-stat">
               <span className="stat-label">Target Run-Rate</span>
               <span className="stat-value text-blue">{performance.monthlyTargetKw} kW / mo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 💼 PARTNER COMMISSION & EARNINGS CARD */}
+      <div style={{
+        background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)',
+        borderRadius: '16px',
+        padding: '1.25rem 1.5rem',
+        color: '#ffffff',
+        marginBottom: '1.5rem',
+        boxShadow: '0 8px 24px rgba(6, 78, 59, 0.25)',
+        border: '1px solid rgba(52, 211, 153, 0.3)'
+      }}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+            <div style={{background: 'rgba(255, 255, 255, 0.15)', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <Wallet size={22} color="#a7f3d0" />
+            </div>
+            <div>
+              <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ecfdf5'}}>My Dealership Commission</h3>
+              <p style={{margin: 0, fontSize: '0.8rem', color: '#a7f3d0'}}>Contracted Rate: ₹{commissionSummary.commissionRatePerKw.toLocaleString('en-IN')} / kW installed</p>
+            </div>
+          </div>
+          <button 
+            className="btn-outline" 
+            style={{background: 'rgba(255, 255, 255, 0.15)', borderColor: 'rgba(255, 255, 255, 0.3)', color: '#ffffff', fontWeight: 700, padding: '0.45rem 1rem', fontSize: '0.82rem'}}
+            onClick={() => onNavigate('/dealer/payments')}
+          >
+            View Payment Ledgers →
+          </button>
+        </div>
+
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem'}}>
+          <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
+            <div style={{fontSize: '0.75rem', color: '#a7f3d0', fontWeight: 700, textTransform: 'uppercase'}}>Total Earned</div>
+            <div style={{fontSize: '1.45rem', fontWeight: 800, color: '#ffffff', marginTop: '2px'}}>
+              ₹{commissionSummary.totalCommissionEarned.toLocaleString('en-IN')}
+            </div>
+            <div style={{fontSize: '0.72rem', color: '#d1fae5', marginTop: '2px'}}>Across {performance.totalConvertedKw} kW converted</div>
+          </div>
+
+          <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
+            <div style={{fontSize: '0.75rem', color: '#bae6fd', fontWeight: 700, textTransform: 'uppercase'}}>Received from Admin</div>
+            <div style={{fontSize: '1.45rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px'}}>
+              ₹{commissionSummary.totalCommissionSettled.toLocaleString('en-IN')}
+            </div>
+            <div style={{fontSize: '0.72rem', color: '#e0f2fe', marginTop: '2px'}}>{commissionSummary.payoutsCount} disbursement{commissionSummary.payoutsCount === 1 ? '' : 's'}</div>
+          </div>
+
+          <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
+            <div style={{fontSize: '0.75rem', color: '#fde68a', fontWeight: 700, textTransform: 'uppercase'}}>Pending Payout</div>
+            <div style={{fontSize: '1.45rem', fontWeight: 800, color: commissionSummary.pendingCommissionBalance > 0 ? '#facc15' : '#4ade80', marginTop: '2px'}}>
+              ₹{commissionSummary.pendingCommissionBalance.toLocaleString('en-IN')}
+            </div>
+            <div style={{fontSize: '0.72rem', color: '#fef3c7', marginTop: '2px'}}>
+              {commissionSummary.pendingCommissionBalance > 0 ? 'Ready for next billing cycle' : 'All accounts settled'}
             </div>
           </div>
         </div>

@@ -5,7 +5,8 @@ import {
   CheckCircle, ArrowUpRight, ShieldCheck,
   AlertCircle, ChevronRight, User, Phone, MapPin, Loader2, IndianRupee,
   ArrowDownLeft, Plus, Filter, FileText, Check, XCircle, Trash2, Copy,
-  TrendingUp, Wallet, DollarSign, Building2, Receipt, ArrowRightLeft, Sparkles, Award
+  TrendingUp, Wallet, DollarSign, Building2, Receipt, ArrowRightLeft, Sparkles, Award,
+  Share2, MessageCircle
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
 import type { 
@@ -21,6 +22,7 @@ import PageHero from './components/PageHero';
 import { isLeadAssignedToEmployee, isSuryaGharEmployee } from './utils/employeeCalculations';
 import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
 import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
+import DigitalPaymentReceiptModal from './components/DigitalPaymentReceiptModal';
 import './PaymentsPage.css';
 
 interface PaymentsPageProps {
@@ -66,6 +68,10 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
     if (leadId) setUnifiedModalLeadId(leadId);
     setShowUnifiedRecordModal(true);
   };
+
+  // Digital Printable Payment Receipt Modal
+  const [selectedReceiptPayment, setSelectedReceiptPayment] = useState<CustomerPaymentRecord | null>(null);
+  const [selectedReceiptLead, setSelectedReceiptLead] = useState<MockLead | null>(null);
 
   // Record Customer Payment Modal
   const [showRecordCustomerModal, setShowRecordCustomerModal] = useState(false);
@@ -441,6 +447,60 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
       },
       { confirmText: "Delete Payment" }
     );
+  };
+
+  const handleOpenDigitalReceipt = (payment: CustomerPaymentRecord) => {
+    const matchedLead = leads.find(l => l.id === payment.leadId) || null;
+    setSelectedReceiptPayment(payment);
+    setSelectedReceiptLead(matchedLead);
+  };
+
+  const handleSendWhatsAppPaymentReminder = (lead: MockLead, milestoneName?: string, pendingAmount?: number) => {
+    const custPhone = lead.phone ? lead.phone.replace(/\D/g, '').slice(-10) : '';
+    const cap = lead.dealerSpecifications?.systemCapacityKw ? `${lead.dealerSpecifications.systemCapacityKw} kW` : 'Solar Plant';
+    const amountStr = pendingAmount ? `₹${pendingAmount.toLocaleString('en-IN')}` : 'scheduled milestone installment';
+    const milestoneStr = milestoneName || 'Project Installation Milestone';
+
+    const text = encodeURIComponent(
+      `*MIRROR SOLAR VISION - PAYMENT REMINDER*\n\n` +
+      `Dear ${lead.customer},\n` +
+      `Greetings from *Mirror Solar Vision Pvt Ltd*.\n\n` +
+      `This is a gentle reminder regarding your upcoming payment milestone for *${milestoneStr}* of *${amountStr}* towards your *${cap}* Rooftop Solar System.\n\n` +
+      `📍 *Site Location:* ${lead.location || 'Customer Site'}\n` +
+      `🆔 *Project ID:* ${lead.id}\n\n` +
+      `To ensure uninterrupted equipment dispatch & grid commissioning, please complete the payment at your earliest convenience.\n\n` +
+      `For any questions or immediate assistance, feel free to reply directly to this chat.\n\n` +
+      `Warm regards,\n*Mirror Solar Vision Accounts Team* ☀️`
+    );
+
+    if (custPhone) {
+      window.open(`https://wa.me/91${custPhone}?text=${text}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
+  };
+
+  const handleSendWhatsAppPaymentAck = (payment: CustomerPaymentRecord) => {
+    const matchedLead = leads.find(l => l.id === payment.leadId);
+    const phone = matchedLead?.phone ? matchedLead.phone.replace(/\D/g, '').slice(-10) : '';
+    const dateFormatted = payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+    const cap = matchedLead?.dealerSpecifications?.systemCapacityKw ? `${matchedLead.dealerSpecifications.systemCapacityKw} kW` : 'Solar System';
+
+    const text = encodeURIComponent(
+      `*MIRROR SOLAR VISION - PAYMENT RECEIPT ACKNOWLEDGEMENT*\n\n` +
+      `Dear ${payment.customerName},\n` +
+      `We gratefully acknowledge receipt of your payment of *₹${payment.amount.toLocaleString('en-IN')}* via *${payment.paymentMode}* on ${dateFormatted} towards your *${cap}* Solar Project.\n\n` +
+      `🔖 *Reference / UTR:* ${payment.referenceNumber || 'Recorded in System'}\n` +
+      `📝 *Milestone:* ${payment.paymentType}\n` +
+      `✅ *Status:* ${payment.status}\n\n` +
+      `Thank you for powering your home with *Mirror Solar Vision*! ☀️`
+    );
+
+    if (phone) {
+      window.open(`https://wa.me/91${phone}?text=${text}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
   };
 
   // ==========================================
@@ -915,6 +975,26 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                       </div>
 
                       <div className="card-actions-row">
+                        {/* 🖨️ Official Digital Receipt */}
+                        <button 
+                          className="btn-view-proof"
+                          style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => handleOpenDigitalReceipt(payment)}
+                          title="Generate Official Printable Digital Receipt"
+                        >
+                          <Receipt size={14} /> Official Receipt
+                        </button>
+
+                        {/* 💬 WhatsApp Share */}
+                        <button 
+                          className="btn-view-proof"
+                          style={{ background: '#f0fdf4', color: '#16a34a', borderColor: '#86efac', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => handleSendWhatsAppPaymentAck(payment)}
+                          title="Share Payment Acknowledgement via WhatsApp"
+                        >
+                          <Share2 size={14} /> WhatsApp Share
+                        </button>
+
                         {payment.proofUrl && (
                           <button 
                             className="btn-view-proof"
@@ -927,7 +1007,7 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                               setShowProofLightbox(true);
                             }}
                           >
-                            <Eye size={14} /> View Receipt
+                            <Eye size={14} /> View Slip
                           </button>
                         )}
 
@@ -1133,7 +1213,16 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                           </div>
                         </div>
 
-                        <div className="lead-badges-row">
+                        <div className="lead-badges-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn-outline"
+                            style={{ background: '#f0fdf4', color: '#16a34a', borderColor: '#86efac', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+                            onClick={() => handleSendWhatsAppPaymentReminder(lead, 'Scheduled Solar Milestone')}
+                            title="Send WhatsApp payment reminder to customer"
+                          >
+                            <Share2 size={13} /> WhatsApp Reminder
+                          </button>
                           <span className={`stage-badge ${lead.stage.toLowerCase()}`}>
                             Stage: {lead.stage}
                           </span>
@@ -1706,6 +1795,18 @@ export default function PaymentsPage({ onNavigate }: PaymentsPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Printable Digital Receipt Modal */}
+      {selectedReceiptPayment && (
+        <DigitalPaymentReceiptModal
+          payment={selectedReceiptPayment}
+          lead={selectedReceiptLead}
+          onClose={() => {
+            setSelectedReceiptPayment(null);
+            setSelectedReceiptLead(null);
+          }}
+        />
       )}
 
     </div>

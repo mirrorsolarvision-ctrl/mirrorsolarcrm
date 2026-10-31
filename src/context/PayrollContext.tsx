@@ -9,7 +9,7 @@ import type {
   AdvanceStatus
 } from '../types/payroll';
 import type { AttendanceRecord } from '../types/attendance';
-import type { Employee } from './CRMContext';
+import type { Employee, MockLead } from './CRMContext';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
 
@@ -37,7 +37,8 @@ interface PayrollContextType {
   calculateMonthPayrollDrafts: (
     monthStr: string, // YYYY-MM
     companyEmployees: Employee[],
-    attendanceRecords: AttendanceRecord[]
+    attendanceRecords: AttendanceRecord[],
+    leads?: MockLead[]
   ) => MonthlyPayrollRecord[];
   savePayrollRecord: (record: MonthlyPayrollRecord) => Promise<void>;
   markPayrollPaid: (
@@ -300,7 +301,8 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
   const calculateMonthPayrollDrafts = (
     monthStr: string, // "YYYY-MM" e.g. "2026-10"
     companyEmployees: Employee[],
-    attendanceRecords: AttendanceRecord[]
+    attendanceRecords: AttendanceRecord[],
+    leads?: MockLead[]
   ): MonthlyPayrollRecord[] => {
     const [yearStr, monthNumStr] = monthStr.split('-');
     const year = parseInt(yearStr, 10);
@@ -372,8 +374,31 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
       const leaveDeduction = Math.round((leaveCount * perDayRate) + (halfDayCount * perDayRate * 0.5));
       const absentDeduction = Math.round(absentCount * perDayRate);
 
-      // Gross earned after attendance deductions
-      const grossEarned = Math.max(0, Math.round(baseSalary - leaveDeduction - absentDeduction));
+      // 3.5. Calculate Solar Sales Deals Incentives
+      let convertedKwInMonth = 0;
+      let convertedDealsCount = 0;
+      const incentiveRate = config?.dealIncentiveRatePerKw ?? 500; // e.g. ₹500/kW standard incentive
+
+      if (leads && leads.length > 0) {
+        const empDeals = leads.filter(l => 
+          (l.assignedEmployeeId === emp.id || l.assignedEmployee === emp.name) &&
+          (l.stage === 'Converted' || l.stage === 'Completed') &&
+          !l.archived &&
+          ((l.convertedAt && l.convertedAt.startsWith(monthStr)) || (l.updatedAt && l.updatedAt.startsWith(monthStr)))
+        );
+        convertedDealsCount = empDeals.length;
+        empDeals.forEach(l => {
+          const cap = l.dealerSpecifications?.systemCapacityKw 
+            ? (parseFloat(String(l.dealerSpecifications.systemCapacityKw).replace(/[^\d.]/g, '')) || 3) 
+            : 3;
+          convertedKwInMonth += cap;
+        });
+      }
+      convertedKwInMonth = Math.round(convertedKwInMonth * 10) / 10;
+      const solarDealIncentives = Math.round(convertedKwInMonth * incentiveRate);
+
+      // Gross earned after attendance deductions and solar deal incentives
+      const grossEarned = Math.max(0, Math.round(baseSalary - leaveDeduction - absentDeduction + solarDealIncentives));
 
       // 4. Calculate Scheduled Advance Deduction
       const activeEmployeeAdvances = advances.filter(
@@ -416,6 +441,9 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
           leaveDeduction,
           absentDeduction,
           advanceDeduction: proposedAdvanceDeduction,
+          solarDealIncentives,
+          convertedKwInMonth,
+          convertedDealsCount,
           grossEarned,
           netPayable
         };
@@ -441,6 +469,9 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
         advanceDeduction: proposedAdvanceDeduction,
         otherDeductions: 0,
         bonusAmount: 0,
+        solarDealIncentives,
+        convertedKwInMonth,
+        convertedDealsCount,
         grossEarned,
         netPayable,
         status: 'DRAFT',

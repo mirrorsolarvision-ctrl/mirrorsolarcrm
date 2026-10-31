@@ -529,11 +529,34 @@ export interface Employee extends User {
 
 export type DealerStatus = 'Active' | 'Inactive';
 
+export interface DealerCommissionRecord {
+  id: string;
+  dealerId: string;
+  dealerName: string;
+  amount: number;
+  paymentMode: string;
+  referenceNumber: string;
+  paidAt: string;
+  recordedBy: string;
+  notes?: string;
+}
+
 export interface Dealer extends User {
   role: 'Dealer';
   address: string;
   features?: DealerFeatures;
   password?: string;
+  commissionRatePerKw?: number; // e.g. 1500 (₹/kW)
+  commissionType?: 'PER_KW' | 'PERCENTAGE';
+  commissionPercent?: number; // e.g. 5 (%)
+  bankDetails?: {
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
+  };
+  commissionPayouts?: DealerCommissionRecord[];
+  settledCommissionTotal?: number;
 }
 
 export interface AttendanceRecord {
@@ -756,6 +779,15 @@ interface CRMContextType {
 
   // Seed Helper
   seedSampleLeads: () => Promise<number>;
+
+  // Dealer Commission Management
+  recordDealerCommissionPayout: (
+    dealerId: string,
+    amount: number,
+    paymentMode: string,
+    referenceNumber: string,
+    notes?: string
+  ) => Promise<void>;
 
   // Sales Manager & Leakage Monitor (Version 2.3)
   salesLeakageMetrics: SalesLeakageMetrics;
@@ -1150,6 +1182,49 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'dealers', id), sanitizeForFirestore(updates), { merge: true });
     } catch (err) {
       console.warn("Error updating dealer in dealers:", err);
+    }
+  };
+
+  const recordDealerCommissionPayout = async (
+    dealerId: string,
+    amount: number,
+    paymentMode: string,
+    referenceNumber: string,
+    notes?: string
+  ) => {
+    const target = dealers.find(d => d.id === dealerId);
+    if (!target) throw new Error('Dealer not found');
+
+    const payoutRecord: DealerCommissionRecord = {
+      id: `PAYOUT-${Date.now()}`,
+      dealerId,
+      dealerName: target.name,
+      amount,
+      paymentMode,
+      referenceNumber,
+      paidAt: new Date().toISOString(),
+      recordedBy: authUser?.name || 'Admin',
+      notes
+    };
+
+    const currentPayouts = target.commissionPayouts || [];
+    const updatedPayouts = [payoutRecord, ...currentPayouts];
+    const newSettledTotal = (target.settledCommissionTotal || 0) + amount;
+
+    await updateDealer(dealerId, {
+      commissionPayouts: updatedPayouts,
+      settledCommissionTotal: newSettledTotal
+    });
+
+    try {
+      await addActivity({
+        type: 'Payment',
+        message: `Commission payout of ₹${amount.toLocaleString('en-IN')} paid to dealer ${target.name} via ${paymentMode} (Ref: ${referenceNumber || 'N/A'})`,
+        user: authUser?.name || 'Admin',
+        dealer: target.name
+      });
+    } catch (err) {
+      console.warn("Activity logging for commission payout fallback:", err);
     }
   };
 
@@ -2183,6 +2258,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Seed Helper
       seedSampleLeads,
+
+      // Dealer Commission Management
+      recordDealerCommissionPayout,
 
       // Sales Manager & Leakage Monitor (Version 2.3)
       salesLeakageMetrics,

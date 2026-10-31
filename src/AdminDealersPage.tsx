@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, X, Activity, UserPlus, 
   MapPin, Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List,
-  Sliders, Shield, CheckSquare, Briefcase, Zap, Award, Gauge, Trash2
+  Sliders, Shield, CheckSquare, Briefcase, Zap, Award, Gauge, Trash2,
+  Wallet, DollarSign, CreditCard, Building2, Check, Banknote
 } from 'lucide-react';
 import PageHero from './components/PageHero';
 import { useCRM, defaultDealerFeatures } from './context/CRMContext';
@@ -16,6 +17,7 @@ import {
   getDealerEmployees,
   getDealerPipeline,
   getDealerFollowUps,
+  getDealerCommissionSummary,
   DEALER_TARGET_KW,
   DEALER_TARGET_MONTHS
 } from './utils/dealerCalculations';
@@ -27,7 +29,7 @@ interface AdminDealersPageProps {
 }
 
 export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPageProps) {
-  const { leads, dealers, employees, activities, addDealer, updateDealer, deleteDealer, updateDealerFeatures, addActivity, currentUser } = useCRM();
+  const { leads, dealers, employees, activities, addDealer, updateDealer, deleteDealer, updateDealerFeatures, addActivity, recordDealerCommissionPayout, currentUser } = useCRM();
   const { stockRequests } = useStock();
   const { showToast, showConfirmModal } = useUI();
 
@@ -44,6 +46,28 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
   const [isFeaturesModalOpen, setIsFeaturesModalOpen] = useState(false);
   const [featureTargetDealer, setFeatureTargetDealer] = useState<Dealer | null>(null);
   const [featureForm, setFeatureForm] = useState<DealerFeatures>({ ...defaultDealerFeatures });
+
+  // Commission & Bank Details Modals
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
+  const [commissionTargetDealer, setCommissionTargetDealer] = useState<Dealer | null>(null);
+  const [commissionForm, setCommissionForm] = useState({
+    commissionRatePerKw: '1500',
+    commissionType: 'PER_KW' as 'PER_KW' | 'PERCENTAGE',
+    commissionPercent: '5',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    upiId: ''
+  });
+
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [payoutTargetDealer, setPayoutTargetDealer] = useState<Dealer | null>(null);
+  const [payoutForm, setPayoutForm] = useState({
+    amount: '',
+    paymentMode: 'Bank Transfer (NEFT/IMPS)',
+    referenceNumber: '',
+    notes: ''
+  });
   
   // Note state
   const [newNote, setNewNote] = useState('');
@@ -57,7 +81,8 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
       const perf = getDealerPerformance(dealer.name, leads);
       const dRequests = getDealerStockRequests(dealer.name, stockRequests);
       const pendingRequests = dRequests.filter(r => r.status === 'Pending').length;
-      return { ...dealer, ...perf, pendingRequests };
+      const commissionSummary = getDealerCommissionSummary(dealer, leads, dealers);
+      return { ...dealer, ...perf, pendingRequests, commissionSummary };
     });
   }, [dealers, leads, stockRequests]);
 
@@ -101,6 +126,8 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
     const totalKwConverted = Math.round(processedDealers.reduce((acc, d) => acc + (d.totalConvertedKw || 0), 0) * 10) / 10;
     const totalTargetKw = dealers.length * DEALER_TARGET_KW;
     const networkProgress = totalTargetKw > 0 ? Math.round((totalKwConverted / totalTargetKw) * 100) : 0;
+    const totalCommissionEarned = processedDealers.reduce((acc, d) => acc + (d.commissionSummary?.totalCommissionEarned || 0), 0);
+    const totalCommissionPending = processedDealers.reduce((acc, d) => acc + (d.commissionSummary?.pendingCommissionBalance || 0), 0);
     return {
       total: dealers.length,
       active: dealers.filter(d => d.status === 'Active').length,
@@ -108,7 +135,9 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
       converted: leads.filter(l => l.stage === 'Converted' || l.stage === 'Completed').length,
       totalKwConverted,
       totalTargetKw,
-      networkProgress
+      networkProgress,
+      totalCommissionEarned,
+      totalCommissionPending
     };
   }, [dealers, leads, processedDealers]);
 
@@ -226,6 +255,114 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
     setFeatureForm(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleOpenCommissionModal = (dealer: Dealer) => {
+    setCommissionTargetDealer(dealer);
+    setCommissionForm({
+      commissionRatePerKw: String(dealer.commissionRatePerKw || 1500),
+      commissionType: dealer.commissionType || 'PER_KW',
+      commissionPercent: String(dealer.commissionPercent || 5),
+      bankName: dealer.bankDetails?.bankName || '',
+      accountNumber: dealer.bankDetails?.accountNumber || '',
+      ifscCode: dealer.bankDetails?.ifscCode || '',
+      upiId: dealer.bankDetails?.upiId || ''
+    });
+    setIsCommissionModalOpen(true);
+  };
+
+  const handleSaveCommissionConfig = async () => {
+    if (!commissionTargetDealer) return;
+    try {
+      await updateDealer(commissionTargetDealer.id, {
+        commissionRatePerKw: parseFloat(commissionForm.commissionRatePerKw) || 1500,
+        commissionType: commissionForm.commissionType,
+        commissionPercent: parseFloat(commissionForm.commissionPercent) || 5,
+        bankDetails: {
+          bankName: commissionForm.bankName.trim(),
+          accountNumber: commissionForm.accountNumber.trim(),
+          ifscCode: commissionForm.ifscCode.trim(),
+          upiId: commissionForm.upiId.trim()
+        }
+      });
+      showToast(`✓ Commission & bank settings updated for ${commissionTargetDealer.name}`, 'success');
+      setIsCommissionModalOpen(false);
+      if (selectedDealer?.id === commissionTargetDealer.id) {
+        setSelectedDealer(prev => prev ? {
+          ...prev,
+          commissionRatePerKw: parseFloat(commissionForm.commissionRatePerKw) || 1500,
+          bankDetails: {
+            bankName: commissionForm.bankName.trim(),
+            accountNumber: commissionForm.accountNumber.trim(),
+            ifscCode: commissionForm.ifscCode.trim(),
+            upiId: commissionForm.upiId.trim()
+          }
+        } : null);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update commission settings', 'error');
+    }
+  };
+
+  const handleOpenPayoutModal = (dealer: any) => {
+    const commSummary = dealer.commissionSummary || getDealerCommissionSummary(dealer, leads, dealers);
+    setPayoutTargetDealer(dealer);
+    setPayoutForm({
+      amount: commSummary.pendingCommissionBalance > 0 ? String(commSummary.pendingCommissionBalance) : '',
+      paymentMode: 'Bank Transfer (NEFT/IMPS)',
+      referenceNumber: '',
+      notes: ''
+    });
+    setIsPayoutModalOpen(true);
+  };
+
+  const handleSubmitPayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payoutTargetDealer) return;
+    const amountNum = parseFloat(payoutForm.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showToast('Please enter a valid payout amount', 'warning');
+      return;
+    }
+
+    try {
+      await recordDealerCommissionPayout(
+        payoutTargetDealer.id,
+        amountNum,
+        payoutForm.paymentMode,
+        payoutForm.referenceNumber.trim(),
+        payoutForm.notes.trim()
+      );
+      showToast(`✓ Commission payout of ₹${amountNum.toLocaleString('en-IN')} recorded for ${payoutTargetDealer.name}!`, 'success');
+      setIsPayoutModalOpen(false);
+      // update selected dealer if viewing
+      if (selectedDealer?.id === payoutTargetDealer.id) {
+        setSelectedDealer(prev => {
+          if (!prev) return null;
+          const currentPayouts = prev.commissionPayouts || [];
+          return {
+            ...prev,
+            settledCommissionTotal: (prev.settledCommissionTotal || 0) + amountNum,
+            commissionPayouts: [
+              {
+                id: `PAYOUT-${Date.now()}`,
+                dealerId: prev.id,
+                dealerName: prev.name,
+                amount: amountNum,
+                paymentMode: payoutForm.paymentMode,
+                referenceNumber: payoutForm.referenceNumber.trim(),
+                paidAt: new Date().toISOString(),
+                recordedBy: currentUser?.name || 'Admin',
+                notes: payoutForm.notes.trim()
+              },
+              ...currentPayouts
+            ]
+          };
+        });
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to record payout', 'error');
+    }
+  };
+
   return (
     <div className="dealers-page fade-in">
       {/* Header */}
@@ -279,6 +416,18 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
           <div style={{display: 'flex', alignItems: 'baseline', gap: '0.35rem'}}>
             <span className="card-value" style={{color: '#0369a1'}}>{totals.totalKwConverted}</span>
             <span style={{fontSize: '0.95rem', fontWeight: 700, color: '#0284c7'}}>/ {totals.totalTargetKw} kW</span>
+          </div>
+        </div>
+        <div className="dealers-summary-card" style={{border: '1.5px solid #a7f3d0', background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'}}>
+          <div className="card-header-row">
+            <div className="card-icon" style={{background: '#059669', color: '#ffffff'}}><Wallet size={20} /></div>
+            <span className="card-label" style={{color: '#065f46'}}>Dealer Commissions (Earned / Due)</span>
+          </div>
+          <div style={{display: 'flex', alignItems: 'baseline', gap: '0.35rem'}}>
+            <span className="card-value" style={{color: '#065f46'}}>₹{totals.totalCommissionEarned.toLocaleString('en-IN')}</span>
+            <span style={{fontSize: '0.85rem', fontWeight: 700, color: totals.totalCommissionPending > 0 ? '#b45309' : '#059669'}}>
+              ({totals.totalCommissionPending > 0 ? `₹${totals.totalCommissionPending.toLocaleString('en-IN')} Due` : 'All Settled'})
+            </span>
           </div>
         </div>
       </div>
@@ -368,6 +517,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                 <th>DEALER</th>
                 <th>STATUS</th>
                 <th>18M TARGET (225 kW)</th>
+                <th>COMMISSION</th>
                 <th>LEADS</th>
                 <th>ACTIVE</th>
                 <th>CONVERTED</th>
@@ -408,6 +558,18 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                       </div>
                     </div>
                   </td>
+                  <td>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
+                      <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#047857'}}>
+                        ₹{dealer.commissionSummary?.totalCommissionEarned.toLocaleString('en-IN') || '0'}
+                      </div>
+                      <div style={{fontSize: '0.72rem', color: (dealer.commissionSummary?.pendingCommissionBalance || 0) > 0 ? '#b45309' : '#64748b', fontWeight: (dealer.commissionSummary?.pendingCommissionBalance || 0) > 0 ? 700 : 500}}>
+                        {(dealer.commissionSummary?.pendingCommissionBalance || 0) > 0 
+                          ? `₹${dealer.commissionSummary.pendingCommissionBalance.toLocaleString('en-IN')} Due`
+                          : 'Settled'}
+                      </div>
+                    </div>
+                  </td>
                   <td>{dealer.totalLeads}</td>
                   <td style={{color: '#16a34a'}}>{dealer.activeLeads}</td>
                   <td style={{color: 'var(--color-orange)'}}>{dealer.convertedLeads}</td>
@@ -427,6 +589,14 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                   <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                       <button className="btn-action" onClick={() => setSelectedDealer(dealer)}>View →</button>
+                      <button 
+                        className="btn-action" 
+                        title="Record Commission Payout"
+                        style={{padding: '5px 8px', fontSize: '0.78rem', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px'}}
+                        onClick={(e) => { e.stopPropagation(); handleOpenPayoutModal(dealer); }}
+                      >
+                        <Wallet size={13} /> Payout
+                      </button>
                       <button 
                         className="btn-icon-danger" 
                         title={`Delete ${dealer.name}`}
@@ -517,6 +687,91 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                     <div style={{fontSize: '1rem', fontWeight: 800, color: '#fbbf24'}}>12.5 kW/mo</div>
                   </div>
                 </div>
+              </div>
+
+              {/* Partner Commission & Banking Payout Section */}
+              <div className="detail-section" style={{border: '1.5px solid #a7f3d0', borderRadius: '12px', padding: '1rem', background: '#f0fdf4'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px'}}>
+                  <h4 style={{margin: 0, color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.95rem'}}>
+                    <Wallet size={18} /> Partner Commission & Payouts
+                  </h4>
+                  <div style={{display: 'flex', gap: '0.4rem'}}>
+                    <button 
+                      className="btn-outline" 
+                      style={{padding: '0.25rem 0.6rem', fontSize: '0.78rem', background: '#ffffff', color: '#047857', borderColor: '#a7f3d0', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px'}}
+                      onClick={() => handleOpenCommissionModal(selectedDealer)}
+                    >
+                      <Building2 size={13} /> Bank & Rate
+                    </button>
+                    <button 
+                      className="btn-primary" 
+                      style={{padding: '0.25rem 0.75rem', fontSize: '0.78rem', background: '#059669', borderColor: '#059669', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px'}}
+                      onClick={() => handleOpenPayoutModal(selectedDealer)}
+                    >
+                      <Plus size={13} /> Payout
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem'}}>
+                  <div style={{background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #d1fae5'}}>
+                    <div style={{fontSize: '0.68rem', color: '#64748b', fontWeight: 700}}>TOTAL EARNED</div>
+                    <div style={{fontSize: '1rem', fontWeight: 800, color: '#047857'}}>
+                      ₹{getDealerCommissionSummary(selectedDealer, leads, dealers).totalCommissionEarned.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #d1fae5'}}>
+                    <div style={{fontSize: '0.68rem', color: '#64748b', fontWeight: 700}}>DISBURSED</div>
+                    <div style={{fontSize: '1rem', fontWeight: 800, color: '#0284c7'}}>
+                      ₹{getDealerCommissionSummary(selectedDealer, leads, dealers).totalCommissionSettled.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #d1fae5'}}>
+                    <div style={{fontSize: '0.68rem', color: '#64748b', fontWeight: 700}}>PENDING DUE</div>
+                    <div style={{fontSize: '1rem', fontWeight: 800, color: getDealerCommissionSummary(selectedDealer, leads, dealers).pendingCommissionBalance > 0 ? '#d97706' : '#16a34a'}}>
+                      ₹{getDealerCommissionSummary(selectedDealer, leads, dealers).pendingCommissionBalance.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Commission Rate & Bank details pills */}
+                <div style={{background: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #d1fae5', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                    <span style={{color: '#64748b'}}>Commission Rate:</span>
+                    <strong style={{color: '#0f172a'}}>₹{selectedDealer.commissionRatePerKw || 1500} / kW</strong>
+                  </div>
+                  {selectedDealer.bankDetails?.bankName && (
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#64748b'}}>Bank / Account:</span>
+                      <strong style={{color: '#0f172a'}}>{selectedDealer.bankDetails.bankName} • {selectedDealer.bankDetails.accountNumber ? `••••${selectedDealer.bankDetails.accountNumber.slice(-4)}` : ''}</strong>
+                    </div>
+                  )}
+                  {selectedDealer.bankDetails?.upiId && (
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <span style={{color: '#64748b'}}>UPI ID:</span>
+                      <strong style={{color: '#0284c7'}}>{selectedDealer.bankDetails.upiId}</strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* Past Payouts History */}
+                {selectedDealer.commissionPayouts && selectedDealer.commissionPayouts.length > 0 && (
+                  <div style={{marginTop: '0.75rem'}}>
+                    <div style={{fontSize: '0.72rem', fontWeight: 700, color: '#065f46', marginBottom: '4px'}}>RECENT PAYOUT HISTORY</div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto'}}>
+                      {selectedDealer.commissionPayouts.map(p => (
+                        <div key={p.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', padding: '5px 8px', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #e2e8f0'}}>
+                          <div>
+                            <strong style={{color: '#0f172a'}}>₹{p.amount.toLocaleString('en-IN')}</strong>
+                            <span style={{color: '#64748b', marginLeft: '6px'}}>{p.paymentMode}</span>
+                            {p.referenceNumber && <span style={{color: '#94a3b8', marginLeft: '4px'}}>({p.referenceNumber})</span>}
+                          </div>
+                          <span style={{color: '#64748b'}}>{p.paidAt ? p.paidAt.split('T')[0] : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Business Overview */}
@@ -795,6 +1050,158 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                 Save Permissions
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Rate & Bank Settings Modal */}
+      {isCommissionModalOpen && commissionTargetDealer && (
+        <div className="modal-overlay" onClick={() => setIsCommissionModalOpen(false)}>
+          <div className="dealer-modal" onClick={e => e.stopPropagation()} style={{maxWidth: '520px'}}>
+            <h2>Commission & Bank Settings: {commissionTargetDealer.name}</h2>
+            <p className="text-muted text-sm" style={{marginBottom: '1.25rem'}}>
+              Configure dealer commission rates per installed capacity and disbursement bank/UPI coordinates.
+            </p>
+
+            <div className="form-group" style={{marginBottom: '1rem'}}>
+              <label>Commission Rate (₹ per Converted kW)</label>
+              <div style={{position: 'relative'}}>
+                <input 
+                  type="number" 
+                  value={commissionForm.commissionRatePerKw} 
+                  onChange={e => setCommissionForm({...commissionForm, commissionRatePerKw: e.target.value})} 
+                  placeholder="e.g. 1500"
+                  style={{paddingLeft: '2rem'}}
+                />
+                <span style={{position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 700}}>₹</span>
+              </div>
+              <small className="text-muted" style={{fontSize: '0.72rem'}}>
+                Standard residential partner commission is ₹1,500/kW (e.g. 3 kW system = ₹4,500).
+              </small>
+            </div>
+
+            <h3 style={{fontSize: '0.95rem', fontWeight: 700, margin: '1rem 0 0.5rem 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px'}}>
+              <Building2 size={16} color="#0284c7" /> Dealer Bank & UPI Account Details
+            </h3>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Bank Name</label>
+                <input 
+                  type="text" 
+                  value={commissionForm.bankName} 
+                  onChange={e => setCommissionForm({...commissionForm, bankName: e.target.value})} 
+                  placeholder="e.g. HDFC Bank, SBI" 
+                />
+              </div>
+              <div className="form-group">
+                <label>Account Number</label>
+                <input 
+                  type="text" 
+                  value={commissionForm.accountNumber} 
+                  onChange={e => setCommissionForm({...commissionForm, accountNumber: e.target.value})} 
+                  placeholder="e.g. 50100492817291" 
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>IFSC Code</label>
+                <input 
+                  type="text" 
+                  value={commissionForm.ifscCode} 
+                  onChange={e => setCommissionForm({...commissionForm, ifscCode: e.target.value.toUpperCase()})} 
+                  placeholder="e.g. HDFC0001234" 
+                />
+              </div>
+              <div className="form-group">
+                <label>UPI ID (VPA)</label>
+                <input 
+                  type="text" 
+                  value={commissionForm.upiId} 
+                  onChange={e => setCommissionForm({...commissionForm, upiId: e.target.value})} 
+                  placeholder="e.g. dealer@okaxis" 
+                />
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{marginTop: '1.5rem'}}>
+              <button className="btn-action" onClick={() => setIsCommissionModalOpen(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleSaveCommissionConfig}>
+                Save Commission & Bank Info
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Commission Payout Modal */}
+      {isPayoutModalOpen && payoutTargetDealer && (
+        <div className="modal-overlay" onClick={() => setIsPayoutModalOpen(false)}>
+          <div className="dealer-modal" onClick={e => e.stopPropagation()} style={{maxWidth: '480px'}}>
+            <h2>Record Commission Payout</h2>
+            <p className="text-muted text-sm" style={{marginBottom: '1rem'}}>
+              Record a disbursed commission payment to <strong>{payoutTargetDealer.name}</strong>.
+            </p>
+
+            <form onSubmit={handleSubmitPayout}>
+              <div className="form-group" style={{marginBottom: '1rem'}}>
+                <label>Payout Amount (₹) *</label>
+                <div style={{position: 'relative'}}>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    value={payoutForm.amount} 
+                    onChange={e => setPayoutForm({...payoutForm, amount: e.target.value})} 
+                    placeholder="e.g. 15000"
+                    style={{paddingLeft: '2rem', fontSize: '1.05rem', fontWeight: 700}}
+                  />
+                  <span style={{position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 700}}>₹</span>
+                </div>
+              </div>
+
+              <div className="form-group" style={{marginBottom: '1rem'}}>
+                <label>Payment Mode *</label>
+                <select 
+                  value={payoutForm.paymentMode} 
+                  onChange={e => setPayoutForm({...payoutForm, paymentMode: e.target.value})}
+                >
+                  <option value="Bank Transfer (NEFT/IMPS)">Bank Transfer (NEFT / IMPS)</option>
+                  <option value="UPI">UPI / QR Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Cash">Cash</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{marginBottom: '1rem'}}>
+                <label>UTR / Transaction Ref #</label>
+                <input 
+                  type="text" 
+                  value={payoutForm.referenceNumber} 
+                  onChange={e => setPayoutForm({...payoutForm, referenceNumber: e.target.value})} 
+                  placeholder="e.g. UTR29381029482 or Chq #00129" 
+                />
+              </div>
+
+              <div className="form-group" style={{marginBottom: '1.25rem'}}>
+                <label>Internal Notes / Remarks</label>
+                <textarea 
+                  rows={2} 
+                  value={payoutForm.notes} 
+                  onChange={e => setPayoutForm({...payoutForm, notes: e.target.value})} 
+                  placeholder="e.g. Commission settlement for Q3 converted installations" 
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-action" onClick={() => setIsPayoutModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{background: '#059669', borderColor: '#059669'}}>
+                  Confirm & Record Payout
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
