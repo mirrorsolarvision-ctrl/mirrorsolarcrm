@@ -55,6 +55,7 @@ import { DocumentUploadModal } from './components/DocumentUploadModal';
 import CustomerFinancialsCard from './components/CustomerFinancialsCard';
 import UnifiedRecordPaymentModal from './components/UnifiedRecordPaymentModal';
 import type { PaymentRecordModalType } from './components/UnifiedRecordPaymentModal';
+import { LeadExcelModal } from './components/LeadExcelModal';
 
 const MAX_FILE_SIZE_MB = 10;
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/heic', 'image/heif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
@@ -248,6 +249,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
 
   // Section-wise Downloading Indicator
   const [isDownloadingSection, setIsDownloadingSection] = useState<string | null>(null);
+
+  // Excel Import / Export Modal State
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelModalMode, setExcelModalMode] = useState<'import' | 'export'>('import');
+
+  const handleImportLeads = async (leadsToCreate: Partial<MockLead>[]) => {
+    let successCount = 0;
+    for (const leadPayload of leadsToCreate) {
+      await addLead(leadPayload as any);
+      successCount++;
+    }
+    showToast(`✓ Successfully imported ${successCount} leads into CRM!`, 'success');
+  };
 
   const [showDeleteDocModal, setShowDeleteDocModal] = useState(false);
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
@@ -1462,6 +1476,34 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               type="button" 
               className="btn-outline" 
               onClick={() => {
+                setExcelModalMode('export');
+                setShowExcelModal(true);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 0.85rem' }}
+              title="Export leads to Excel or CSV"
+            >
+              <Download size={15} />
+              <span className="hide-on-mobile">Export Sheet</span>
+            </button>
+            {canManageModule(currentUser, 'leads') && (
+              <button 
+                type="button" 
+                className="btn-outline" 
+                onClick={() => {
+                  setExcelModalMode('import');
+                  setShowExcelModal(true);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 0.85rem' }}
+                title="Import leads from Excel or CSV file"
+              >
+                <Upload size={15} />
+                <span className="hide-on-mobile">Import Excel</span>
+              </button>
+            )}
+            <button 
+              type="button" 
+              className="btn-outline" 
+              onClick={() => {
                 setIsRefreshing(true);
                 showToast('Syncing live leads from database...', 'info');
                 setTimeout(() => {
@@ -2277,6 +2319,30 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                 Select All {filteredLeads.length} Leads
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setExcelModalMode('export');
+                setShowExcelModal(true);
+              }}
+              style={{
+                background: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Export selected leads to spreadsheet"
+            >
+              <Download size={14} /> Export Selected ({selectedLeadIds.length})
+            </button>
 
             <button
               type="button"
@@ -5236,6 +5302,19 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
         onClose={() => setShowRecordPaymentModal(false)}
         defaultType={recordPaymentModalType}
         defaultLeadId={recordPaymentModalLeadId}
+      />
+
+      {/* Excel & CSV Leads Import/Export Modal */}
+      <LeadExcelModal
+        isOpen={showExcelModal}
+        onClose={() => setShowExcelModal(false)}
+        initialMode={excelModalMode}
+        existingLeads={leads}
+        filteredLeads={filteredLeads}
+        selectedLeadIds={selectedLeadIds}
+        currentUser={currentUser}
+        onImportLeads={handleImportLeads}
+        onShowToast={showToast}
       />
 
     </div>
