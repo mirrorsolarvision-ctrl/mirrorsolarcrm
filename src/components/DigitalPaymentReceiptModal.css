@@ -482,6 +482,100 @@
 }
 
 /* ==========================================
+   MOBILE RESPONSIVE ADAPTATIONS
+   ========================================== */
+@media (max-width: 640px) {
+  .receipt-modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .receipt-modal-container {
+    max-height: 98vh;
+  }
+
+  .receipt-actions-bar {
+    padding: 0.6rem 0.8rem;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .receipt-verified-chip {
+    font-size: 0.74rem;
+    padding: 3px 8px;
+  }
+
+  .receipt-bar-right {
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .receipt-btn-icon,
+  .receipt-btn-wa,
+  .receipt-btn-print {
+    padding: 6px 10px;
+    font-size: 0.76rem;
+  }
+
+  .receipt-paper {
+    padding: 1.25rem 1rem;
+    border-radius: 0 0 12px 12px;
+  }
+
+  .receipt-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .receipt-co-title {
+    font-size: 1.05rem;
+  }
+
+  .receipt-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .receipt-table th,
+  .receipt-table td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .receipt-footer {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .receipt-signatures-col {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .receipt-paper {
+    padding: 1rem 0.75rem;
+  }
+
+  .receipt-title {
+    font-size: 1.15rem;
+  }
+
+  .amount-highlight {
+    font-size: 1.15rem;
+  }
+
+  .receipt-btn-icon span,
+  .receipt-btn-wa span,
+  .receipt-btn-print span {
+    font-size: 0.72rem;
+  }
+}
+
+/* ==========================================
    PRINT MEDIA OPTIMIZATIONS
    ========================================== */
 @media print {
