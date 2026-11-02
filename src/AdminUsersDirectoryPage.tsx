@@ -263,7 +263,11 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         initials: newUserForm.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
         dealerId: newUserForm.dealerId || null,
         employeeCategory: newUserForm.employeeCategory,
-        features: { ...defaultEmployeeFeatures },
+        canForwardToDealer: (newUserForm.employeeCategory || '').toLowerCase().includes('sales') || (newUserForm.employeeCategory || '').toLowerCase().includes('telecaller'),
+        features: { 
+          ...defaultEmployeeFeatures, 
+          forwardCallLeadToDealer: (newUserForm.employeeCategory || '').toLowerCase().includes('sales') || (newUserForm.employeeCategory || '').toLowerCase().includes('telecaller') 
+        },
         password: newUserForm.password || 'Password123!'
       });
       showToast(`✓ Employee ${newUserForm.name} created successfully (${newUserForm.employeeCategory})!`, 'success');
@@ -655,6 +659,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     value={editUserForm.employeeCategory}
                     onChange={e => setEditUserForm({ ...editUserForm, employeeCategory: e.target.value })}
                   >
+                    <option value="Sales Manager (Telecaller)">Sales Manager / Telecaller (Call Leads Desk, 15m SLA, Funnel)</option>
                     <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Field Surveys)</option>
                     <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Dispatch, Inventory)</option>
                     <option value="PM Surya Ghar Incharge">PM Surya Ghar Incharge (Subsidy Workflows, PM Portal, Lead Execution)</option>
@@ -803,6 +808,20 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                 />
               </label>
 
+              {featureModalUser.role === 'Employee' && (
+                <label className="feature-toggle-item" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div className="toggle-info">
+                    <span className="toggle-name" style={{ color: '#166534', fontWeight: 700 }}>📞 Forward Call Leads to Dealers</span>
+                    <span className="toggle-desc">Grant this employee permission to forward office phone call leads directly to authorized dealers.</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={!!featureForm.forwardCallLeadToDealer} 
+                    onChange={e => setFeatureForm({ ...featureForm, forwardCallLeadToDealer: e.target.checked })} 
+                  />
+                </label>
+              )}
+
               {featureModalUser.role === 'Dealer' && (
                 <label className="feature-toggle-item">
                   <div className="toggle-info">
@@ -893,6 +912,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     value={newUserForm.employeeCategory}
                     onChange={e => setNewUserForm({ ...newUserForm, employeeCategory: e.target.value })}
                   >
+                    <option value="Sales Manager (Telecaller)">Sales Manager / Telecaller (Call Leads Desk, 15m SLA, Funnel)</option>
                     <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Follow-ups)</option>
                     <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Movements, Inventory)</option>
                     <option value="PM Surya Ghar Incharge">PM Surya Ghar Incharge (Full Subsidy Workflows & Pipeline)</option>

@@ -1,10 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
 import { dispatchToast } from './UIContext';
+import type { 
+  SalesStage, 
+  LeadScoreBreakdown, 
+  AvailabilityStatus, 
+  SlaStatus, 
+  SalesLeakageMetrics,
+  CustomerQualificationData,
+  TelecallerCallLog
+} from '../types/sales';
+import { calculateLeadScore } from '../utils/salesCalculations';
+import { evaluateSlaStatus } from '../utils/salesCalculations';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -153,12 +164,15 @@ export interface FollowUp {
   time: string;
   type: FollowUpType;
   status: FollowUpStatus;
+  notes?: string;
 }
 
 export type DocumentStatus = 'Pending' | 'Uploaded' | 'Additional Document Required' | 'Verified' | 'Rejected';
 
 export interface LeadDocument {
   id: string;
+  name?: string;
+  category?: string;
   leadId: string;
   documentType: string;
   fileName: string;
@@ -194,6 +208,8 @@ export type CustomerPaymentStatus = 'Pending Verification' | 'Verified' | 'Rejec
 
 export interface CustomerPaymentRecord {
   id: string;
+  date?: string;
+  mode?: string;
   leadId: string;
   customerName: string;
   amount: number;
@@ -277,6 +293,20 @@ export interface MockLead {
   reassignmentRequest?: LeadReassignmentRequest;
   customerCode?: string;
   code?: string;
+  // Sales Manager & Conversion Funnel Properties (Version 2.3)
+  salesStage?: SalesStage;
+  leadOwnerId?: string;
+  leadOwnerName?: string;
+  customerId?: string;
+  leadScore?: LeadScoreBreakdown;
+  firstCallAttemptAt?: string;
+  slaStatus?: SlaStatus;
+  financingType?: 'Bank Loan (JanSamarth)' | 'Self-Funded (Direct Payment)';
+  commercialClearanceStatus?: 'Cleared' | 'Pending';
+  handoffAcceptedAt?: string;
+  availabilityStatus?: AvailabilityStatus;
+  qualificationData?: CustomerQualificationData;
+  callLogs?: TelecallerCallLog[];
 }
 
 export interface LeadReassignmentRequest {
@@ -341,6 +371,7 @@ export interface UserPermissions {
   reports: PermissionLevel;
   access: PermissionLevel;
   profile: PermissionLevel;
+  forwardCallLeadToDealer?: boolean;
 }
 
 export type UserRole = 'Admin' | 'Employee' | 'Dealer';
@@ -356,6 +387,33 @@ export interface DealerFeatures {
   reports: boolean;
   tasks: boolean;
   calendar: boolean;
+  forwardCallLeadToDealer?: boolean;
+}
+
+export interface CallLead {
+  id: string;
+  customerName: string;
+  phone: string;
+  alternatePhone?: string;
+  location?: string;
+  capacityKw?: string;
+  callReceivedBy: string;
+  callReceivedById: string;
+  callReceivedByRole: 'Admin' | 'Employee';
+  callDate: string;
+  callTime: string;
+  notes?: string;
+  priority?: 'High' | 'Medium' | 'Low';
+  status: 'New Call' | 'In Follow-up' | 'Forwarded to Dealer' | 'Converted to Lead' | 'Dropped';
+  forwardedToDealer?: string;
+  forwardedToDealerId?: string;
+  forwardedAt?: string;
+  forwardedBy?: string;
+  forwardedById?: string;
+  forwardingNotes?: string;
+  crmLeadId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const defaultDealerFeatures: DealerFeatures = {
@@ -367,7 +425,8 @@ export const defaultDealerFeatures: DealerFeatures = {
   payments: true,
   reports: true,
   tasks: true,
-  calendar: true
+  calendar: true,
+  forwardCallLeadToDealer: false
 };
 
 export const defaultEmployeeFeatures: DealerFeatures = {
@@ -464,6 +523,7 @@ export interface User {
   dealerCode?: string;
   code?: string;
   displayId?: string;
+  canForwardToDealer?: boolean;
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -479,11 +539,35 @@ export interface Employee extends User {
 
 export type DealerStatus = 'Active' | 'Inactive';
 
+export interface DealerCommissionRecord {
+  id: string;
+  dealerId: string;
+  dealerName: string;
+  amount: number;
+  paymentMode: string;
+  referenceNumber: string;
+  paidAt: string;
+  recordedBy: string;
+  notes?: string;
+}
+
 export interface Dealer extends User {
   role: 'Dealer';
   address: string;
   features?: DealerFeatures;
   password?: string;
+  commissionRatePerKw?: number; // e.g. 1500 (₹/kW)
+  commissionType?: 'PER_KW' | 'PERCENTAGE';
+  commissionPercent?: number; // e.g. 5 (%)
+  bankDetails?: {
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
+  };
+  commissionPayouts?: DealerCommissionRecord[];
+  settledCommissionTotal?: number;
+  classification?: 'Paid' | string;
 }
 
 export interface AttendanceRecord {
@@ -540,7 +624,421 @@ export const defaultResponsibilities: Responsibility[] = [
   { id: 'RESP_PURCHASE', name: 'Purchase & Procurement', description: 'Vendor coordination, module/inverter ordering, and OEM warranty', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_ACCOUNTS', name: 'Accounts & Billing', description: 'Customer payment verification, dealer milestone settlements, and invoicing', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_SERVICE', name: 'Service & Maintenance', description: 'AMC renewals, inverter troubleshooting, and generation monitoring', active: true, createdAt: '2026-01-01' },
-  { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' }
+  { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' },
+  { id: 'resp_sales_manager', name: 'Sales Manager', description: 'Team lead assignment, 15-minute response SLA monitoring, commercial quotations, dealer survey coordination, and booking handoff', active: true, createdAt: '2026-01-01' },
+  { id: 'resp_telecaller', name: 'Telecaller', description: 'Assigned enquiry outbound calling, 15-minute first call SLA, 4-pillar qualification, callback follow-ups, and WhatsApp communication', active: true, createdAt: '2026-01-01' }
+];
+
+export const defaultCompanyEmployees: Employee[] = [
+  {
+    id: 'emp_telecaller_bhavani',
+    name: 'K. Bhavani',
+    employeeId: 'MSV-TC-001',
+    code: 'MSV-TC-001',
+    displayId: 'MSV-TC-001',
+    email: 'bhavani.telecaller@mirrorsolar.in',
+    phone: '9848123456',
+    role: 'Employee',
+    employeeCategory: 'Telecaller',
+    status: 'Active',
+    initials: 'KB',
+    canForwardToDealer: false,
+    permissions: { 
+      ...defaultEmployeePermissions, 
+      leads: 'edit',
+      profile: 'edit',
+      forwardCallLeadToDealer: false
+    },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: false,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true,
+      forwardCallLeadToDealer: false
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'resp_telecaller',
+      secondaryResponsibilityIds: ['RESP_QUOT', 'RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    },
+    lastActive: 'Just now'
+  },
+
+  {
+    id: 'emp_telecaller_sales',
+    name: 'P. Suresh',
+    employeeId: 'MSV-SALES-001',
+    code: 'MSV-SALES-001',
+    displayId: 'MSV-SALES-001',
+    email: 'sales.telecaller@mirrorsolar.in',
+    phone: '9440188990',
+    role: 'Employee',
+    employeeCategory: 'Sales Manager (Telecaller)',
+    status: 'Active',
+    initials: 'PS',
+    canForwardToDealer: true,
+    permissions: { 
+      ...defaultEmployeePermissions, 
+      leads: 'edit',
+      profile: 'edit',
+      forwardCallLeadToDealer: true
+    },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: false,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true,
+      forwardCallLeadToDealer: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'resp_sales_manager',
+      secondaryResponsibilityIds: ['RESP_QUOT', 'RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    },
+    lastActive: 'Just now'
+  },
+  {
+    id: 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3',
+    name: 'Sunkara Siva',
+    initials: 'SS',
+    email: 'msv-siva-001@mirrorsolar.in',
+    phone: '8985141432',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-SIVA-001',
+    code: 'MSV-SIVA-001',
+    displayId: 'MSV-SIVA-001',
+    employeeCategory: 'Marketing Employee',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_MARKETING',
+      secondaryResponsibilityIds: ['RESP_QUOT'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  },
+  {
+    id: 'tLB8hvGPTQXynRLk4fYI1yPeBkF3',
+    name: 'Kumari',
+    initials: 'KU',
+    email: 'kumari.mirrorsolarvision@gmail.com',
+    phone: '7670920748',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-KUMARI-001',
+    code: 'MSV-KUMARI-001',
+    displayId: 'MSV-KUMARI-001',
+    employeeCategory: 'PM Surya Ghar Work Incharge',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_SURYAGHAR',
+      secondaryResponsibilityIds: ['RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  },
+  {
+    id: 'QRWLhJpqCUUMi4U9mVNpUGQPu713',
+    name: 'Sai Gopal',
+    initials: 'SG',
+    email: 'gopal.mirrorsolarvision@gmail.com',
+    phone: '9876543210',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-EMP-003',
+    code: 'MSV-EMP-003',
+    displayId: 'MSV-EMP-003',
+    employeeCategory: 'Stock Incharge',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions, stock: 'edit' },
+    features: {
+      payments: false,
+      tasks: true,
+      reports: false,
+      leads: false,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: false
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_STOCK',
+      secondaryResponsibilityIds: ['RESP_INSTALL'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  }
+];
+
+export const defaultCompanyDealers: Dealer[] = [
+  // Existing Dealers (Preserved exactly)
+  {
+    id: 'ck9OPLG03RZeJhYh60npKeMEaFz2',
+    name: 'Hussain',
+    address: 'Kurnool',
+    phone: '9100309431',
+    email: 'hussain@dealer.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'HU',
+    dealerCode: 'MSV/DLR/HUSSAIN',
+    code: 'MSV/DLR/HUSSAIN',
+    displayId: 'MSV/DLR/HUSSAIN',
+    password: 'Mirror@9431',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR1791784111454',
+    name: 'JAGAPATHI',
+    address: 'VIJAYAWADA',
+    phone: '9959591855',
+    email: 'jagapathi@msv.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'JA',
+    dealerCode: 'MSV/DLR/JAGAPATHI',
+    code: 'MSV/DLR/JAGAPATHI',
+    displayId: 'MSV/DLR/JAGAPATHI',
+    password: 'MSV@1855',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR1791785666743',
+    name: 'SRINIVAS',
+    address: 'AMALAPURAM',
+    phone: '7815851917',
+    email: 'srinivas@msv.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SR',
+    dealerCode: 'MSV/DLR/SRINIVAS',
+    code: 'MSV/DLR/SRINIVAS',
+    displayId: 'MSV/DLR/SRINIVAS',
+    password: 'MSV@1917',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+
+  // 8 New Dealer Records (Internal classification: 'Paid')
+  {
+    id: 'DLR_AYYAPPA_TENALI',
+    name: 'Ayyappa',
+    address: 'Tenali & Guntur',
+    phone: '9848011001',
+    email: 'ayyappa.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'AY',
+    dealerCode: 'MSV/DLR/AYYAPPA',
+    code: 'MSV/DLR/AYYAPPA',
+    displayId: 'MSV/DLR/AYYAPPA',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_VIJAY_KAKINADA',
+    name: 'Vijay Kumar',
+    address: 'Kakinada',
+    phone: '9848011002',
+    email: 'vijaykumar.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'VK',
+    dealerCode: 'MSV/DLR/VIJAYK',
+    code: 'MSV/DLR/VIJAYK',
+    displayId: 'MSV/DLR/VIJAYK',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_ASHOK_MYLAVARAM',
+    name: 'Ashok',
+    address: 'Mylavaram',
+    phone: '9848011003',
+    email: 'ashok.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'AS',
+    dealerCode: 'MSV/DLR/ASHOK',
+    code: 'MSV/DLR/ASHOK',
+    displayId: 'MSV/DLR/ASHOK',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_SHIVA_KUCHIMPUDI',
+    name: 'Shiva',
+    address: 'Kuchimpudi',
+    phone: '9848011004',
+    email: 'shiva.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SH',
+    dealerCode: 'MSV/DLR/SHIVA',
+    code: 'MSV/DLR/SHIVA',
+    displayId: 'MSV/DLR/SHIVA',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_RAJU_AKIVEEDU',
+    name: 'Raju',
+    address: 'Akiveedu',
+    phone: '9848011005',
+    email: 'raju.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'RJ',
+    dealerCode: 'MSV/DLR/RAJU',
+    code: 'MSV/DLR/RAJU',
+    displayId: 'MSV/DLR/RAJU',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_SRINIVAS_ELURU',
+    name: 'Srinivas',
+    address: 'Eluru',
+    phone: '9848011006',
+    email: 'srinivas.eluru@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SE',
+    dealerCode: 'MSV/DLR/SRINIVASE',
+    code: 'MSV/DLR/SRINIVASE',
+    displayId: 'MSV/DLR/SRINIVASE',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_PRATHAP_TPG',
+    name: 'Prathap',
+    address: 'Tadepalligudem',
+    phone: '9848011007',
+    email: 'prathap.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'PR',
+    dealerCode: 'MSV/DLR/PRATHAP',
+    code: 'MSV/DLR/PRATHAP',
+    displayId: 'MSV/DLR/PRATHAP',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_VIJAY_HANUMAN',
+    name: 'Vijay',
+    address: 'Hanuman Junction',
+    phone: '9848011008',
+    email: 'vijay.hj@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'VH',
+    dealerCode: 'MSV/DLR/VIJAYHJ',
+    code: 'MSV/DLR/VIJAYHJ',
+    displayId: 'MSV/DLR/VIJAYHJ',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  }
 ];
 
 export const defaultApprovedProducts: ApprovedProduct[] = [
@@ -611,6 +1109,8 @@ interface CRMContextType {
   addLead: (lead: Omit<MockLead, 'id'>) => Promise<string | void>;
   updateLead: (id: string, updates: Partial<MockLead>) => Promise<void>;
   updateLeadStage: (leadId: string, newStage: Stage) => void;
+  deleteLead: (id: string) => Promise<void>;
+  deleteBulkLeads: (ids: string[]) => Promise<void>;
   updateUserPermissions: (userId: string, permissions: UserPermissions) => void;
   updateUserRole: (userId: string, role: UserRole) => void;
   updateUserStatus: (userId: string, status: UserStatus) => void;
@@ -704,19 +1204,95 @@ interface CRMContextType {
 
   // Seed Helper
   seedSampleLeads: () => Promise<number>;
+
+  // Dealer Commission Management
+  recordDealerCommissionPayout: (
+    dealerId: string,
+    amount: number,
+    paymentMode: string,
+    referenceNumber: string,
+    notes?: string
+  ) => Promise<void>;
+
+  // Sales Manager & Leakage Monitor (Version 2.3)
+  salesLeakageMetrics: SalesLeakageMetrics;
+  recordFirstCallAttempt: (leadId: string) => Promise<void>;
+  updateLeadSalesStage: (leadId: string, salesStage: SalesStage, notes?: string) => Promise<void>;
+  callLogs: TelecallerCallLog[];
+  addCallLog: (log: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => Promise<void>;
+  updateLeadQualification: (leadId: string, data: CustomerQualificationData) => Promise<void>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
+
+export const INITIAL_MOCK_CALL_LOGS: TelecallerCallLog[] = [
+  {
+    id: 'CALL-001',
+    leadId: 'sample-lead-01',
+    customerName: 'K. Satyanarayana',
+    phone: '+919848012345',
+    callDirection: 'Outgoing',
+    durationSeconds: 185,
+    outcome: 'Connected - Interested',
+    notes: 'Customer interested in 3kW PM Surya Ghar setup. Requested subsidy calculation and quotation.',
+    nextFollowUpDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    nextFollowUpTime: '11:30 AM',
+    telecallerId: 'emp_telecaller_sales',
+    telecallerName: 'P. Suresh',
+    timestamp: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 'CALL-002',
+    leadId: 'sample-lead-02',
+    customerName: 'P. Rambabu',
+    phone: '+919849288776',
+    callDirection: 'Outgoing',
+    durationSeconds: 90,
+    outcome: 'Connected - Callback',
+    notes: 'In meeting right now. Asked to callback tomorrow afternoon around 3:00 PM.',
+    nextFollowUpDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    nextFollowUpTime: '03:00 PM',
+    telecallerId: 'emp_telecaller_sales',
+    telecallerName: 'P. Suresh',
+    timestamp: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    id: 'CALL-003',
+    customerName: 'V. Venkatesh',
+    phone: '+919440155667',
+    callDirection: 'Outgoing',
+    durationSeconds: 0,
+    outcome: 'No Answer',
+    notes: 'Phone was ringing but customer did not pick up. Second attempt scheduled.',
+    nextFollowUpDate: new Date().toISOString().split('T')[0],
+    nextFollowUpTime: '04:30 PM',
+    telecallerId: 'emp_telecaller_bhavani',
+    telecallerName: 'K. Bhavani',
+    timestamp: new Date(Date.now() - 10800000).toISOString()
+  }
+];
+
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<MockLead[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_employees_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return defaultCompanyEmployees;
+    } catch {
+      return defaultCompanyEmployees;
+    }
+  });
   const [dealers, setDealers] = useState<Dealer[]>(() => {
     try {
       const cached = localStorage.getItem('crm_dealers_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        return parsed.filter((d: any) => 
+        const filtered = parsed.filter((d: any) => 
           d.id !== 'DLR1790601644299' &&
           d.id !== 'dealer_balaji' &&
           d.id !== 'DLR1790302393152' &&
@@ -725,10 +1301,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           !((d.name || '').toLowerCase().includes('balaji peruri')) &&
           (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
         );
+        if (Array.isArray(filtered) && filtered.length >= defaultCompanyDealers.length) return filtered;
       }
-      return [];
+      return defaultCompanyDealers;
     } catch {
-      return [];
+      return defaultCompanyDealers;
     }
   });
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -743,6 +1320,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     setCurrentUser(authUser);
   }, [authUser]);
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      try {
+        localStorage.setItem('crm_employees_cache', JSON.stringify(employees));
+      } catch (e) {
+        console.warn("Could not cache employees:", e);
+      }
+    }
+  }, [employees]);
 
   useEffect(() => {
     if (dealers.length > 0) {
@@ -815,7 +1402,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
-      const empList = uniqueUsers.filter(u => u.role === 'Employee') as Employee[];
+      const empList = uniqueUsers.filter(u => (u.role || '').toLowerCase() === 'employee') as Employee[];
       
       // Strict Dealers Sanitization:
       // 1. Exclude both Balaji Peruri dealers (Balaji is strictly an Admin)
@@ -843,19 +1430,37 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       }) as Dealer[];
 
-      // Ensure single instance per dealer name (e.g. Hussain single registered dealer)
-      const seenDealerNames = new Set<string>();
+      // Ensure single instance per unique dealer (ID or name + address)
+      const seenDealerKeys = new Set<string>();
       const finalDealers: Dealer[] = [];
       filteredDealers.forEach(d => {
         const normName = (d.name || '').toLowerCase().trim();
-        if (!seenDealerNames.has(normName)) {
-          seenDealerNames.add(normName);
+        const normAddr = (d.address || '').toLowerCase().trim();
+        const dealerKey = (d.id || '').trim().toLowerCase() || `${normName}_${normAddr}`;
+        if (!seenDealerKeys.has(dealerKey)) {
+          seenDealerKeys.add(dealerKey);
           finalDealers.push(d);
         }
       });
 
-      setEmployees(empList);
-      setDealers(finalDealers);
+      // Merge with default company dealers to ensure all 11 dealers are always available
+      const mergedDealersMap = new Map<string, Dealer>();
+      defaultCompanyDealers.forEach(d => {
+        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        mergedDealersMap.set(k, d);
+      });
+      finalDealers.forEach(d => {
+        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        mergedDealersMap.set(k, { ...mergedDealersMap.get(k), ...d });
+      });
+      const resolvedDealers = Array.from(mergedDealersMap.values());
+
+      if (empList.length > 0) {
+        setEmployees(empList);
+      } else {
+        setEmployees(defaultCompanyEmployees);
+      }
+      setDealers(resolvedDealers);
     }, (err) => {
       console.warn("Users listener error:", err);
     });
@@ -1096,6 +1701,49 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const recordDealerCommissionPayout = async (
+    dealerId: string,
+    amount: number,
+    paymentMode: string,
+    referenceNumber: string,
+    notes?: string
+  ) => {
+    const target = dealers.find(d => d.id === dealerId);
+    if (!target) throw new Error('Dealer not found');
+
+    const payoutRecord: DealerCommissionRecord = {
+      id: `PAYOUT-${Date.now()}`,
+      dealerId,
+      dealerName: target.name,
+      amount,
+      paymentMode,
+      referenceNumber,
+      paidAt: new Date().toISOString(),
+      recordedBy: authUser?.name || 'Admin',
+      notes
+    };
+
+    const currentPayouts = target.commissionPayouts || [];
+    const updatedPayouts = [payoutRecord, ...currentPayouts];
+    const newSettledTotal = (target.settledCommissionTotal || 0) + amount;
+
+    await updateDealer(dealerId, {
+      commissionPayouts: updatedPayouts,
+      settledCommissionTotal: newSettledTotal
+    });
+
+    try {
+      await addActivity({
+        type: 'Payment',
+        message: `Commission payout of ₹${amount.toLocaleString('en-IN')} paid to dealer ${target.name} via ${paymentMode} (Ref: ${referenceNumber || 'N/A'})`,
+        user: authUser?.name || 'Admin',
+        dealer: target.name
+      });
+    } catch (err) {
+      console.warn("Activity logging for commission payout fallback:", err);
+    }
+  };
+
   const deleteDealer = async (id: string) => {
     setDealers(prev => prev.filter(d => d.id !== id));
     try {
@@ -1210,6 +1858,40 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await updateDoc(doc(db, 'leads', leadId), sanitizeForFirestore(updates));
     } catch (err) {
       console.error("Error updating lead stage:", err);
+    }
+  };
+
+  const deleteLead = async (id: string) => {
+    setLeads(prev => prev.filter(l => l.id !== id));
+    try {
+      await deleteDoc(doc(db, 'leads', id));
+      dispatchToast('Lead deleted successfully', 'success');
+    } catch (err: any) {
+      console.error("Error deleting lead:", err);
+      dispatchToast(`Failed to delete lead: ${err.message || String(err)}`, 'error');
+      throw err;
+    }
+  };
+
+  const deleteBulkLeads = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setLeads(prev => prev.filter(l => !idSet.has(l.id)));
+    try {
+      const batchSize = 400;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = ids.slice(i, i + batchSize);
+        chunk.forEach(leadId => {
+          batch.delete(doc(db, 'leads', leadId));
+        });
+        await batch.commit();
+      }
+      dispatchToast(`${ids.length} leads deleted successfully`, 'success');
+    } catch (err: any) {
+      console.error("Error deleting bulk leads:", err);
+      dispatchToast(`Failed to delete leads: ${err.message || String(err)}`, 'error');
+      throw err;
     }
   };
 
@@ -1951,12 +2633,197 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // --- SALES LEAKAGE & EXCEPTION METRICS (Version 2.3 Architecture) ---
+  const salesLeakageMetrics = React.useMemo<SalesLeakageMetrics>(() => {
+    let unassignedCount = 0;
+    let slaBreachCount = 0;
+    let overdueFollowupCount = 0;
+    let quotationLeakageCount = 0;
+    let pendingPaymentVerificationCount = 0;
+    let pendingDealerHandoffCount = 0;
+    let hotLeadsCount = 0;
+
+    leads.forEach(l => {
+      if (l.archived) return;
+
+      // 1. Unassigned Leads
+      if (!l.leadOwnerId && !l.assignedEmployeeId && !l.assignedEmployee) {
+        unassignedCount++;
+      }
+
+      // 2. 15-Minute SLA Breach
+      if (l.slaStatus === 'SLA Breached') {
+        slaBreachCount++;
+      } else if (!l.firstCallAttemptAt && l.createdAt && (l.salesStage === 'New Lead' || !l.salesStage)) {
+        const sla = evaluateSlaStatus(l.createdAt);
+        if (sla.status === 'SLA Breached') {
+          slaBreachCount++;
+        }
+      }
+
+      // 3. Overdue Followup
+      if (l.followUp?.status === 'Overdue') {
+        overdueFollowupCount++;
+      }
+
+      // 4. Quotation Leakage (>48h in Qualified stage without proposal)
+      if (l.salesStage === 'Qualified') {
+        const daysOld = (Date.now() - new Date(l.updatedAt || l.createdAt).getTime()) / (1000 * 3600 * 24);
+        if (daysOld >= 2) quotationLeakageCount++;
+      }
+
+      // 5. Pending Payment Verification
+      const pendingPayments = l.payments?.customerPayments?.filter(p => p.status === 'Pending Verification') || [];
+      if (pendingPayments.length > 0) {
+        pendingPaymentVerificationCount += pendingPayments.length;
+      }
+
+      // 6. Pending Dealer Handoff
+      if (l.salesStage === 'Booking Confirmed' && !l.handoffAcceptedAt) {
+        pendingDealerHandoffCount++;
+      }
+
+      // 7. Hot Leads
+      if (l.leadScore?.category === 'Hot') {
+        hotLeadsCount++;
+      }
+    });
+
+    return {
+      unassignedCount,
+      slaBreachCount,
+      overdueFollowupCount,
+      quotationLeakageCount,
+      pendingPaymentVerificationCount,
+      pendingDealerHandoffCount,
+      totalLeadsInFunnel: leads.filter(l => !l.archived).length,
+      hotLeadsCount
+    };
+  }, [leads]);
+
+  // Log first phone call attempt to calculate and fulfill 15-min SLA
+  const recordFirstCallAttempt = async (leadId: string) => {
+    try {
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+      const nowIso = new Date().toISOString();
+      const sla = evaluateSlaStatus(lead.createdAt || nowIso, nowIso);
+      await updateDoc(doc(db, 'leads', leadId), {
+        firstCallAttemptAt: nowIso,
+        slaStatus: sla.status,
+        salesStage: lead.salesStage === 'New Lead' || !lead.salesStage ? 'Contacted' : lead.salesStage,
+        updatedAt: nowIso
+      });
+      addActivity({
+        type: 'Call Attempt',
+        message: `Initial call attempt logged (${sla.status})`,
+        user: currentUser?.name || 'Sales Staff',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error logging first call attempt:", err);
+    }
+  };
+
+
+  const [callLogs, setCallLogs] = useState<TelecallerCallLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_call_logs_cache');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return INITIAL_MOCK_CALL_LOGS;
+  });
+
+  const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
+    const newLog: TelecallerCallLog = {
+      ...logData,
+      id: 'CALL-' + Date.now(),
+      timestamp: new Date().toISOString()
+    };
+    setCallLogs(prev => {
+      const updated = [newLog, ...prev];
+      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    if (logData.leadId) {
+      addActivity({
+        type: 'Call Logged',
+        message: logData.callDirection + ' call (' + logData.outcome + ') logged: ' + (logData.notes ? logData.notes.slice(0, 60) : ''),
+        user: logData.telecallerName || currentUser?.name || 'Telecaller',
+        leadId: logData.leadId
+      });
+      if (logData.nextFollowUpDate) {
+        updateLead(logData.leadId, {
+          followUp: {
+            date: logData.nextFollowUpDate,
+            time: logData.nextFollowUpTime || '11:00 AM',
+            type: 'Call',
+            status: 'Upcoming',
+            notes: logData.notes
+          }
+        });
+      }
+    }
+  };
+
+  const updateLeadQualification = async (leadId: string, qualificationData: CustomerQualificationData) => {
+    try {
+      const target = leads.find(l => l.id === leadId);
+      const score = calculateLeadScore({
+        monthlyUnitsKwh: qualificationData.monthlyUnitsKwh,
+        monthlyBill: qualificationData.monthlyBill,
+        roofOwnership: qualificationData.roofOwnership,
+        roofType: qualificationData.roofType,
+        shadingStatus: qualificationData.shadingCondition === 'None' ? 'No' : 'Yes',
+        purchaseTimeline: qualificationData.expectedTimeline,
+        decisionMaker: qualificationData.decisionMaker !== 'Landlord',
+        financingRequirement: qualificationData.budgetPreference
+      });
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        qualificationData,
+        leadScore: score,
+        salesStage: target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted' ? 'Qualified' : (target?.salesStage || 'Qualified'),
+        updatedAt: new Date().toISOString()
+      });
+
+      addActivity({
+        type: 'Customer Qualified',
+        message: 'Customer qualified: Score ' + score.total + '/100 (' + score.category + ') - ' + (qualificationData.preferredCapacityKw || 3) + ' kW solar preference',
+        user: currentUser?.name || 'Telecaller',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error updating lead qualification:", err);
+    }
+  };
+
+  // Update salesStage with activity log
+  const updateLeadSalesStage = async (leadId: string, salesStage: SalesStage, notes?: string) => {
+    try {
+      const nowIso = new Date().toISOString();
+      await updateDoc(doc(db, 'leads', leadId), {
+        salesStage,
+        updatedAt: nowIso
+      });
+      addActivity({
+        type: 'Sales Stage Updated',
+        message: `Sales stage updated to ${salesStage}${notes ? ` (${notes})` : ''}`,
+        user: currentUser?.name || 'Sales Staff',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error updating sales stage:", err);
+    }
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
       addEmployee, updateEmployee, deleteEmployee,
       addDealer, updateDealer, deleteDealer, deleteUser,
-      addLead, updateLead, updateLeadStage,
+      addLead, updateLead, updateLeadStage, deleteLead, deleteBulkLeads,
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,
       addCustomerPayment, verifyCustomerPayment, deleteCustomerPayment,
@@ -1980,7 +2847,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assignLead, requestLeadReassignment, resolveLeadReassignment,
 
       // Seed Helper
-      seedSampleLeads
+      seedSampleLeads,
+
+      // Dealer Commission Management
+      recordDealerCommissionPayout,
+
+      // Sales Manager & Leakage Monitor (Version 2.3)
+      salesLeakageMetrics,
+      recordFirstCallAttempt,
+      updateLeadSalesStage,
+      callLogs, addCallLog, updateLeadQualification
     }}>
       {children}
     </CRMContext.Provider>

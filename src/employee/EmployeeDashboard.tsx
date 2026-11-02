@@ -11,7 +11,7 @@ import { useStock } from '../context/StockContext';
 import { useAttendance } from '../context/AttendanceContext';
 import { usePayroll } from '../context/PayrollContext';
 import { useUI } from '../context/UIContext';
-import { canAccessRoute, canManageModule } from '../utils/permissionCalculations';
+import { canAccessRoute, canManageModule, isSalesTelecallerEmployee } from '../utils/permissionCalculations';
 import { 
   getMyPerformance, getMyPipeline, getMyFollowUpsRaw, 
   getMyOverdueFollowUps, getMyDealers, getMyActivity, getMyLeads,
@@ -41,9 +41,10 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   // User details & category detection
   const userName = currentUser?.name || 'Employee';
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
-  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : 'Marketing Employee');
+  const isSalesTelecaller = isSalesTelecallerEmployee(currentUser);
+  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : isSalesTelecaller ? 'Sales Manager (Telecaller)' : 'Marketing Employee');
   const isStockIncharge = empCategory === 'Stock Incharge';
-  const isMarketing = !isStockIncharge && !isSuryaGhar;
+  const isMarketing = !isStockIncharge && !isSuryaGhar && !isSalesTelecaller;
 
   // --------------------------------------------------------------------------
   // MARKETING EMPLOYEE DERIVED DATA
@@ -79,6 +80,44 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   const isMonthlyMilestoneMet = monthlySalesCount >= monthlySalesTarget;
   const monthlyMilestonePct = Math.min(100, Math.round((monthlySalesCount / monthlySalesTarget) * 100));
   const remainingSalesToMilestone = Math.max(0, monthlySalesTarget - monthlySalesCount);
+
+
+  // --------------------------------------------------------------------------
+  // SALES TELECALLER DERIVED DATA
+  // --------------------------------------------------------------------------
+  const hotLeads = useMemo(() => {
+    return myLeads
+      .filter(l => l.leadScore?.category === 'Hot' || l.priority === 'High' || l.salesStage === 'New Lead')
+      .slice(0, 6);
+  }, [myLeads]);
+
+  const salesFunnel = useMemo(() => {
+    const stages = [
+      { key: 'New Lead', label: 'New Inquiries', color: '#0284c7' },
+      { key: 'Contacted', label: 'Contacted / 1st Call', color: '#6366f1' },
+      { key: 'Qualified', label: 'Qualified', color: '#8b5cf6' },
+      { key: 'Site Survey Scheduled', label: 'Survey Booked', color: '#06b6d4' },
+      { key: 'Quotation Sent', label: 'Proposal Sent', color: '#f59e0b' },
+      { key: 'Advance Submitted', label: 'Advance Paid', color: '#10b981' },
+      { key: 'Booking Confirmed', label: 'Booking Confirmed', color: '#059669' }
+    ];
+
+    return stages.map(s => {
+      const count = myLeads.filter(l => {
+        if (s.key === 'Booking Confirmed') return l.salesStage === 'Booking Confirmed' || l.stage === 'Converted';
+        if (s.key === 'New Lead') return l.salesStage === 'New Lead' || (!l.salesStage && l.stage === 'Lead');
+        return l.salesStage === s.key;
+      }).length;
+      return { ...s, count };
+    });
+  }, [myLeads]);
+
+  const slaMetrics = useMemo(() => {
+    const met = myLeads.filter(l => l.slaStatus === 'SLA Met').length;
+    const breached = myLeads.filter(l => l.slaStatus === 'SLA Breached').length;
+    const pending = myLeads.filter(l => !l.firstCallAttemptAt && (l.salesStage === 'New Lead' || !l.salesStage)).length;
+    return { met, breached, pending };
+  }, [myLeads]);
 
   // Read-only stock snapshot for Marketing
   const stockSnapshot = useMemo(() => {
@@ -947,9 +986,9 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
               <FileText size={24} />
               EOD Report
             </button>
-            <button className="emp-action-btn" onClick={() => onNavigate('/employee/leads')}>
+            <button className="emp-action-btn" onClick={() => onNavigate('/employee/call-leads')}>
               <PhoneCall size={24} />
-              Today's Calls
+              Office Calls
             </button>
             <button className="emp-action-btn" onClick={() => onNavigate('/employee/attendance')}>
               <UserCheck size={24} />

@@ -1,8 +1,284 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // ==========================================
+    // 1. CORE AUTHENTICATION & ROLE HELPERS
+    // ==========================================
+    function isAuthenticated() {
+      return request.auth != null;
     }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserDoc().role == 'Admin' || 
+        request.auth.token.role == 'Admin'
+      );
+    }
+
+    function isEmployee() {
+      return isAuthenticated() && getUserDoc().role == 'Employee';
+    }
+
+    function isSalesManager() {
+      return isEmployee() && (
+        getUserDoc().employeeCategory == 'Sales Manager' || 
+        getUserDoc().category == 'Sales Manager' ||
+        getUserDoc().responsibilities.primaryResponsibilityId == 'resp_sales_manager'
+      );
+    }
+
+    function isDealer() {
+      return isAuthenticated() && getUserDoc().role == 'Dealer';
+    }
+
+    // ==========================================
+    // 2. USERS & ACCESS SECURITY
+    // ==========================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      // Users can update basic profile info, but CANNOT self-promote role, permissions, or status
+      allow update: if isAdmin() || (
+        request.auth.uid == userId && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'phone', 'address', 'lastActive', 'avatar', 'availabilityStatus'
+        ])
+      );
+    }
+
+    match /dealers/{dealerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // 3. LEADS & CUSTOMER OPPORTUNITIES
+    // ==========================================
+    match /leads/{leadId} {
+      // Strictly scoped read access
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (isDealer() && resource.data.dealerId == request.auth.uid) ||
+        (isEmployee() && (
+          resource.data.assignedEmployeeId == request.auth.uid || 
+          resource.data.leadOwnerId == request.auth.uid ||
+          getUserDoc().category in ['PM Surya Ghar', 'Stock Incharge']
+        ))
+      );
+
+      // Lead creation restricted to authorized roles
+      allow create: if isAuthenticated() && (
+        isAdmin() || isSalesManager() || isEmployee()
+      ) && (
+        // Must initialize with valid baseline fields
+        request.resource.data.keys().hasAll(['customer', 'phone', 'stage', 'createdAt']) &&
+        // Non-admins cannot set installation approval at creation
+        (!('installationApprovalStatus' in request.resource.data) || request.resource.data.installationApprovalStatus == 'None')
+      );
+
+      // Field-Level Update Allowlists
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        // A. Sales Manager: can only edit sales fields on assigned leads
+        (isSalesManager() && resource.data.leadOwnerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'salesStage', 'priority', 'followUp', 'notes', 'customer', 
+            'phone', 'email', 'location', 'dealerSpecifications', 'leadScore',
+            'reassignmentRequest', 'updatedAt', 'payments'
+          ]) &&
+          // Cannot unilaterally verify customer payments
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['payments']) ||
+           request.resource.data.payments.customerPayments == resource.data.payments.customerPayments ||
+           // If appending a payment, status must be 'Pending Verification'
+           request.resource.data.payments.customerPayments[request.resource.data.payments.customerPayments.size() - 1].status == 'Pending Verification'
+          )
+        ) ||
+        // B. Dealer: can only submit technical site survey & document data
+        (isDealer() && resource.data.dealerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'dealerSpecifications', 'documents', 'updatedAt', 'notes'
+          ])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /call_leads/{callId} {
+      allow read: if isAuthenticated() && (isAdmin() || isSalesManager() || isEmployee());
+      allow create, update: if isAuthenticated() && (isAdmin() || isSalesManager() || isEmployee());
+      allow delete: if isAdmin();
+    }
+
+    match /marketingLeads/{mktId} {
+      allow read: if isAuthenticated() && (isAdmin() || isSalesManager());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 4. QUOTATIONS: VERSION LOCKING
+    // ==========================================
+    match /quotations/{quoteId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.createdBy == request.auth.uid ||
+        (isDealer() && resource.data.dealerId == request.auth.uid)
+      );
+      
+      allow create: if isAuthenticated() && (isAdmin() || isSalesManager() || isEmployee());
+      
+      allow update: if isAuthenticated() && (
+        // Admin can approve/reject, but CANNOT tamper with an already approved quote's commercial terms
+        (isAdmin() && (
+          resource.data.discountApprovalStatus != 'Approved' ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['grandTotal', 'discountAmount', 'items', 'systemCapacityKw'])
+        )) ||
+        // Creator can only edit unapproved drafts
+        (resource.data.createdBy == request.auth.uid && 
+         resource.data.discountApprovalStatus == 'None' &&
+         request.resource.data.discountApprovalStatus == 'None' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'items', 'systemCapacityKw', 'inverterCapacity', 'panelWattage', 
+           'notes', 'customerName', 'customerPhone', 'location', 'updatedAt'
+         ])
+        )
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 5. INVENTORY & DISPATCHES
+    // ==========================================
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /stockRequests/{reqId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.requesterId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || (
+        resource.data.requesterId == request.auth.uid && 
+        resource.data.status == 'Pending' &&
+        request.resource.data.status == 'Pending'
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /dealerStock/{stockId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.dealerId == request.auth.uid);
+      allow write: if isAdmin(); // Stock deductions managed by Admin or backend Cloud Functions
+    }
+
+    match /stockDispatches/{dispatchId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.dealerId == request.auth.uid);
+      allow create: if isAdmin();
+      // Dealer can only confirm receipt or submit delivery rejection notes
+      allow update: if isAdmin() || (
+        isDealer() && resource.data.dealerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'acceptedAt', 'acceptedBy', 'rejectionReason', 'notes'
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /materialConsumptions/{id} {
+      allow read: if isAuthenticated() && (isAdmin() || isEmployee());
+      allow write: if isAdmin();
+    }
+
+    match /materialReturns/{id} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.dealerId == request.auth.uid);
+      allow create: if isAuthenticated() && (isAdmin() || isDealer());
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 6. ACTIVITIES & TASKS
+    // ==========================================
+    match /activities/{actId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.user == request.auth.uid;
+      allow update, delete: if false; // Append-only
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.assignedToId == request.auth.uid);
+      allow create: if isAuthenticated() && (isAdmin() || isEmployee());
+      allow update: if isAdmin() || resource.data.assignedToId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 7. ATTENDANCE & PAYROLL
+    // ==========================================
+    match /attendance/{attId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin(); // Attendance corrections approved by Admin only
+      allow delete: if isAdmin();
+    }
+
+    match /attendance_corrections/{corrId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /employee_leaves/{leaveId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /employee_salaries/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /employee_advances/{id} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.employeeId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.employeeId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /employee_payrolls/{id} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.employeeId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /eod_reports/{reportId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.employeeId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.employeeId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 8. SECURITY, AUDIT & IDEMPOTENCY
+    // ==========================================
+    match /ingested_events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && (isAdmin() || isSalesManager());
+      allow update, delete: if false; // Once written, immutable
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.timestamp == request.time;
+      allow update, delete: if false; // Absolute immutability
+    }
+
+    // ==========================================
+    // 9. DEFAULT-DENY FALLBACK
+    // ==========================================
+    // Any document or path not explicitly permitted above is DENIED.
   }
 }

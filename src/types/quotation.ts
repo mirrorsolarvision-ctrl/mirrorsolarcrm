@@ -188,6 +188,12 @@ export interface Quotation {
   acceptedAt?: string;
   convertedAt?: string;
   
+  // Commercial Approval Gating (Version 2.3)
+  discountApprovalStatus?: 'None' | 'Pending' | 'Approved' | 'Rejected';
+  discountApprovedBy?: string;
+  discountApprovedAt?: string;
+  discountRejectionReason?: string;
+  
   // Version Tree
   versionHistory?: QuotationVersionRecord[];
 }

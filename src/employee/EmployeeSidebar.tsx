@@ -1,7 +1,6 @@
 import { 
   LayoutDashboard, 
   Users, 
-  Bell, 
   Package, 
   User as UserIcon, 
   LogOut,
@@ -11,14 +10,20 @@ import {
   Calendar,
   UserCheck,
   FileText,
-  Megaphone,
   X,
   Award,
-  CreditCard
+  CreditCard,
+  PhoneCall,
+  GitFork,
+  Clock,
+  MessageSquare,
+  Building,
+  Folder,
+  BarChart3
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
-import { canAccessRoute } from '../utils/permissionCalculations';
+import { canAccessRoute, isSalesDepartmentUser, isSalesManager } from '../utils/permissionCalculations';
 import { isSuryaGharEmployee } from '../utils/employeeCalculations';
 
 interface EmployeeSidebarProps {
@@ -45,11 +50,15 @@ export default function EmployeeSidebar({
   const { currentUser } = useCRM();
   const isStockIncharge = currentUser?.employeeCategory === 'Stock Incharge';
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
+  const isSalesDept = isSalesDepartmentUser(currentUser);
+  const isManager = isSalesManager(currentUser);
 
-  const allNavItems = [
+  // Standard non-sales employee items
+  const standardNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
     { name: isSuryaGhar ? 'All Leads & KYC' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: 'Office Call Leads', path: '/employee/call-leads', icon: PhoneCall, routeName: 'Call Leads' },
     { name: 'Sales Milestones', path: '/employee/milestones', icon: Award, routeName: 'Milestones' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
     { name: 'Finance & Payments', path: '/employee/payments', icon: CreditCard, routeName: 'Payments' },
@@ -58,15 +67,32 @@ export default function EmployeeSidebar({
     { name: isStockIncharge ? 'Warehouse Stock' : 'Stock Availability', path: '/employee/stock', icon: Package, routeName: 'Stock' },
     { name: 'Day End Report', path: '/employee/eod-report', icon: FileText, routeName: 'EOD Report' },
     { name: 'Reports', path: '/employee/reports', icon: LayoutDashboard, routeName: 'Reports' },
-  ];
-
-  const navItems = allNavItems.filter(item => {
-    // If stock incharge without explicit leads access, hide leads/quotations unless enabled
+  ].filter(item => {
     if (isStockIncharge && (item.routeName === 'Leads' || item.routeName === 'Quotations')) {
       return canAccessRoute(currentUser, item.routeName);
     }
     return canAccessRoute(currentUser, item.routeName);
   });
+
+  // Dedicated Sales Department navigation items (Manager & Telecaller)
+  const salesDeptNavItems = [
+    { name: 'Dashboard', path: '/sales/dashboard', icon: LayoutDashboard },
+    { name: isManager ? 'Team Leads' : 'My Leads', path: '/sales/leads', icon: Users },
+    { name: 'Telecalling Centre', path: '/sales/telecalling', icon: PhoneCall },
+    { name: 'Customer Qualification', path: '/sales/qualification', icon: UserCheck },
+    { name: 'Sales Pipeline', path: '/sales/pipeline', icon: GitFork },
+    { name: 'Follow-ups & Tasks', path: '/sales/followups', icon: Clock },
+    { name: 'WhatsApp Centre', path: '/sales/whatsapp', icon: MessageSquare },
+    { name: 'Quotations', path: '/sales/quotations', icon: FileText },
+    { name: 'Bookings & Payments', path: '/sales/bookings', icon: CreditCard },
+    { name: 'Site Survey & Dealers', path: '/sales/dealers', icon: Building },
+    { name: 'Customer Documents', path: '/sales/documents', icon: Folder },
+    { name: 'Sales Reports', path: '/sales/reports', icon: BarChart3 },
+    ...(isManager ? [{ name: 'Team Performance', path: '/sales/performance', icon: Award }] : []),
+    { name: 'My Attendance', path: '/employee/attendance', icon: UserCheck }
+  ];
+
+  const navItems = isSalesDept ? salesDeptNavItems : standardNavItems;
 
   return (
     <>
@@ -74,6 +100,11 @@ export default function EmployeeSidebar({
         <div className="sidebar-header">
           <div className="sidebar-logo-container">
             <img src={logoUrl} alt="Solar CRM" className="sidebar-logo" />
+            {isSalesDept && !isSidebarCollapsed && (
+              <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: '2px' }}>
+                Sales Department
+              </div>
+            )}
           </div>
           <button className="sidebar-collapse-btn desktop-only" onClick={toggleSidebar}>
             {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -85,14 +116,15 @@ export default function EmployeeSidebar({
 
         <nav className="sidebar-nav">
           {navItems.map((item, index) => {
-            const isActive = currentPath === item.path;
+            const isActive = currentPath === item.path || 
+              (item.path.startsWith('/sales/') && currentPath.startsWith(item.path));
             const Icon = item.icon;
             
             return (
               <div 
                 key={item.name} 
                 className={`nav-item-wrapper ${stageAnimation >= 2 ? 'reveal' : ''}`}
-                style={{ animationDelay: `${index * 0.05}s` }}
+                style={{ animationDelay: `${index * 0.04}s` }}
               >
                 <button
                   className={`nav-item ${isActive ? 'active' : ''}`}
@@ -102,7 +134,7 @@ export default function EmployeeSidebar({
                   }}
                   title={isSidebarCollapsed ? item.name : undefined}
                 >
-                  <Icon size={20} className="nav-icon" />
+                  <Icon size={19} className="nav-icon" />
                   {!isSidebarCollapsed && <span className="nav-text">{item.name}</span>}
                   {isActive && !isSidebarCollapsed && <span className="nav-active-dot"></span>}
                 </button>

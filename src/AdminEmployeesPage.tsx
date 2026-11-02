@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, X, Activity, UserPlus, 
-  Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List, ArrowRight
+  Phone, Mail, FileText, CheckCircle2, TrendingUp, AlertTriangle, List, ArrowRight, Trash2
 } from 'lucide-react';
 import { useCRM } from './context/CRMContext';
 import { useUI } from './context/UIContext';
@@ -23,7 +23,7 @@ interface AdminEmployeesPageProps {
 }
 
 export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAccess }: AdminEmployeesPageProps) {
-  const { leads, employees, dealers, activities, addEmployee, updateEmployee, updateLead, addActivity, currentUser } = useCRM();
+  const { leads, employees, dealers, activities, addEmployee, updateEmployee, deleteEmployee, updateLead, addActivity, currentUser } = useCRM();
   const { showToast, showConfirmModal } = useUI();
 
   // Filters
@@ -47,7 +47,7 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   const [newNote, setNewNote] = useState('');
 
   const [formData, setFormData] = useState({
-    name: '', id: '', email: '', phone: '', status: 'Active'
+    name: '', id: '', email: '', phone: '', status: 'Active', employeeCategory: 'Sales Manager (Telecaller)'
   });
 
   const [assignForm, setAssignForm] = useState({
@@ -146,13 +146,13 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   }, [employees, leads]);
 
   const handleOpenAddModal = () => {
-    setFormData({ name: '', id: '', email: '', phone: '', status: 'Active' });
+    setFormData({ name: '', id: '', email: '', phone: '', status: 'Active', employeeCategory: 'Sales Manager (Telecaller)' });
     setIsAddModalOpen(true);
   };
 
   const handleOpenEditModal = (emp: Employee) => {
     setFormData({ 
-      name: emp.name, id: emp.id, email: emp.email, phone: emp.phone, status: emp.status
+      name: emp.name, id: emp.id, email: emp.email, phone: emp.phone, status: emp.status, employeeCategory: emp.employeeCategory || 'Sales Manager (Telecaller)'
     });
     setIsEditModalOpen(true);
   };
@@ -167,6 +167,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
     addEmployee({
       name: formData.name, email: formData.email, phone: formData.phone, 
       status: formData.status as any,
+      employeeCategory: formData.employeeCategory,
+      canForwardToDealer: formData.employeeCategory.includes('Sales') || formData.employeeCategory.includes('Telecaller'),
       initials, lastActive: 'Just now'
     });
     showToast('Employee added successfully.', 'success');
@@ -177,7 +179,7 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   const handleEditSubmit = () => {
     if (!selectedEmployee) return;
     updateEmployee(selectedEmployee.id, {
-      name: formData.name, email: formData.email, phone: formData.phone, status: formData.status as any
+      name: formData.name, email: formData.email, phone: formData.phone, status: formData.status as any, employeeCategory: formData.employeeCategory, canForwardToDealer: formData.employeeCategory.includes('Sales') || formData.employeeCategory.includes('Telecaller')
     });
     showToast('Employee details updated.', 'success');
     setIsEditModalOpen(false);
@@ -195,6 +197,27 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
         showToast(`Employee ${newStatus.toLowerCase()} successfully.`, 'success');
         addActivity({ type: 'Employee Status Updated', message: `${emp.name} marked as ${newStatus}`, user: currentUser?.name || 'Admin' });
         setSelectedEmployee(null);
+      }
+    );
+  };
+
+  const handleDeleteEmployee = (emp: Employee) => {
+    showConfirmModal(
+      `Delete Employee ${emp.name}?`,
+      `Are you sure you want to permanently delete employee "${emp.name}"? This will remove their credentials, staff access, and permissions permanently. This action cannot be undone.`,
+      async () => {
+        try {
+          await deleteEmployee(emp.id);
+          setSelectedEmployee(null);
+          showToast(`Employee "${emp.name}" deleted successfully.`, 'success');
+          addActivity({
+            type: 'Employee Deleted',
+            message: `Employee ${emp.name} (${emp.id}) was permanently deleted by Admin`,
+            user: currentUser?.name || 'Admin'
+          });
+        } catch (err: any) {
+          showToast(err.message || 'Failed to delete employee', 'error');
+        }
       }
     );
   };
@@ -392,7 +415,17 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                   <td>{getEmployeeFollowUps(emp.name, leads).total}</td>
                   <td className="text-muted text-sm">{emp.lastActive}</td>
                   <td>
-                    <button className="btn-action" onClick={() => setSelectedEmployee(emp)}>View →</button>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                      <button className="btn-action" onClick={() => setSelectedEmployee(emp)}>View →</button>
+                      <button 
+                        className="btn-icon-danger" 
+                        title={`Delete ${emp.name}`}
+                        style={{padding: '6px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp); }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -584,10 +617,19 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
               {/* Actions */}
               <div className="detail-section">
                 <h4>Manage Profile</h4>
-                <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-                  <button className="btn-action" style={{flex: 1}} onClick={() => handleOpenEditModal(selectedEmployee)}>Edit Profile</button>
-                  <button className="btn-danger" style={{flex: 1}} onClick={() => toggleEmployeeStatus(selectedEmployee)}>
-                    {selectedEmployee.status === 'Active' ? 'Deactivate Employee' : 'Reactivate Employee'}
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                    <button className="btn-action" style={{flex: 1}} onClick={() => handleOpenEditModal(selectedEmployee)}>Edit Profile</button>
+                    <button className="btn-danger" style={{flex: 1}} onClick={() => toggleEmployeeStatus(selectedEmployee)}>
+                      {selectedEmployee.status === 'Active' ? 'Deactivate Employee' : 'Reactivate Employee'}
+                    </button>
+                  </div>
+                  <button 
+                    className="btn-danger" 
+                    style={{background: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0.6rem'}}
+                    onClick={() => handleDeleteEmployee(selectedEmployee)}
+                  >
+                    <Trash2 size={16} /> Delete Employee Permanently
                   </button>
                 </div>
               </div>
@@ -622,6 +664,22 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                 <label htmlFor="admin-emp-form-phone">Phone</label>
                 <input id="admin-emp-form-phone" name="employeePhone" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
               </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="admin-emp-form-category">Role / Designation Category</label>
+              <select 
+                id="admin-emp-form-category" 
+                name="employeeCategory" 
+                value={formData.employeeCategory} 
+                onChange={e => setFormData({...formData, employeeCategory: e.target.value})}
+              >
+                <option value="Sales Manager">Sales Manager (Team Leader)</option>
+                <option value="Telecaller">Telecaller (Assigned Enquiries & Calling)</option>
+                <option value="PM Surya Ghar Work Incharge">PM Surya Ghar Work Incharge</option>
+                <option value="Commercial Project Incharge">Commercial Project Incharge</option>
+                <option value="Marketing Employee">Marketing Employee</option>
+                <option value="Stock Incharge">Stock Incharge</option>
+              </select>
             </div>
             {isEditModalOpen && (
               <div className="form-group">

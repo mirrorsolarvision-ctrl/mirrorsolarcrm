@@ -1,4 +1,4 @@
-import type { MockLead, Activity, Employee } from '../context/CRMContext';
+import type { MockLead, Activity, Employee, Dealer } from '../context/CRMContext';
 import type { StockRequest } from '../context/StockContext';
 
 export const DEALER_TARGET_KW = 225; // 225 kW standard target
@@ -197,3 +197,43 @@ export const getDealerLeadOverview = (dealer: string | { id?: string; name?: str
     'Lost': 0
   };
 };
+
+export interface DealerCommissionSummary {
+  dealerId?: string;
+  dealerName: string;
+  totalConvertedKw: number;
+  commissionRatePerKw: number;
+  totalCommissionEarned: number;
+  totalCommissionSettled: number;
+  pendingCommissionBalance: number;
+  payoutsCount: number;
+}
+
+export const getDealerCommissionSummary = (
+  dealer: string | Dealer,
+  leads: MockLead[],
+  dealersList?: Dealer[]
+): DealerCommissionSummary => {
+  const dObj = typeof dealer === 'object' ? dealer : dealersList?.find(d => d.name === dealer || d.id === dealer);
+  const dealerName = typeof dealer === 'string' ? dealer : dealer.name;
+  const ratePerKw = dObj?.commissionRatePerKw || 1500; // Default ₹1,500/kW standard solar EPC commission
+  
+  const capMetrics = getDealerCapacityMetrics(dealer, leads);
+  const convertedKw = capMetrics.totalConvertedKw;
+  const totalEarned = Math.round(convertedKw * ratePerKw);
+  const totalSettled = dObj?.settledCommissionTotal || 0;
+  const pendingBalance = Math.max(0, totalEarned - totalSettled);
+  const payoutsCount = dObj?.commissionPayouts?.length || 0;
+
+  return {
+    dealerId: dObj?.id,
+    dealerName,
+    totalConvertedKw: convertedKw,
+    commissionRatePerKw: ratePerKw,
+    totalCommissionEarned: totalEarned,
+    totalCommissionSettled: totalSettled,
+    pendingCommissionBalance: pendingBalance,
+    payoutsCount
+  };
+};
+

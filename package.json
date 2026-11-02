@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy": "npm run build && npx firebase-tools deploy",
-    "deploy:hosting": "npm run build && npx firebase-tools deploy --only hosting",
-    "deploy:rules": "npx firebase-tools deploy --only firestore:rules,storage",
+    "deploy": "cmd /c scripts\\deploy.bat",
+    "deploy:hosting": "cmd /c scripts\\deploy.bat --hosting",
+    "deploy:rules": "cmd /c scripts\\deploy.bat --rules",
     "firebase:login": "npx firebase-tools login:use mirrorsolarvision@gmail.com",
     "firebase:status": "npx firebase-tools projects:list",
     "lint": "oxlint",
@@ -19,7 +19,8 @@
     "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
-import { canAccessRoute } from '../utils/permissionCalculations';
+import { canAccessRoute, isSalesDepartmentUser } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
@@ -21,6 +21,8 @@ const TasksPage = lazy(() => import('../TasksPage'));
 const CalendarPage = lazy(() => import('../CalendarPage'));
 const EmployeeEodReportPage = lazy(() => import('../pages/EmployeeEodReportPage'));
 const MilestonesPage = lazy(() => import('../MilestonesPage'));
+const CallLeadsPage = lazy(() => import('../pages/CallLeadsPage'));
+const SalesWorkspace = lazy(() => import('../sales/SalesWorkspace'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -28,12 +30,21 @@ interface EmployeeAppProps {
 
 export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
   const { currentUser } = useCRM();
+  const isSalesDept = isSalesDepartmentUser(currentUser);
   
-  const [currentPath, setCurrentPath] = useState('/employee/dashboard');
+  const [currentPath, setCurrentPath] = useState(() => {
+    return isSalesDepartmentUser(currentUser) ? '/sales/dashboard' : '/employee/dashboard';
+  });
   const [routeFilters, setRouteFilters] = useState<any>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [stageAnimation, setStageAnimation] = useState(0);
+
+  useEffect(() => {
+    if (isSalesDepartmentUser(currentUser) && currentPath === '/employee/dashboard') {
+      setCurrentPath('/sales/dashboard');
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     // Initial load animation sequence
@@ -63,10 +74,21 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
 
   // Render the current page based on path
   const renderPage = () => {
+    // Sales Department Dedicated Module
+    if (currentPath.startsWith('/sales/')) {
+      const subView = (currentPath.replace('/sales/', '') || 'dashboard') as any;
+      return <SalesWorkspace initialSubView={subView} onNavigateGlobal={handleNavigate} />;
+    }
+
+    if (isSalesDept && currentPath === '/employee/dashboard') {
+      return <SalesWorkspace initialSubView="dashboard" onNavigateGlobal={handleNavigate} />;
+    }
+
     // Determine route name for permission check
     const routeName = currentPath === '/employee/dashboard' ? 'Dashboard' :
                       currentPath === '/employee/attendance' ? 'Attendance' :
                       currentPath === '/employee/leads' ? 'Leads' :
+                      currentPath === '/employee/call-leads' ? 'Call Leads' :
                       currentPath === '/employee/milestones' ? 'Milestones' :
                       currentPath === '/employee/quotations' ? 'Quotations' :
                       currentPath === '/employee/tasks' ? 'Tasks' :
@@ -78,26 +100,28 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
                       currentPath === '/employee/profile' ? 'Profile' : 'Dashboard';
 
     if (!canAccessRoute(currentUser, routeName)) {
-      return <EmployeeDashboard onNavigate={handleNavigate} />;
+      return isSalesDept ? <SalesWorkspace onNavigateGlobal={handleNavigate} /> : <EmployeeDashboard onNavigate={handleNavigate} />;
     }
 
     switch (currentPath) {
       case '/employee/dashboard':
-        return <EmployeeDashboard onNavigate={handleNavigate} />;
+        return isSalesDept ? <SalesWorkspace onNavigateGlobal={handleNavigate} /> : <EmployeeDashboard onNavigate={handleNavigate} />;
       case '/employee/attendance':
         return <EmployeeAttendancePage initialTab={routeFilters?.tab} />;
       case '/employee/leads':
-        return <LeadsPage {...(routeFilters || {})} />;
+        return isSalesDept ? <SalesWorkspace initialSubView="leads" onNavigateGlobal={handleNavigate} /> : <LeadsPage {...(routeFilters || {})} />;
+      case '/employee/call-leads':
+        return isSalesDept ? <SalesWorkspace initialSubView="telecalling" onNavigateGlobal={handleNavigate} /> : <CallLeadsPage />;
       case '/employee/milestones':
         return <MilestonesPage onNavigate={(tab) => handleNavigate(tab === 'Payments' ? '/employee/payments' : '/employee/dashboard')} />;
       case '/employee/quotations':
-        return <QuotationsPortalPage />;
+        return isSalesDept ? <SalesWorkspace initialSubView="quotations" onNavigateGlobal={handleNavigate} /> : <QuotationsPortalPage />;
       case '/employee/tasks':
         return <TasksPage onNavigate={handleNavigate} />;
       case '/employee/calendar':
         return <CalendarPage onNavigate={handleNavigate} />;
       case '/employee/payments':
-        return <PaymentsPage onNavigate={handleNavigate} />;
+        return isSalesDept ? <SalesWorkspace initialSubView="bookings" onNavigateGlobal={handleNavigate} /> : <PaymentsPage onNavigate={handleNavigate} />;
       case '/employee/stock':
         return <StockPage />;
       case '/employee/eod-report':
@@ -105,9 +129,9 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
       case '/employee/profile':
         return <ProfilePage />;
       case '/employee/reports':
-        return <AdminReportsPage onNavigate={handleNavigate} />;
+        return isSalesDept ? <SalesWorkspace initialSubView="reports" onNavigateGlobal={handleNavigate} /> : <AdminReportsPage onNavigate={handleNavigate} />;
       default:
-        return <EmployeeDashboard onNavigate={handleNavigate} />;
+        return isSalesDept ? <SalesWorkspace onNavigateGlobal={handleNavigate} /> : <EmployeeDashboard onNavigate={handleNavigate} />;
     }
   };
 
@@ -136,7 +160,9 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
             <div className="breadcrumb desktop-only">
               <span className="text-muted">Solar CRM</span>
               <span className="mx-2 text-muted">/</span>
-              <span className="font-semibold text-navy">Employee Workspace</span>
+              <span className="font-semibold text-navy">
+                {isSalesDept ? 'Sales Department' : 'Employee Workspace'}
+              </span>
             </div>
           </div>
           
@@ -150,14 +176,16 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
               <div className="avatar">{currentUser?.initials || 'EM'}</div>
               <div className="profile-info desktop-only">
                 <span className="profile-name">{currentUser?.name || 'Employee'}</span>
-                <span className="profile-role">Employee</span>
+                <span className="profile-role">
+                  {currentUser?.employeeCategory || (isSalesDept ? 'Sales Department' : 'Employee')}
+                </span>
               </div>
             </div>
           </div>
         </header>
 
-        <ErrorBoundary fallbackTitle="Employee Workspace Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
-          <Suspense fallback={<RouteLoadingFallback message="Loading Employee Workspace..." subMessage="Mirror Solar Field Operations" />}>
+        <ErrorBoundary fallbackTitle="Sales Workspace Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
+          <Suspense fallback={<RouteLoadingFallback message="Loading Sales Department Workspace..." subMessage="Mirror Solar Vision Commercial Operations" />}>
             {renderPage()}
           </Suspense>
         </ErrorBoundary>

@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   ArrowRight,
   LayoutGrid,
-  List
+  List,
+  Award
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { useAttendance } from '../context/AttendanceContext';
@@ -38,8 +39,8 @@ import type {
 import './AdminPayrollPage.css';
 
 export default function AdminPayrollPage() {
-  const { employees } = useCRM();
-  const { records: attendanceRecords } = useAttendance();
+  const { employees, leads } = useCRM();
+  const { records: attendanceRecords, correctionRequests, reviewCorrection } = useAttendance();
   const { 
     salaryConfigs, 
     advances, 
@@ -55,8 +56,8 @@ export default function AdminPayrollPage() {
   } = usePayroll();
   const { showToast, showConfirmModal } = useUI();
 
-  // Active Tab: 'register' | 'advances' | 'structures'
-  const [activeTab, setActiveTab] = useState<'register' | 'advances' | 'structures'>('register');
+  // Active Tab: 'register' | 'advances' | 'structures' | 'regularization'
+  const [activeTab, setActiveTab] = useState<'register' | 'advances' | 'structures' | 'regularization'>('register');
 
   // Mobile / Tablet View Mode ('cards' | 'table')
   const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'table'>('cards');
@@ -112,10 +113,10 @@ export default function AdminPayrollPage() {
     return employees.filter(e => (!e.dealerId || e.dealerId === null) && e.status === 'Active');
   }, [employees]);
 
-  // Compute live payroll rows based on active attendance logs and active advances
+  // Compute live payroll rows based on active attendance logs, active advances, and converted solar leads
   const payrollDrafts = useMemo(() => {
-    return calculateMonthPayrollDrafts(selectedMonth, companyEmployees, attendanceRecords);
-  }, [calculateMonthPayrollDrafts, selectedMonth, companyEmployees, attendanceRecords]);
+    return calculateMonthPayrollDrafts(selectedMonth, companyEmployees, attendanceRecords, leads);
+  }, [calculateMonthPayrollDrafts, selectedMonth, companyEmployees, attendanceRecords, leads]);
 
   // Filtered rows for search
   const filteredPayrolls = useMemo(() => {
@@ -130,6 +131,7 @@ export default function AdminPayrollPage() {
     let totalBase = 0;
     let totalLeaveCuts = 0;
     let totalAdvanceDeductions = 0;
+    let totalSolarIncentives = 0;
     let totalNetDisbursed = 0;
     let paidCount = 0;
 
@@ -137,6 +139,7 @@ export default function AdminPayrollPage() {
       totalBase += p.baseSalary;
       totalLeaveCuts += (p.leaveDeduction + p.absentDeduction);
       totalAdvanceDeductions += p.advanceDeduction;
+      totalSolarIncentives += (p.solarDealIncentives || 0);
       totalNetDisbursed += p.netPayable;
       if (p.status === 'PAID') paidCount++;
     });
@@ -149,6 +152,7 @@ export default function AdminPayrollPage() {
       totalBase,
       totalLeaveCuts,
       totalAdvanceDeductions,
+      totalSolarIncentives,
       totalNetDisbursed,
       paidCount,
       totalCount: payrollDrafts.length,
@@ -327,6 +331,17 @@ export default function AdminPayrollPage() {
         >
           <Building2 size={16} /> Salary Structures
         </button>
+        <button 
+          className={`payroll-subnav-pill ${activeTab === 'regularization' ? 'active' : ''}`}
+          onClick={() => setActiveTab('regularization')}
+        >
+          <Clock size={16} /> Regularization Requests
+          {correctionRequests && correctionRequests.filter(c => c.status === 'PENDING').length > 0 && (
+            <span className="pill-badge" style={{ background: '#ef4444' }}>
+              {correctionRequests.filter(c => c.status === 'PENDING').length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Salary Cut Rule Guidance Banner */}
@@ -371,6 +386,16 @@ export default function AdminPayrollPage() {
           <div className="payroll-metric-info">
             <span className="payroll-metric-val">₹{summaryMetrics.totalAdvanceDeductions.toLocaleString()}</span>
             <span className="payroll-metric-lbl">Advances Recovered</span>
+          </div>
+        </div>
+
+        <div className="payroll-metric-card">
+          <div className="payroll-metric-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
+            <Award size={24} />
+          </div>
+          <div className="payroll-metric-info">
+            <span className="payroll-metric-val">₹{summaryMetrics.totalSolarIncentives.toLocaleString()}</span>
+            <span className="payroll-metric-lbl">Solar Deal Incentives</span>
           </div>
         </div>
 
@@ -450,6 +475,7 @@ export default function AdminPayrollPage() {
                   <th className="col-base">Base Pay</th>
                   <th className="col-att">Attendance Summary</th>
                   <th className="col-cut">Leave Cut (₹)</th>
+                  <th className="col-cut" style={{ color: '#059669' }}>Incentives (₹)</th>
                   <th className="col-adv">Active Advance / Cut</th>
                   <th className="col-net">Net Payable</th>
                   <th className="col-status">Status</th>
@@ -506,6 +532,15 @@ export default function AdminPayrollPage() {
                         </div>
                         <div className="text-muted text-xs">
                           {rec.leaveDays + rec.absentDays + (rec.halfDays * 0.5)} days cut
+                        </div>
+                      </td>
+
+                      <td className="col-cut">
+                        <div className="font-bold" style={{ color: '#059669' }}>
+                          +₹{(rec.solarDealIncentives || 0).toLocaleString()}
+                        </div>
+                        <div className="text-muted text-xs">
+                          {(rec.convertedKwInMonth || 0)} kW ({rec.convertedDealsCount || 0} deals)
                         </div>
                       </td>
 
@@ -673,6 +708,18 @@ export default function AdminPayrollPage() {
                         <span className="p-m-hint" style={{ marginTop: '4px' }}>No active advance</span>
                       )}
                     </div>
+
+                    {(rec.solarDealIncentives || 0) > 0 && (
+                      <div className="p-m-cell" style={{ gridColumn: 'span 2', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '6px', padding: '6px 8px' }}>
+                        <span className="p-m-lbl" style={{ color: '#059669', fontWeight: 700 }}>Solar Deal Incentives</span>
+                        <span className="p-m-val" style={{ color: '#059669' }}>
+                          +₹{(rec.solarDealIncentives || 0).toLocaleString()}
+                        </span>
+                        <span className="p-m-hint" style={{ color: '#047857' }}>
+                          {(rec.convertedKwInMonth || 0)} kW installed across {rec.convertedDealsCount || 0} deal(s)
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Large Touch Actions */}
@@ -1027,6 +1074,7 @@ export default function AdminPayrollPage() {
                               employeeId: emp.id,
                               employeeName: emp.name,
                               baseSalary: base,
+                              dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 500,
                               salaryType: config?.salaryType || 'MONTHLY',
                               bankName: config?.bankName || '',
                               accountNumber: config?.accountNumber || '',
@@ -1103,6 +1151,7 @@ export default function AdminPayrollPage() {
                         employeeId: emp.id,
                         employeeName: emp.name,
                         baseSalary: base,
+                        dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 500,
                         salaryType: config?.salaryType || 'MONTHLY',
                         bankName: config?.bankName || '',
                         accountNumber: config?.accountNumber || '',
@@ -1118,6 +1167,160 @@ export default function AdminPayrollPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: ATTENDANCE REGULARIZATION & MISSED PUNCH REQUESTS */}
+      {/* ========================================================================= */}
+      {activeTab === 'regularization' && (
+        <div className="payroll-card">
+          <div className="payroll-card-header" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={20} color="#0284C7" />
+                Staff Attendance Regularization & Missed Punch Requests
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>
+                Review and approve staff requests to correct missed check-ins, site-visit punch failures, or manual biometric timings.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span className="badge-payroll-draft" style={{ background: '#FEF3C7', color: '#B45309' }}>
+                {correctionRequests.filter(c => c.status === 'PENDING').length} Pending Review
+              </span>
+              <span className="badge-payroll-paid" style={{ background: '#DCFCE7', color: '#15803D' }}>
+                {correctionRequests.filter(c => c.status === 'APPROVED').length} Approved
+              </span>
+            </div>
+          </div>
+
+          {correctionRequests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: '#64748B' }}>
+              <CheckCircle2 size={42} color="#10B981" style={{ margin: '0 auto 0.75rem auto' }} />
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: '#1E293B', fontWeight: 700 }}>All Caught Up!</h4>
+              <p style={{ margin: 0, fontSize: '0.875rem' }}>There are no pending attendance correction requests from field or office staff.</p>
+            </div>
+          ) : (
+            <div className="payroll-table-wrapper">
+              <table className="payroll-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Attendance Date</th>
+                    <th>Requested In / Out</th>
+                    <th>Staff Reason / Note</th>
+                    <th>Status</th>
+                    <th>Reviewed By</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {correctionRequests.map((req) => {
+                    const isPending = req.status === 'PENDING';
+                    const isApproved = req.status === 'APPROVED';
+
+                    return (
+                      <tr key={req.id}>
+                        <td>
+                          <div className="font-bold text-navy">{req.employeeName}</div>
+                          <div className="text-muted text-xs">{req.employeeId}</div>
+                        </td>
+
+                        <td>
+                          <div className="font-semibold text-navy">{req.date}</div>
+                          <div className="text-muted text-xs">Submitted: {new Date(req.createdAt).toLocaleDateString()}</div>
+                        </td>
+
+                        <td>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#0369A1' }}>
+                            IN: {req.requestedCheckIn ? new Date(req.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </div>
+                          {req.requestedCheckOut && (
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                              OUT: {new Date(req.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
+                        </td>
+
+                        <td style={{ maxWidth: '280px' }}>
+                          <span style={{ fontSize: '13px', color: '#334155' }}>
+                            {req.reason || 'No explanation provided'}
+                          </span>
+                        </td>
+
+                        <td>
+                          {isPending && (
+                            <span className="badge-payroll-draft" style={{ background: '#FEF3C7', color: '#B45309' }}>
+                              <Clock size={12} /> Pending
+                            </span>
+                          )}
+                          {isApproved && (
+                            <span className="badge-payroll-paid" style={{ background: '#DCFCE7', color: '#15803D' }}>
+                              <CheckCircle2 size={12} /> Approved
+                            </span>
+                          )}
+                          {!isPending && !isApproved && (
+                            <span className="badge-payroll-draft" style={{ background: '#FEE2E2', color: '#B91C1C' }}>
+                              <X size={12} /> Rejected
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          {req.reviewedBy ? (
+                            <div>
+                              <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A' }}>{req.reviewedBy}</div>
+                              {req.reviewNotes && <div className="text-muted text-xs">{req.reviewNotes}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-muted text-xs">Awaiting Admin</span>
+                          )}
+                        </td>
+
+                        <td className="col-actions">
+                          {isPending ? (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                className="btn-table-action"
+                                style={{ background: '#10B981', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                onClick={async () => {
+                                  try {
+                                    await reviewCorrection(req.id, true, 'Approved by Admin');
+                                    showToast(`✓ Regularization approved for ${req.employeeName}`, 'success');
+                                  } catch (err: any) {
+                                    showToast(err.message || 'Failed to approve', 'error');
+                                  }
+                                }}
+                              >
+                                <Check size={14} /> Approve
+                              </button>
+                              <button
+                                className="btn-table-action"
+                                style={{ background: 'transparent', color: '#EF4444', border: '1px solid #FECACA', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                                onClick={async () => {
+                                  try {
+                                    await reviewCorrection(req.id, false, 'Rejected by Admin');
+                                    showToast(`Regularization rejected for ${req.employeeName}`, 'info');
+                                  } catch (err: any) {
+                                    showToast(err.message || 'Failed to reject', 'error');
+                                  }
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-muted text-xs">Complete</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1361,6 +1564,22 @@ export default function AdminPayrollPage() {
                 </div>
               </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Solar Deal Conversion Incentive (₹ / installed kW)
+                </label>
+                <input 
+                  type="number"
+                  placeholder="e.g. 500"
+                  value={editSalaryForm.dealIncentiveRatePerKw ?? ''}
+                  onChange={(e) => setEditSalaryForm({ ...editSalaryForm, dealIncentiveRatePerKw: parseFloat(e.target.value) || 0 })}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px' }}
+                />
+                <span className="text-muted text-xs" style={{ display: 'block', marginTop: '4px' }}>
+                  Employee receives this incentive amount per installed kW of deals converted to WON during the month.
+                </span>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '0.5rem' }}>
                 <button type="button" className="btn-outline" onClick={() => setIsEditSalaryModalOpen(false)}>
                   Cancel
@@ -1527,8 +1746,10 @@ export default function AdminPayrollPage() {
                     <td style={{ textAlign: 'right', color: '#DC2626' }}>-₹{viewingPayslip.absentDeduction.toLocaleString()}</td>
                   </tr>
                   <tr>
-                    <td>—</td>
-                    <td style={{ textAlign: 'right' }}>—</td>
+                    <td>Solar Deal Incentives ({viewingPayslip.convertedKwInMonth || 0} kW)</td>
+                    <td style={{ textAlign: 'right', color: '#059669', fontWeight: 700 }}>
+                      +₹{(viewingPayslip.solarDealIncentives || 0).toLocaleString()}
+                    </td>
                     <td>Employee Advance Deduction</td>
                     <td style={{ textAlign: 'right', color: '#DC2626' }}>-₹{viewingPayslip.advanceDeduction.toLocaleString()}</td>
                   </tr>

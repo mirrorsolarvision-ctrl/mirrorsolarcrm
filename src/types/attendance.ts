@@ -110,9 +110,9 @@ export interface AttendanceConfig {
 }
 
 export const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfig = {
-  officeStartTime: "09:00",
+  officeStartTime: "10:00",
   officeEndTime: "18:00",
-  gracePeriodMinutes: 15,
+  gracePeriodMinutes: 0,
   halfDayThresholdHours: 4.5,
   fullDayThresholdHours: 8,
   

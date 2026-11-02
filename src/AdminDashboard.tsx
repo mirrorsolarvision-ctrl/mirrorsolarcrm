@@ -6,7 +6,7 @@ import {
   TrendingUp, Activity, AlertCircle, ArrowRight,
   UserPlus, CheckCircle2, Sun, Wallet, CheckCircle, PieChart,
   CheckSquare, Calendar, Wrench, Check, ThumbsUp, ThumbsDown, CreditCard, UserCheck,
-  FileText, Megaphone, History, Award, Plus
+  FileText, Megaphone, History, Award, Plus, PhoneCall
 } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import PageHero from './components/PageHero';
@@ -16,6 +16,9 @@ import './AdminDashboard.css';
 import RouteLoadingFallback from './components/RouteLoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
 
+const AdminEmployeesPage = lazy(() => import('./AdminEmployeesPage'));
+const AdminDealersPage = lazy(() => import('./AdminDealersPage'));
+const AdminResponsibilitiesPage = lazy(() => import('./AdminResponsibilitiesPage'));
 const StockPage = lazy(() => import('./StockPage'));
 const QuotationsPortalPage = lazy(() => import('./pages/QuotationsPortalPage'));
 const AdminUsersDirectoryPage = lazy(() => import('./AdminUsersDirectoryPage'));
@@ -28,6 +31,8 @@ const CalendarPage = lazy(() => import('./CalendarPage'));
 const PaymentsPage = lazy(() => import('./PaymentsPage'));
 const MilestonesPage = lazy(() => import('./MilestonesPage'));
 const AdminPayrollPage = lazy(() => import('./pages/AdminPayrollPage'));
+const CallLeadsPage = lazy(() => import('./pages/CallLeadsPage'));
+const SalesWorkspace = lazy(() => import('./sales/SalesWorkspace'));
 
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
@@ -36,6 +41,7 @@ import { useUI } from './context/UIContext';
 import AccessRestricted from './components/AccessRestricted';
 import { canAccessRoute } from './utils/permissionCalculations';
 import MobileBottomNav from './components/MobileBottomNav';
+import AdminSalesLeakageMonitor from './components/AdminSalesLeakageMonitor';
 
 // --- Custom Hooks ---
 function useCountUp(end: number, duration: number = 1200) {
@@ -275,13 +281,18 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     children?: string[];
   }
 
-  const navItems: NavItem[] = [
+    const navItems: NavItem[] = [
     { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Sales Department', icon: <PhoneCall size={20} /> },
     { name: 'Leads', icon: <Activity size={20} /> },
+    { name: 'Office Call Leads', icon: <PhoneCall size={20} /> },
     { name: 'Quotations', icon: <FileText size={20} /> },
-    { name: 'Users & Access', icon: <Users size={20} /> },
+    { name: 'Employees', icon: <Users size={20} /> },
+    { name: 'Responsibilities', icon: <Briefcase size={20} /> },
+    { name: 'Dealers', icon: <Briefcase size={20} /> },
     { name: 'Attendance', icon: <UserCheck size={20} /> },
     { name: 'Payroll & Advance', icon: <Wallet size={20} /> },
+    { name: 'Users & Access', icon: <Shield size={20} /> },
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
     { name: 'Milestones', icon: <Award size={20} /> },
@@ -427,13 +438,38 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
         <ErrorBoundary fallbackTitle="Module Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
           <Suspense fallback={<RouteLoadingFallback message={`Loading ${activeTab}...`} subMessage="Mirror Solar Workspace" />}>
-            {activeTab === 'Milestones' ? (
+            {activeTab === 'Sales Department' ? (
+              <SalesWorkspace onNavigateGlobal={(path) => {
+                if (path.includes('leads')) setActiveTab('Leads');
+                else if (path.includes('attendance')) setActiveTab('Attendance');
+                else if (path.includes('profile')) setActiveTab('Profile');
+              }} />
+            ) : activeTab === 'Milestones' ? (
               <MilestonesPage onNavigate={handleNavClick} />
             ) : activeTab === 'Stock' ? (
               <StockPage />
             ) : activeTab === 'Quotations' ? (
               <QuotationsPortalPage />
-            ) : activeTab === 'Users & Access' || activeTab === 'Employees' || activeTab === 'Dealers' || activeTab === 'Access' || activeTab === 'Responsibilities' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
+            ) : activeTab === 'Employees' ? (
+              <AdminEmployeesPage 
+                onNavigateToLeads={(empName) => {
+                  setSelectedEmployeeFilter(empName);
+                  setActiveTab('Leads');
+                }} 
+                onNavigateToAccess={() => {
+                  setActiveTab('Users & Access');
+                }} 
+              />
+            ) : activeTab === 'Responsibilities' ? (
+              <AdminResponsibilitiesPage />
+            ) : activeTab === 'Dealers' ? (
+              <AdminDealersPage 
+                onNavigateToLeads={(dealerName) => {
+                  setSelectedDealerFilter(dealerName);
+                  setActiveTab('Leads');
+                }} 
+              />
+            ) : activeTab === 'Users & Access' || activeTab === 'Access' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
               <AdminUsersDirectoryPage 
                 onNavigateToLeads={(dealerOrEmp) => {
                   setSelectedDealerFilter(dealerOrEmp);
@@ -446,6 +482,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               <AdminPayrollPage />
             ) : activeTab === 'Leads' ? (
               <LeadsPage />
+            ) : activeTab === 'Office Call Leads' || activeTab === 'Call Leads' ? (
+              <CallLeadsPage />
             ) : activeTab === 'Payments' ? (
               <PaymentsPage onNavigate={handleNavClick} />
             ) : activeTab === 'Reports' ? (
@@ -468,6 +506,9 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                     <button className="btn-hero-secondary" onClick={() => handleNavClick('Quotations')}>
                       <FileText size={16} /> Quotations
                     </button>
+                    <button className="btn-hero-secondary" onClick={() => handleNavClick('Office Call Leads')}>
+                      <PhoneCall size={16} /> Call Leads
+                    </button>
                     <button className="btn-hero-primary" onClick={() => handleNavClick('Leads')}>
                       <Plus size={16} /> View Leads
                     </button>
@@ -475,6 +516,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                 }
               />
               <div className="dashboard-content">
+                {/* Admin Sales Leakage & Exception Monitor (Version 2.3) */}
+                <AdminSalesLeakageMonitor onSelectLead={handleOpenLead} onNavigateTab={handleNavClick} />
 
           <div className={`overview-grid ${stageAnimation >= 4 ? 'reveal' : ''}`}>
             <div className="overview-card interactive-card" style={{animationDelay: '0s'}} onClick={() => handleNavClick('Leads')}>
@@ -515,8 +558,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
-                    View all employees & directory →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Employees')}>
+                    View all employees & performance →
                   </div>
                 </div>
               )}
@@ -548,8 +591,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
-                    View all dealers & quotas →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Dealers')}>
+                    View all dealers & commissions →
                   </div>
                 </div>
               )}
