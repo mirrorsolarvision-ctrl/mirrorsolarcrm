@@ -32,6 +32,7 @@ const PaymentsPage = lazy(() => import('./PaymentsPage'));
 const MilestonesPage = lazy(() => import('./MilestonesPage'));
 const AdminPayrollPage = lazy(() => import('./pages/AdminPayrollPage'));
 const CallLeadsPage = lazy(() => import('./pages/CallLeadsPage'));
+const SalesWorkspace = lazy(() => import('./sales/SalesWorkspace'));
 
 import { useStock } from './context/StockContext';
 import { useCRM, STAGES } from './context/CRMContext';
@@ -282,6 +283,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
     const navItems: NavItem[] = [
     { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Sales Department', icon: <PhoneCall size={20} /> },
     { name: 'Leads', icon: <Activity size={20} /> },
     { name: 'Office Call Leads', icon: <PhoneCall size={20} /> },
     { name: 'Quotations', icon: <FileText size={20} /> },
@@ -436,7 +438,13 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
         <ErrorBoundary fallbackTitle="Module Error" fallbackMessage="Could not load the requested section. You can switch to another tab or reload.">
           <Suspense fallback={<RouteLoadingFallback message={`Loading ${activeTab}...`} subMessage="Mirror Solar Workspace" />}>
-            {activeTab === 'Milestones' ? (
+            {activeTab === 'Sales Department' ? (
+              <SalesWorkspace onNavigateGlobal={(path) => {
+                if (path.includes('leads')) setActiveTab('Leads');
+                else if (path.includes('attendance')) setActiveTab('Attendance');
+                else if (path.includes('profile')) setActiveTab('Profile');
+              }} />
+            ) : activeTab === 'Milestones' ? (
               <MilestonesPage onNavigate={handleNavClick} />
             ) : activeTab === 'Stock' ? (
               <StockPage />

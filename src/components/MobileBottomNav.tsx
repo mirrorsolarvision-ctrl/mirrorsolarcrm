@@ -106,6 +106,21 @@ export default function MobileBottomNav({
       };
     } else {
       const isStockIncharge = employeeCategory === 'Stock Incharge';
+      const isSalesDept = (employeeCategory || '').toLowerCase().includes('sales') || 
+                          (employeeCategory || '').toLowerCase().includes('telecaller');
+
+      if (isSalesDept) {
+        return {
+          leftItems: [
+            { id: '/sales/dashboard', label: 'Sales', icon: <LayoutDashboard size={20} /> },
+            { id: '/sales/leads', label: 'Leads', icon: <Activity size={20} />, badge: leadsBadge },
+          ],
+          rightItems: [
+            { id: '/sales/telecalling', label: 'Calls', icon: <PhoneCall size={20} /> },
+          ]
+        };
+      }
+
       return {
         leftItems: [
           { id: '/employee/dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },

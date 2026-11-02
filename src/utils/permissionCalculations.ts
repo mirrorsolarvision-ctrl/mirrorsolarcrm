@@ -134,9 +134,28 @@ export const canForwardCallLeadToDealer = (user: User | null): boolean => {
   );
 };
 
-// --- Sales Manager & Commercial Workflow Helpers (Version 2.3) ---
+// --- Sales Department Workflow Helpers (Sales Manager vs Telecaller) ---
 
 export const isSalesManager = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
+  if (category.includes('manager') || resp.includes('sales_manager')) return true;
+  if (category === 'sales manager (telecaller)') return true;
+  return false;
+};
+
+export const isTelecaller = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return false;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
+  if (category.includes('manager') || resp.includes('sales_manager')) return false;
+  return category.includes('telecaller') || category.includes('sales executive') || resp.includes('telecaller');
+};
+
+export const isSalesDepartmentUser = (user: User | null): boolean => {
   if (!user) return false;
   if (user.role === 'Admin') return true;
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
@@ -145,10 +164,19 @@ export const isSalesManager = (user: User | null): boolean => {
 };
 
 export const isSalesTelecallerEmployee = (user: User | null): boolean => {
+  return isSalesDepartmentUser(user);
+};
+
+export const canViewAllTeamLeads = (user: User | null): boolean => {
   if (!user) return false;
-  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
-  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
-  return category.includes('sales') || category.includes('telecaller') || resp.includes('sales') || resp.includes('telecaller');
+  if (user.role === 'Admin') return true;
+  return isSalesManager(user);
+};
+
+export const canReassignLeads = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+  return isSalesManager(user);
 };
 
 export const canApproveDiscount = (user: User | null): boolean => {
@@ -165,5 +193,3 @@ export const canApproveDealerHandoff = (user: User | null): boolean => {
   if (!user) return false;
   return user.role === 'Admin'; // Admin approval required before dealer execution
 };
-
-

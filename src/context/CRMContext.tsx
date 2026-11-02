@@ -10,8 +10,11 @@ import type {
   LeadScoreBreakdown, 
   AvailabilityStatus, 
   SlaStatus, 
-  SalesLeakageMetrics 
+  SalesLeakageMetrics,
+  CustomerQualificationData,
+  TelecallerCallLog
 } from '../types/sales';
+import { calculateLeadScore } from '../utils/salesCalculations';
 import { evaluateSlaStatus } from '../utils/salesCalculations';
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
@@ -161,12 +164,15 @@ export interface FollowUp {
   time: string;
   type: FollowUpType;
   status: FollowUpStatus;
+  notes?: string;
 }
 
 export type DocumentStatus = 'Pending' | 'Uploaded' | 'Additional Document Required' | 'Verified' | 'Rejected';
 
 export interface LeadDocument {
   id: string;
+  name?: string;
+  category?: string;
   leadId: string;
   documentType: string;
   fileName: string;
@@ -202,6 +208,8 @@ export type CustomerPaymentStatus = 'Pending Verification' | 'Verified' | 'Rejec
 
 export interface CustomerPaymentRecord {
   id: string;
+  date?: string;
+  mode?: string;
   leadId: string;
   customerName: string;
   amount: number;
@@ -297,6 +305,8 @@ export interface MockLead {
   commercialClearanceStatus?: 'Cleared' | 'Pending';
   handoffAcceptedAt?: string;
   availabilityStatus?: AvailabilityStatus;
+  qualificationData?: CustomerQualificationData;
+  callLogs?: TelecallerCallLog[];
 }
 
 export interface LeadReassignmentRequest {
@@ -615,10 +625,51 @@ export const defaultResponsibilities: Responsibility[] = [
   { id: 'RESP_ACCOUNTS', name: 'Accounts & Billing', description: 'Customer payment verification, dealer milestone settlements, and invoicing', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_SERVICE', name: 'Service & Maintenance', description: 'AMC renewals, inverter troubleshooting, and generation monitoring', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' },
-  { id: 'resp_sales_manager', name: 'Sales Manager / Telecaller', description: 'Inbound office call desk, 15-minute response SLA, lead scoring, phone follow-ups, and sales funnel conversions', active: true, createdAt: '2026-01-01' }
+  { id: 'resp_sales_manager', name: 'Sales Manager', description: 'Team lead assignment, 15-minute response SLA monitoring, commercial quotations, dealer survey coordination, and booking handoff', active: true, createdAt: '2026-01-01' },
+  { id: 'resp_telecaller', name: 'Telecaller', description: 'Assigned enquiry outbound calling, 15-minute first call SLA, 4-pillar qualification, callback follow-ups, and WhatsApp communication', active: true, createdAt: '2026-01-01' }
 ];
 
 export const defaultCompanyEmployees: Employee[] = [
+  {
+    id: 'emp_telecaller_bhavani',
+    name: 'K. Bhavani',
+    employeeId: 'MSV-TC-001',
+    code: 'MSV-TC-001',
+    displayId: 'MSV-TC-001',
+    email: 'bhavani.telecaller@mirrorsolar.in',
+    phone: '9848123456',
+    role: 'Employee',
+    employeeCategory: 'Telecaller',
+    status: 'Active',
+    initials: 'KB',
+    canForwardToDealer: false,
+    permissions: { 
+      ...defaultEmployeePermissions, 
+      leads: 'edit',
+      profile: 'edit',
+      forwardCallLeadToDealer: false
+    },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: false,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true,
+      forwardCallLeadToDealer: false
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'resp_telecaller',
+      secondaryResponsibilityIds: ['RESP_QUOT', 'RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    },
+    lastActive: 'Just now'
+  },
+
   {
     id: 'emp_telecaller_sales',
     name: 'P. Suresh',
@@ -1167,9 +1218,60 @@ interface CRMContextType {
   salesLeakageMetrics: SalesLeakageMetrics;
   recordFirstCallAttempt: (leadId: string) => Promise<void>;
   updateLeadSalesStage: (leadId: string, salesStage: SalesStage, notes?: string) => Promise<void>;
+  callLogs: TelecallerCallLog[];
+  addCallLog: (log: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => Promise<void>;
+  updateLeadQualification: (leadId: string, data: CustomerQualificationData) => Promise<void>;
 }
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
+
+
+export const INITIAL_MOCK_CALL_LOGS: TelecallerCallLog[] = [
+  {
+    id: 'CALL-001',
+    leadId: 'sample-lead-01',
+    customerName: 'K. Satyanarayana',
+    phone: '+919848012345',
+    callDirection: 'Outgoing',
+    durationSeconds: 185,
+    outcome: 'Connected - Interested',
+    notes: 'Customer interested in 3kW PM Surya Ghar setup. Requested subsidy calculation and quotation.',
+    nextFollowUpDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    nextFollowUpTime: '11:30 AM',
+    telecallerId: 'emp_telecaller_sales',
+    telecallerName: 'P. Suresh',
+    timestamp: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 'CALL-002',
+    leadId: 'sample-lead-02',
+    customerName: 'P. Rambabu',
+    phone: '+919849288776',
+    callDirection: 'Outgoing',
+    durationSeconds: 90,
+    outcome: 'Connected - Callback',
+    notes: 'In meeting right now. Asked to callback tomorrow afternoon around 3:00 PM.',
+    nextFollowUpDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    nextFollowUpTime: '03:00 PM',
+    telecallerId: 'emp_telecaller_sales',
+    telecallerName: 'P. Suresh',
+    timestamp: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    id: 'CALL-003',
+    customerName: 'V. Venkatesh',
+    phone: '+919440155667',
+    callDirection: 'Outgoing',
+    durationSeconds: 0,
+    outcome: 'No Answer',
+    notes: 'Phone was ringing but customer did not pick up. Second attempt scheduled.',
+    nextFollowUpDate: new Date().toISOString().split('T')[0],
+    nextFollowUpTime: '04:30 PM',
+    telecallerId: 'emp_telecaller_bhavani',
+    telecallerName: 'K. Bhavani',
+    timestamp: new Date(Date.now() - 10800000).toISOString()
+  }
+];
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<MockLead[]>([]);
@@ -2623,6 +2725,80 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+
+  const [callLogs, setCallLogs] = useState<TelecallerCallLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_call_logs_cache');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return INITIAL_MOCK_CALL_LOGS;
+  });
+
+  const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
+    const newLog: TelecallerCallLog = {
+      ...logData,
+      id: 'CALL-' + Date.now(),
+      timestamp: new Date().toISOString()
+    };
+    setCallLogs(prev => {
+      const updated = [newLog, ...prev];
+      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    if (logData.leadId) {
+      addActivity({
+        type: 'Call Logged',
+        message: logData.callDirection + ' call (' + logData.outcome + ') logged: ' + (logData.notes ? logData.notes.slice(0, 60) : ''),
+        user: logData.telecallerName || currentUser?.name || 'Telecaller',
+        leadId: logData.leadId
+      });
+      if (logData.nextFollowUpDate) {
+        updateLead(logData.leadId, {
+          followUp: {
+            date: logData.nextFollowUpDate,
+            time: logData.nextFollowUpTime || '11:00 AM',
+            type: 'Call',
+            status: 'Upcoming',
+            notes: logData.notes
+          }
+        });
+      }
+    }
+  };
+
+  const updateLeadQualification = async (leadId: string, qualificationData: CustomerQualificationData) => {
+    try {
+      const target = leads.find(l => l.id === leadId);
+      const score = calculateLeadScore({
+        monthlyUnitsKwh: qualificationData.monthlyUnitsKwh,
+        monthlyBill: qualificationData.monthlyBill,
+        roofOwnership: qualificationData.roofOwnership,
+        roofType: qualificationData.roofType,
+        shadingStatus: qualificationData.shadingCondition === 'None' ? 'No' : 'Yes',
+        purchaseTimeline: qualificationData.expectedTimeline,
+        decisionMaker: qualificationData.decisionMaker !== 'Landlord',
+        financingRequirement: qualificationData.budgetPreference
+      });
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        qualificationData,
+        leadScore: score,
+        salesStage: target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted' ? 'Qualified' : (target?.salesStage || 'Qualified'),
+        updatedAt: new Date().toISOString()
+      });
+
+      addActivity({
+        type: 'Customer Qualified',
+        message: 'Customer qualified: Score ' + score.total + '/100 (' + score.category + ') - ' + (qualificationData.preferredCapacityKw || 3) + ' kW solar preference',
+        user: currentUser?.name || 'Telecaller',
+        leadId
+      });
+    } catch (err) {
+      console.warn("Error updating lead qualification:", err);
+    }
+  };
+
   // Update salesStage with activity log
   const updateLeadSalesStage = async (leadId: string, salesStage: SalesStage, notes?: string) => {
     try {
@@ -2679,7 +2855,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Sales Manager & Leakage Monitor (Version 2.3)
       salesLeakageMetrics,
       recordFirstCallAttempt,
-      updateLeadSalesStage
+      updateLeadSalesStage,
+      callLogs, addCallLog, updateLeadQualification
     }}>
       {children}
     </CRMContext.Provider>

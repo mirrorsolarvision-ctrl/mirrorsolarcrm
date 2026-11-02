@@ -665,6 +665,22 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                 <input id="admin-emp-form-phone" name="employeePhone" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
               </div>
             </div>
+            <div className="form-group">
+              <label htmlFor="admin-emp-form-category">Role / Designation Category</label>
+              <select 
+                id="admin-emp-form-category" 
+                name="employeeCategory" 
+                value={formData.employeeCategory} 
+                onChange={e => setFormData({...formData, employeeCategory: e.target.value})}
+              >
+                <option value="Sales Manager">Sales Manager (Team Leader)</option>
+                <option value="Telecaller">Telecaller (Assigned Enquiries & Calling)</option>
+                <option value="PM Surya Ghar Work Incharge">PM Surya Ghar Work Incharge</option>
+                <option value="Commercial Project Incharge">Commercial Project Incharge</option>
+                <option value="Marketing Employee">Marketing Employee</option>
+                <option value="Stock Incharge">Stock Incharge</option>
+              </select>
+            </div>
             {isEditModalOpen && (
               <div className="form-group">
                 <label htmlFor="admin-emp-form-status">Status</label>
