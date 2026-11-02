@@ -125,6 +125,7 @@ export default function MobileBottomNav({
     if (role === 'Admin') {
       return [
         { id: 'Leads', label: 'New Solar Lead', desc: 'Add client or track CRM pipeline', icon: <Activity size={18} />, color: '#0284C7' },
+        { id: 'Employees', label: 'Company Employees', desc: 'Staff workload, performance & leads', icon: <Users size={18} />, color: '#6366F1' },
         { id: 'Payments', label: 'Payment & Receipt', desc: 'Issue official receipt & track dues', icon: <CreditCard size={18} />, color: '#10B981' },
         { id: 'Quotations', label: 'Solar Quotations', desc: 'Create solar quotation PDF', icon: <FileText size={18} />, color: '#8B5CF6' },
         { id: 'Dealers', label: 'Dealer Commissions', desc: 'Manage partner commissions & payouts', icon: <Award size={18} />, color: '#F59E0B' },
@@ -137,6 +138,13 @@ export default function MobileBottomNav({
         { id: '/dealer/dashboard', label: 'Commission Statement', desc: 'View earned ₹/kW & settle dues', icon: <Award size={18} />, color: '#F59E0B' },
         { id: '/dealer/payments', label: 'Customer Payments', desc: 'Check milestone payment clearance', icon: <CreditCard size={18} />, color: '#10B981' },
         { id: '/dealer/stock', label: 'Solar Stock & Spares', desc: 'Request panels, inverters & BOS', icon: <Package size={18} />, color: '#8B5CF6' },
+      ];
+    } else if (employeeCategory && (employeeCategory.includes('Sales') || employeeCategory.includes('Telecaller'))) {
+      return [
+        { id: '/employee/call-leads', label: 'Office Call Leads', desc: 'Incoming call desk & 15m SLA response', icon: <PhoneCall size={18} />, color: '#0284C7' },
+        { id: '/employee/leads', label: 'Sales Funnel & Leads', desc: 'Qualify, score & advance pipeline', icon: <Activity size={18} />, color: '#10B981' },
+        { id: '/employee/eod-report', label: 'EOD Calling Report', desc: 'Submit daily calls & bookings log', icon: <FileText size={18} />, color: '#8B5CF6' },
+        { id: '/employee/attendance', label: 'Punch Attendance', desc: 'Daily GPS check-in & check-out', icon: <Clock size={18} />, color: '#F59E0B' },
       ];
     } else {
       return [

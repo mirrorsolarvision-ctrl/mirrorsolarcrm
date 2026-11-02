@@ -36,8 +36,9 @@ export default function EmployeeEodReportPage() {
   const [dispatchesDone, setDispatchesDone] = useState<number>(0);
 
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
-  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : 'Marketing Employee');
-  const isMarketing = !isSuryaGhar && (empCategory === 'Marketing Employee' || empCategory === 'Commercial Project Incharge');
+  const isTelecaller = (currentUser?.employeeCategory || '').toLowerCase().includes('sales') || (currentUser?.employeeCategory || '').toLowerCase().includes('telecaller');
+  const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : isTelecaller ? 'Sales Manager (Telecaller)' : 'Marketing Employee');
+  const isMarketing = !isSuryaGhar && !isTelecaller && (empCategory === 'Marketing Employee' || empCategory === 'Commercial Project Incharge');
   const isStock = empCategory === 'Stock Incharge';
 
   useEffect(() => {

@@ -126,6 +126,7 @@ export const canAccessRoute = (user: User | null, routeTabName: string, dealers?
 export const canForwardCallLeadToDealer = (user: User | null): boolean => {
   if (!user) return false;
   if (user.role === 'Admin') return true;
+  if (isSalesTelecallerEmployee(user)) return true;
   return !!(
     user.features?.forwardCallLeadToDealer || 
     user.permissions?.forwardCallLeadToDealer || 
@@ -140,7 +141,14 @@ export const isSalesManager = (user: User | null): boolean => {
   if (user.role === 'Admin') return true;
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
   const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
-  return category.includes('sales') || resp.includes('sales');
+  return category.includes('sales') || category.includes('telecaller') || resp.includes('sales') || resp.includes('telecaller');
+};
+
+export const isSalesTelecallerEmployee = (user: User | null): boolean => {
+  if (!user) return false;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
+  return category.includes('sales') || category.includes('telecaller') || resp.includes('sales') || resp.includes('telecaller');
 };
 
 export const canApproveDiscount = (user: User | null): boolean => {

@@ -16,6 +16,9 @@ import './AdminDashboard.css';
 import RouteLoadingFallback from './components/RouteLoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
 
+const AdminEmployeesPage = lazy(() => import('./AdminEmployeesPage'));
+const AdminDealersPage = lazy(() => import('./AdminDealersPage'));
+const AdminResponsibilitiesPage = lazy(() => import('./AdminResponsibilitiesPage'));
 const StockPage = lazy(() => import('./StockPage'));
 const QuotationsPortalPage = lazy(() => import('./pages/QuotationsPortalPage'));
 const AdminUsersDirectoryPage = lazy(() => import('./AdminUsersDirectoryPage'));
@@ -277,14 +280,17 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
     children?: string[];
   }
 
-  const navItems: NavItem[] = [
+    const navItems: NavItem[] = [
     { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Leads', icon: <Activity size={20} /> },
     { name: 'Office Call Leads', icon: <PhoneCall size={20} /> },
     { name: 'Quotations', icon: <FileText size={20} /> },
-    { name: 'Users & Access', icon: <Users size={20} /> },
+    { name: 'Employees', icon: <Users size={20} /> },
+    { name: 'Responsibilities', icon: <Briefcase size={20} /> },
+    { name: 'Dealers', icon: <Briefcase size={20} /> },
     { name: 'Attendance', icon: <UserCheck size={20} /> },
     { name: 'Payroll & Advance', icon: <Wallet size={20} /> },
+    { name: 'Users & Access', icon: <Shield size={20} /> },
     { name: 'Stock', icon: <Package size={20} /> },
     { name: 'Payments', icon: <CreditCard size={20} /> },
     { name: 'Milestones', icon: <Award size={20} /> },
@@ -436,7 +442,26 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               <StockPage />
             ) : activeTab === 'Quotations' ? (
               <QuotationsPortalPage />
-            ) : activeTab === 'Users & Access' || activeTab === 'Employees' || activeTab === 'Dealers' || activeTab === 'Access' || activeTab === 'Responsibilities' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
+            ) : activeTab === 'Employees' ? (
+              <AdminEmployeesPage 
+                onNavigateToLeads={(empName) => {
+                  setSelectedEmployeeFilter(empName);
+                  setActiveTab('Leads');
+                }} 
+                onNavigateToAccess={() => {
+                  setActiveTab('Users & Access');
+                }} 
+              />
+            ) : activeTab === 'Responsibilities' ? (
+              <AdminResponsibilitiesPage />
+            ) : activeTab === 'Dealers' ? (
+              <AdminDealersPage 
+                onNavigateToLeads={(dealerName) => {
+                  setSelectedDealerFilter(dealerName);
+                  setActiveTab('Leads');
+                }} 
+              />
+            ) : activeTab === 'Users & Access' || activeTab === 'Access' || activeTab === 'Marketing' || activeTab === 'Audit Logs' ? (
               <AdminUsersDirectoryPage 
                 onNavigateToLeads={(dealerOrEmp) => {
                   setSelectedDealerFilter(dealerOrEmp);
@@ -525,8 +550,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
-                    View all employees & directory →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Employees')}>
+                    View all employees & performance →
                   </div>
                 </div>
               )}
@@ -558,8 +583,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                       <span className="dropdown-item-arrow">→</span>
                     </div>
                   ))}
-                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Users & Access')}>
-                    View all dealers & quotas →
+                  <div className="card-dropdown-footer" onClick={() => handleNavClick('Dealers')}>
+                    View all dealers & commissions →
                   </div>
                 </div>
               )}

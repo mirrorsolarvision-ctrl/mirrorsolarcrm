@@ -557,6 +557,7 @@ export interface Dealer extends User {
   };
   commissionPayouts?: DealerCommissionRecord[];
   settledCommissionTotal?: number;
+  classification?: 'Paid' | string;
 }
 
 export interface AttendanceRecord {
@@ -613,7 +614,380 @@ export const defaultResponsibilities: Responsibility[] = [
   { id: 'RESP_PURCHASE', name: 'Purchase & Procurement', description: 'Vendor coordination, module/inverter ordering, and OEM warranty', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_ACCOUNTS', name: 'Accounts & Billing', description: 'Customer payment verification, dealer milestone settlements, and invoicing', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_SERVICE', name: 'Service & Maintenance', description: 'AMC renewals, inverter troubleshooting, and generation monitoring', active: true, createdAt: '2026-01-01' },
-  { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' }
+  { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' },
+  { id: 'resp_sales_manager', name: 'Sales Manager / Telecaller', description: 'Inbound office call desk, 15-minute response SLA, lead scoring, phone follow-ups, and sales funnel conversions', active: true, createdAt: '2026-01-01' }
+];
+
+export const defaultCompanyEmployees: Employee[] = [
+  {
+    id: 'emp_telecaller_sales',
+    name: 'P. Suresh',
+    employeeId: 'MSV-SALES-001',
+    code: 'MSV-SALES-001',
+    displayId: 'MSV-SALES-001',
+    email: 'sales.telecaller@mirrorsolar.in',
+    phone: '9440188990',
+    role: 'Employee',
+    employeeCategory: 'Sales Manager (Telecaller)',
+    status: 'Active',
+    initials: 'PS',
+    canForwardToDealer: true,
+    permissions: { 
+      ...defaultEmployeePermissions, 
+      leads: 'edit',
+      profile: 'edit',
+      forwardCallLeadToDealer: true
+    },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: false,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true,
+      forwardCallLeadToDealer: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'resp_sales_manager',
+      secondaryResponsibilityIds: ['RESP_QUOT', 'RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    },
+    lastActive: 'Just now'
+  },
+  {
+    id: 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3',
+    name: 'Sunkara Siva',
+    initials: 'SS',
+    email: 'msv-siva-001@mirrorsolar.in',
+    phone: '8985141432',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-SIVA-001',
+    code: 'MSV-SIVA-001',
+    displayId: 'MSV-SIVA-001',
+    employeeCategory: 'Marketing Employee',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_MARKETING',
+      secondaryResponsibilityIds: ['RESP_QUOT'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  },
+  {
+    id: 'tLB8hvGPTQXynRLk4fYI1yPeBkF3',
+    name: 'Kumari',
+    initials: 'KU',
+    email: 'kumari.mirrorsolarvision@gmail.com',
+    phone: '7670920748',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-KUMARI-001',
+    code: 'MSV-KUMARI-001',
+    displayId: 'MSV-KUMARI-001',
+    employeeCategory: 'PM Surya Ghar Work Incharge',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions },
+    features: {
+      payments: true,
+      tasks: true,
+      reports: false,
+      leads: true,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: true
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_SURYAGHAR',
+      secondaryResponsibilityIds: ['RESP_CUST'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  },
+  {
+    id: 'QRWLhJpqCUUMi4U9mVNpUGQPu713',
+    name: 'Sai Gopal',
+    initials: 'SG',
+    email: 'gopal.mirrorsolarvision@gmail.com',
+    phone: '9876543210',
+    role: 'Employee',
+    status: 'Active',
+    employeeId: 'MSV-EMP-003',
+    code: 'MSV-EMP-003',
+    displayId: 'MSV-EMP-003',
+    employeeCategory: 'Stock Incharge',
+    lastActive: 'Just now',
+    permissions: { ...defaultEmployeePermissions, stock: 'edit' },
+    features: {
+      payments: false,
+      tasks: true,
+      reports: false,
+      leads: false,
+      stock: true,
+      myEmployees: false,
+      attendance: true,
+      calendar: true,
+      quotations: false
+    },
+    responsibilities: {
+      primaryResponsibilityId: 'RESP_STOCK',
+      secondaryResponsibilityIds: ['RESP_INSTALL'],
+      assignedAt: '2026-01-01T00:00:00.000Z',
+      assignedBy: 'Admin'
+    }
+  }
+];
+
+export const defaultCompanyDealers: Dealer[] = [
+  // Existing Dealers (Preserved exactly)
+  {
+    id: 'ck9OPLG03RZeJhYh60npKeMEaFz2',
+    name: 'Hussain',
+    address: 'Kurnool',
+    phone: '9100309431',
+    email: 'hussain@dealer.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'HU',
+    dealerCode: 'MSV/DLR/HUSSAIN',
+    code: 'MSV/DLR/HUSSAIN',
+    displayId: 'MSV/DLR/HUSSAIN',
+    password: 'Mirror@9431',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR1791784111454',
+    name: 'JAGAPATHI',
+    address: 'VIJAYAWADA',
+    phone: '9959591855',
+    email: 'jagapathi@msv.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'JA',
+    dealerCode: 'MSV/DLR/JAGAPATHI',
+    code: 'MSV/DLR/JAGAPATHI',
+    displayId: 'MSV/DLR/JAGAPATHI',
+    password: 'MSV@1855',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR1791785666743',
+    name: 'SRINIVAS',
+    address: 'AMALAPURAM',
+    phone: '7815851917',
+    email: 'srinivas@msv.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SR',
+    dealerCode: 'MSV/DLR/SRINIVAS',
+    code: 'MSV/DLR/SRINIVAS',
+    displayId: 'MSV/DLR/SRINIVAS',
+    password: 'MSV@1917',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+
+  // 8 New Dealer Records (Internal classification: 'Paid')
+  {
+    id: 'DLR_AYYAPPA_TENALI',
+    name: 'Ayyappa',
+    address: 'Tenali & Guntur',
+    phone: '9848011001',
+    email: 'ayyappa.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'AY',
+    dealerCode: 'MSV/DLR/AYYAPPA',
+    code: 'MSV/DLR/AYYAPPA',
+    displayId: 'MSV/DLR/AYYAPPA',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_VIJAY_KAKINADA',
+    name: 'Vijay Kumar',
+    address: 'Kakinada',
+    phone: '9848011002',
+    email: 'vijaykumar.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'VK',
+    dealerCode: 'MSV/DLR/VIJAYK',
+    code: 'MSV/DLR/VIJAYK',
+    displayId: 'MSV/DLR/VIJAYK',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_ASHOK_MYLAVARAM',
+    name: 'Ashok',
+    address: 'Mylavaram',
+    phone: '9848011003',
+    email: 'ashok.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'AS',
+    dealerCode: 'MSV/DLR/ASHOK',
+    code: 'MSV/DLR/ASHOK',
+    displayId: 'MSV/DLR/ASHOK',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_SHIVA_KUCHIMPUDI',
+    name: 'Shiva',
+    address: 'Kuchimpudi',
+    phone: '9848011004',
+    email: 'shiva.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SH',
+    dealerCode: 'MSV/DLR/SHIVA',
+    code: 'MSV/DLR/SHIVA',
+    displayId: 'MSV/DLR/SHIVA',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_RAJU_AKIVEEDU',
+    name: 'Raju',
+    address: 'Akiveedu',
+    phone: '9848011005',
+    email: 'raju.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'RJ',
+    dealerCode: 'MSV/DLR/RAJU',
+    code: 'MSV/DLR/RAJU',
+    displayId: 'MSV/DLR/RAJU',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_SRINIVAS_ELURU',
+    name: 'Srinivas',
+    address: 'Eluru',
+    phone: '9848011006',
+    email: 'srinivas.eluru@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'SE',
+    dealerCode: 'MSV/DLR/SRINIVASE',
+    code: 'MSV/DLR/SRINIVASE',
+    displayId: 'MSV/DLR/SRINIVASE',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_PRATHAP_TPG',
+    name: 'Prathap',
+    address: 'Tadepalligudem',
+    phone: '9848011007',
+    email: 'prathap.dealer@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'PR',
+    dealerCode: 'MSV/DLR/PRATHAP',
+    code: 'MSV/DLR/PRATHAP',
+    displayId: 'MSV/DLR/PRATHAP',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  },
+  {
+    id: 'DLR_VIJAY_HANUMAN',
+    name: 'Vijay',
+    address: 'Hanuman Junction',
+    phone: '9848011008',
+    email: 'vijay.hj@mirrorsolar.in',
+    role: 'Dealer',
+    status: 'Active',
+    initials: 'VH',
+    dealerCode: 'MSV/DLR/VIJAYHJ',
+    code: 'MSV/DLR/VIJAYHJ',
+    displayId: 'MSV/DLR/VIJAYHJ',
+    password: 'Mirror@1432',
+    classification: 'Paid',
+    permissions: { ...defaultDealerPermissions },
+    features: { ...defaultDealerFeatures },
+    commissionRatePerKw: 1500,
+    commissionType: 'PER_KW',
+    commissionPercent: 5,
+    lastActive: 'Just now'
+  }
 ];
 
 export const defaultApprovedProducts: ApprovedProduct[] = [
@@ -799,13 +1173,24 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<MockLead[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_employees_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return defaultCompanyEmployees;
+    } catch {
+      return defaultCompanyEmployees;
+    }
+  });
   const [dealers, setDealers] = useState<Dealer[]>(() => {
     try {
       const cached = localStorage.getItem('crm_dealers_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        return parsed.filter((d: any) => 
+        const filtered = parsed.filter((d: any) => 
           d.id !== 'DLR1790601644299' &&
           d.id !== 'dealer_balaji' &&
           d.id !== 'DLR1790302393152' &&
@@ -814,10 +1199,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           !((d.name || '').toLowerCase().includes('balaji peruri')) &&
           (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
         );
+        if (Array.isArray(filtered) && filtered.length >= defaultCompanyDealers.length) return filtered;
       }
-      return [];
+      return defaultCompanyDealers;
     } catch {
-      return [];
+      return defaultCompanyDealers;
     }
   });
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -832,6 +1218,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     setCurrentUser(authUser);
   }, [authUser]);
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      try {
+        localStorage.setItem('crm_employees_cache', JSON.stringify(employees));
+      } catch (e) {
+        console.warn("Could not cache employees:", e);
+      }
+    }
+  }, [employees]);
 
   useEffect(() => {
     if (dealers.length > 0) {
@@ -904,7 +1300,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
-      const empList = uniqueUsers.filter(u => u.role === 'Employee') as Employee[];
+      const empList = uniqueUsers.filter(u => (u.role || '').toLowerCase() === 'employee') as Employee[];
       
       // Strict Dealers Sanitization:
       // 1. Exclude both Balaji Peruri dealers (Balaji is strictly an Admin)
@@ -932,19 +1328,37 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       }) as Dealer[];
 
-      // Ensure single instance per dealer name (e.g. Hussain single registered dealer)
-      const seenDealerNames = new Set<string>();
+      // Ensure single instance per unique dealer (ID or name + address)
+      const seenDealerKeys = new Set<string>();
       const finalDealers: Dealer[] = [];
       filteredDealers.forEach(d => {
         const normName = (d.name || '').toLowerCase().trim();
-        if (!seenDealerNames.has(normName)) {
-          seenDealerNames.add(normName);
+        const normAddr = (d.address || '').toLowerCase().trim();
+        const dealerKey = (d.id || '').trim().toLowerCase() || `${normName}_${normAddr}`;
+        if (!seenDealerKeys.has(dealerKey)) {
+          seenDealerKeys.add(dealerKey);
           finalDealers.push(d);
         }
       });
 
-      setEmployees(empList);
-      setDealers(finalDealers);
+      // Merge with default company dealers to ensure all 11 dealers are always available
+      const mergedDealersMap = new Map<string, Dealer>();
+      defaultCompanyDealers.forEach(d => {
+        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        mergedDealersMap.set(k, d);
+      });
+      finalDealers.forEach(d => {
+        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        mergedDealersMap.set(k, { ...mergedDealersMap.get(k), ...d });
+      });
+      const resolvedDealers = Array.from(mergedDealersMap.values());
+
+      if (empList.length > 0) {
+        setEmployees(empList);
+      } else {
+        setEmployees(defaultCompanyEmployees);
+      }
+      setDealers(resolvedDealers);
     }, (err) => {
       console.warn("Users listener error:", err);
     });

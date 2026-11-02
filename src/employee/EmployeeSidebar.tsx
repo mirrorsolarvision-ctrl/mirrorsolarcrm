@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import logoUrl from '../assets/mirrorsolarlogo.png';
 import { useCRM } from '../context/CRMContext';
-import { canAccessRoute } from '../utils/permissionCalculations';
+import { canAccessRoute, isSalesTelecallerEmployee } from '../utils/permissionCalculations';
 import { isSuryaGharEmployee } from '../utils/employeeCalculations';
 
 interface EmployeeSidebarProps {
@@ -46,6 +46,7 @@ export default function EmployeeSidebar({
   const { currentUser } = useCRM();
   const isStockIncharge = currentUser?.employeeCategory === 'Stock Incharge';
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
+  const isSalesTelecaller = isSalesTelecallerEmployee(currentUser);
 
   const allNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },

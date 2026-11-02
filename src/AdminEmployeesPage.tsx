@@ -47,7 +47,7 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   const [newNote, setNewNote] = useState('');
 
   const [formData, setFormData] = useState({
-    name: '', id: '', email: '', phone: '', status: 'Active'
+    name: '', id: '', email: '', phone: '', status: 'Active', employeeCategory: 'Sales Manager (Telecaller)'
   });
 
   const [assignForm, setAssignForm] = useState({
@@ -146,13 +146,13 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   }, [employees, leads]);
 
   const handleOpenAddModal = () => {
-    setFormData({ name: '', id: '', email: '', phone: '', status: 'Active' });
+    setFormData({ name: '', id: '', email: '', phone: '', status: 'Active', employeeCategory: 'Sales Manager (Telecaller)' });
     setIsAddModalOpen(true);
   };
 
   const handleOpenEditModal = (emp: Employee) => {
     setFormData({ 
-      name: emp.name, id: emp.id, email: emp.email, phone: emp.phone, status: emp.status
+      name: emp.name, id: emp.id, email: emp.email, phone: emp.phone, status: emp.status, employeeCategory: emp.employeeCategory || 'Sales Manager (Telecaller)'
     });
     setIsEditModalOpen(true);
   };
@@ -167,6 +167,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
     addEmployee({
       name: formData.name, email: formData.email, phone: formData.phone, 
       status: formData.status as any,
+      employeeCategory: formData.employeeCategory,
+      canForwardToDealer: formData.employeeCategory.includes('Sales') || formData.employeeCategory.includes('Telecaller'),
       initials, lastActive: 'Just now'
     });
     showToast('Employee added successfully.', 'success');
@@ -177,7 +179,7 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
   const handleEditSubmit = () => {
     if (!selectedEmployee) return;
     updateEmployee(selectedEmployee.id, {
-      name: formData.name, email: formData.email, phone: formData.phone, status: formData.status as any
+      name: formData.name, email: formData.email, phone: formData.phone, status: formData.status as any, employeeCategory: formData.employeeCategory, canForwardToDealer: formData.employeeCategory.includes('Sales') || formData.employeeCategory.includes('Telecaller')
     });
     showToast('Employee details updated.', 'success');
     setIsEditModalOpen(false);
