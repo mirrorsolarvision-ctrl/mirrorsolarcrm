@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "crm-webapp-d32bc"
+    "default": "crm-webapp-d32bc",
+    "production": "crm-webapp-d32bc",
+    "staging": "crm-webapp-staging-msv"
   }
 }

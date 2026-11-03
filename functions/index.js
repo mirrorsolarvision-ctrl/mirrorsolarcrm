@@ -111,16 +111,14 @@ export const verifyCustomerPayment = onCall({ cors: true }, async (request) => {
     const isSelfRecorded = (recordedByUid && recordedByUid === verifierUid) ||
       (!recordedByUid && recordedByName && recordedByName.toLowerCase().trim() === verifierName.toLowerCase().trim());
 
-    // 6. Reject self-approval for Accounts users (Strict Segregation of Duties)
-    if (isAccounts && !isAdmin && isSelfRecorded) {
+    // 6. Anti-Self-Approval Enforcement (Strict Segregation of Duties across ALL roles)
+    // Anti-self-approval is enforced unconditionally across all users including Super Admin.
+    if (isSelfRecorded) {
       throw new HttpsError(
         'failed-precondition',
-        'Segregation of Duties Violation: An Accounts officer cannot verify a payment they personally recorded. Verification must be performed by a secondary Accounts officer or Super Admin.'
+        'Segregation of Duties Violation: You cannot verify a payment you personally recorded. Verification must be performed by an independent secondary verifier.'
       );
     }
-
-    // Explicitly document Admin override exceptions
-    const isSelfApprovalAdminOverride = isAdmin && isSelfRecorded;
 
     // 7. Validate requested verification amount and payment reference if supplied
     if (verifiedAmount !== undefined && verifiedAmount !== null) {
@@ -186,7 +184,6 @@ export const verifyCustomerPayment = onCall({ cors: true }, async (request) => {
       verifiedByUid: verifierUid,
       verifiedByName: verifierName,
       verifiedByRole: isAdmin ? 'Admin' : 'Accounts',
-      isSelfApprovalAdminOverride: isSelfApprovalAdminOverride,
       timestamp: verifiedIso,
       createdAt: verifiedIso,
       authoritativeSource: 'CloudFunction:verifyCustomerPayment',
@@ -199,8 +196,7 @@ export const verifyCustomerPayment = onCall({ cors: true }, async (request) => {
       paymentId: paymentId,
       verifiedAt: verifiedIso,
       verifiedBy: verifierName,
-      verifiedByRole: isAdmin ? 'Admin' : 'Accounts',
-      isSelfApprovalAdminOverride: isSelfApprovalAdminOverride
+      verifiedByRole: isAdmin ? 'Admin' : 'Accounts'
     };
   });
 });

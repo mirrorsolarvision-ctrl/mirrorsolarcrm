@@ -175,17 +175,14 @@ function testTrustedPaymentVerificationBackend() {
     const recordedByUid = payment.recordedByUid || '';
     const isSelfRecorded = recordedByUid && recordedByUid === verifierUid;
 
-    // 6. Reject self-approval for Accounts users (Strict Segregation of Duties)
-    if (isAccounts && !isAdmin && isSelfRecorded) {
+    // 6. Anti-Self-Approval Enforcement (Strict Segregation of Duties across ALL roles)
+    if (isSelfRecorded) {
       return {
         status: 412,
         error: 'failed-precondition',
-        message: 'Segregation of Duties Violation: Accounts officer cannot self-verify personally recorded payment'
+        message: 'Segregation of Duties Violation: You cannot verify a payment you personally recorded.'
       };
     }
-
-    // Admin self-approval override documentation
-    const isSelfApprovalAdminOverride = isAdmin && isSelfRecorded;
 
     // 7. Validate requested verification amount and payment reference
     if (payload.verifiedAmount !== undefined && Number(payload.verifiedAmount) !== Number(payment.amount)) {
@@ -217,7 +214,6 @@ function testTrustedPaymentVerificationBackend() {
       amount: payment.amount,
       verifiedByUid: verifierUid,
       verifiedByRole: isAdmin ? 'Admin' : 'Accounts',
-      isSelfApprovalAdminOverride: isSelfApprovalAdminOverride,
       timestamp: verifiedIso,
       authoritativeSource: 'CloudFunction:verifyCustomerPayment'
     };
@@ -266,55 +262,55 @@ function testTrustedPaymentVerificationBackend() {
 
   // 2.1 Unauthenticated caller rejected
   const res1 = verifyCustomerPaymentBackend({ auth: null }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001' }, mockDb);
-  assertTest('2.1', 'FIREBASE EMULATOR', 'Unauthenticated invocation rejected with 401 unauthenticated', res1.status === 401);
+  assertTest('2.1', 'UNIT / SIMULATED', 'Unauthenticated invocation rejected with 401 unauthenticated', res1.status === 401);
 
   // 2.2 Telecaller caller rejected
   const res2 = verifyCustomerPaymentBackend({ auth: { uid: 'telecaller_bhavani' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001' }, mockDb);
-  assertTest('2.2', 'FIREBASE EMULATOR', 'Telecaller invocation rejected with 403 permission-denied', res2.status === 403);
+  assertTest('2.2', 'UNIT / SIMULATED', 'Telecaller invocation rejected with 403 permission-denied', res2.status === 403);
 
   // 2.3 Non-existent payment rejected
   const res3 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_NONEXISTENT' }, mockDb);
-  assertTest('2.3', 'FIREBASE EMULATOR', 'Non-existent payment ID rejected with 404 not-found', res3.status === 404);
+  assertTest('2.3', 'UNIT / SIMULATED', 'Non-existent payment ID rejected with 404 not-found', res3.status === 404);
 
   // 2.4 Replay / Duplicate prevention
   const alreadyVerifiedDb = JSON.parse(JSON.stringify(mockDb));
   alreadyVerifiedDb.leads['lead_pay_01'].payments.customerPayments[0].status = 'Verified';
   const res4 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001' }, alreadyVerifiedDb);
-  assertTest('2.4', 'FIREBASE EMULATOR', 'Replay verification of already Verified payment rejected with 409 already-exists', res4.status === 409);
+  assertTest('2.4', 'UNIT / SIMULATED', 'Replay verification of already Verified payment rejected with 409 already-exists', res4.status === 409);
 
   // 2.5 Accounts Officer Anti-Self-Approval
   const res5 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_SELF_01' }, mockDb);
-  assertTest('2.5', 'FIREBASE EMULATOR', 'Accounts officer self-approval strictly REJECTED with 412 failed-precondition (Segregation of Duties)', res5.status === 412);
+  assertTest('2.5', 'UNIT / SIMULATED', 'Accounts officer self-approval strictly REJECTED with 412 failed-precondition (Segregation of Duties)', res5.status === 412);
 
   // 2.6 Dual Custody: Second Accounts officer verifies
   const res6 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_02' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_SELF_01' }, mockDb);
-  assertTest('2.6', 'FIREBASE EMULATOR', 'Secondary Accounts officer verification succeeds (Dual Custody Validated)', res6.status === 200);
+  assertTest('2.6', 'UNIT / SIMULATED', 'Secondary Accounts officer verification succeeds (Dual Custody Validated)', res6.status === 200);
 
-  // 2.7 Super Admin self-approval explicitly audits override
+  // 2.7 Super Admin self-approval strictly REJECTED (Unconditional across all users)
   const adminSelfDb = JSON.parse(JSON.stringify(mockDb));
   adminSelfDb.leads['lead_pay_01'].payments.customerPayments[0].recordedByUid = 'admin_user_01';
   const res7 = verifyCustomerPaymentBackend({ auth: { uid: 'admin_user_01', token: { role: 'Admin' } } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001' }, adminSelfDb);
-  assertTest('2.7', 'FIREBASE EMULATOR', 'Super Admin verification records explicit isSelfApprovalAdminOverride: true audit trail',
-    res7.status === 200 && res7.auditEvent.isSelfApprovalAdminOverride === true
+  assertTest('2.7', 'UNIT / SIMULATED', 'Super Admin self-approval strictly REJECTED (Unconditional Anti-Self-Approval across all roles)',
+    res7.status === 412 && res7.error === 'failed-precondition'
   );
 
   // 2.8 Amount validation
   const res8 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001', verifiedAmount: 999999 }, mockDb);
-  assertTest('2.8', 'FIREBASE EMULATOR', 'Verification rejected when supplied amount does not match recorded advance (400 invalid-argument)', res8.status === 400);
+  assertTest('2.8', 'UNIT / SIMULATED', 'Verification rejected when supplied amount does not match recorded advance (400 invalid-argument)', res8.status === 400);
 
   // 2.9 Reference validation
   const res9 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001', referenceNumber: 'FORGED_REF' }, mockDb);
-  assertTest('2.9', 'FIREBASE EMULATOR', 'Verification rejected when supplied reference does not match recorded advance (400 invalid-argument)', res9.status === 400);
+  assertTest('2.9', 'UNIT / SIMULATED', 'Verification rejected when supplied reference does not match recorded advance (400 invalid-argument)', res9.status === 400);
 
   // 2.10 Valid execution & stage progression
   const cleanDb = JSON.parse(JSON.stringify(mockDb));
   const res10 = verifyCustomerPaymentBackend({ auth: { uid: 'acc_officer_01' } }, { leadId: 'lead_pay_01', paymentId: 'PAY_1001' }, cleanDb);
-  assertTest('2.10', 'FIREBASE EMULATOR', 'Atomic execution stamps Verified metadata and updates salesStage to "Booking Confirmed"',
+  assertTest('2.10', 'UNIT / SIMULATED', 'Atomic execution stamps Verified metadata and updates salesStage to "Booking Confirmed"',
     res10.status === 200 && cleanDb.leads['lead_pay_01'].salesStage === 'Booking Confirmed' && cleanDb.leads['lead_pay_01'].paymentVerificationStatus === 'Verified'
   );
 
   // 2.11 Authoritative audit event
-  assertTest('2.11', 'FIREBASE EMULATOR', 'Authoritative audit log record created with authoritativeSource: "CloudFunction:verifyCustomerPayment"',
+  assertTest('2.11', 'UNIT / SIMULATED', 'Authoritative audit log record created with authoritativeSource: "CloudFunction:verifyCustomerPayment"',
     cleanDb.auditLogs.length > 0 && cleanDb.auditLogs[0].action === 'PAYMENT_VERIFIED'
   );
 
@@ -328,7 +324,7 @@ function testTrustedPaymentVerificationBackend() {
     return false;
   };
 
-  assertTest('2.12', 'FIREBASE EMULATOR', 'Firestore kernel blocks direct Accounts client SDK from marking payments as Verified (Cloud Function Required)',
+  assertTest('2.12', 'UNIT / SIMULATED', 'Firestore kernel blocks direct Accounts client SDK from marking payments as Verified (Cloud Function Required)',
     evaluateFirestoreDirectPaymentUpdate('Accounts', ['payments', 'paymentVerificationStatus']) === false
   );
 }
@@ -461,12 +457,12 @@ function testCallLogIdentityProtection() {
   };
 
   // 4.1 Legitimate call log create
-  assertTest('4.1', 'FIREBASE EMULATOR', 'Telecaller creating call record with own authenticated UID is ALLOWED',
+  assertTest('4.1', 'UNIT / SIMULATED', 'Telecaller creating call record with own authenticated UID is ALLOWED',
     evaluateCallLogCreate(telecallerBhavani, legitimateLog).allowed === true
   );
 
   // 4.2 Spoofed UID create blocked
-  assertTest('4.2', 'FIREBASE EMULATOR', 'Telecaller attempting to forge another employee UID (telecallerId) is strictly DENIED',
+  assertTest('4.2', 'UNIT / SIMULATED', 'Telecaller attempting to forge another employee UID (telecallerId) is strictly DENIED',
     evaluateCallLogCreate(telecallerBhavani, spoofedLog).allowed === false
   );
 
@@ -489,19 +485,19 @@ function testCallLogIdentityProtection() {
   };
 
   const tamperedLog = { ...legitimateLog, telecallerId: 'siva_uid' };
-  assertTest('4.3', 'FIREBASE EMULATOR', 'Telecaller mutating immutable telecallerId on update is strictly DENIED',
+  assertTest('4.3', 'UNIT / SIMULATED', 'Telecaller mutating immutable telecallerId on update is strictly DENIED',
     evaluateCallLogUpdate(telecallerBhavani, legitimateLog, tamperedLog) === false
   );
 
   // 4.4 Tampering with id or leadId
   const tamperedLeadIdLog = { ...legitimateLog, leadId: 'lead_HIJACKED' };
-  assertTest('4.4', 'FIREBASE EMULATOR', 'Telecaller mutating immutable leadId on update is strictly DENIED',
+  assertTest('4.4', 'UNIT / SIMULATED', 'Telecaller mutating immutable leadId on update is strictly DENIED',
     evaluateCallLogUpdate(telecallerBhavani, legitimateLog, tamperedLeadIdLog) === false
   );
 
   // 4.5 Oversight access
   const salesManager = { uid: 'suresh_mgr_uid', role: 'Employee', employeeCategory: 'Sales Manager' };
-  assertTest('4.5', 'FIREBASE EMULATOR', 'Sales Manager oversight access to call_leads is ALLOWED',
+  assertTest('4.5', 'UNIT / SIMULATED', 'Sales Manager oversight access to call_leads is ALLOWED',
     evaluateCallLogCreate(salesManager, legitimateLog).allowed === true
   );
 
@@ -515,13 +511,13 @@ function testCallLogIdentityProtection() {
   };
 
   const accountsUser = { uid: 'acc_01', role: 'Accounts', employeeCategory: 'Accounts' };
-  assertTest('4.6', 'FIREBASE EMULATOR', 'Accounts role is strictly DENIED read access to raw dial desk call logs',
+  assertTest('4.6', 'UNIT / SIMULATED', 'Accounts role is strictly DENIED read access to raw dial desk call logs',
     evaluateCallLogRead(accountsUser, legitimateLog) === false
   );
 
   // 4.7 Direct SDK write missing required keys
   const incompleteLog = { id: 'CALL_103', durationSeconds: 60 };
-  assertTest('4.7', 'FIREBASE EMULATOR', 'Direct SDK write missing mandatory keys (telecallerId, timestamp) is strictly DENIED',
+  assertTest('4.7', 'UNIT / SIMULATED', 'Direct SDK write missing mandatory keys (telecallerId, timestamp) is strictly DENIED',
     evaluateCallLogCreate(telecallerBhavani, incompleteLog).allowed === false
   );
 }

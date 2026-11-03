@@ -123,13 +123,14 @@ export default function SalesBookingsView({
     if (!targetPayment) return;
 
     // Segregation of duties: prevent self-approval using immutable UID & fallback name check
-    const isSelfRecorded = (!isAdmin && (
+    // Anti-self-approval is strictly enforced across ALL users (including Super Admin)
+    const isSelfRecorded = (
       (targetPayment.recordedByUid && targetPayment.recordedByUid === currentUserId) ||
       (targetPayment.recordedBy && targetPayment.recordedBy.toLowerCase().trim() === currentUserName.toLowerCase().trim())
-    ));
+    );
 
     if (isSelfRecorded) {
-      alert('Segregation of Duties Violation: You cannot verify a payment you personally recorded. A separate Accounts officer or Admin must verify.');
+      alert('Segregation of Duties Violation: You cannot verify a payment you personally recorded. Verification must be performed by an independent secondary verifier.');
       return;
     }
 
@@ -142,49 +143,21 @@ export default function SalesBookingsView({
         verifiedAmount: targetPayment.amount,
         referenceNumber: targetPayment.referenceNumber
       });
+
       alert(`Payment ${paymentId} verified successfully via trusted backend! Project booking is now confirmed.`);
+
+      addActivity({
+        type: 'Payment Verified & Booking Confirmed',
+        message: `Advance payment of ₹${targetPayment.amount?.toLocaleString()} verified by ${isAdmin ? 'Admin' : 'Accounts'} (${currentUserName}). Booking Confirmed for ${lead.customer}.`,
+        user: currentUserName,
+        leadId: lead.id
+      });
     } catch (backendErr: any) {
-      console.warn("Trusted backend invocation note:", backendErr);
-      // Fallback for Super Admin authority during offline testing / dev
-      if (isAdmin) {
-        const updatedPayments = (lead.payments?.customerPayments || []).map(p => {
-          if (p.id === paymentId) {
-            return { 
-              ...p, 
-              status: 'Verified' as const, 
-              verifiedByUid: currentUserId,
-              verifiedBy: currentUserName,
-              verifiedByRole: 'Admin' as const,
-              settledBy: currentUserName,
-              settledByRole: 'Admin' as const,
-              verifiedAt: new Date().toISOString()
-            };
-          }
-          return p;
-        });
-
-        await updateLead(lead.id, {
-          salesStage: 'Booking Confirmed',
-          stage: 'Converted',
-          paymentVerificationStatus: 'Verified',
-          payments: {
-            ...lead.payments,
-            customerPayments: updatedPayments
-          }
-        });
-        alert(`Payment verified under Super Admin override authority.`);
-      } else {
-        alert(`Payment verification failed: ${backendErr.message || 'Operation requires trusted backend verification authority.'}`);
-        return;
-      }
+      console.error("Trusted backend verification failed:", backendErr);
+      // Hardened Financial Control: Never fallback to client write on function failure.
+      // The payment remains in 'Pending Verification' state until verified by authoritative Cloud Function.
+      alert(`Payment verification failed: ${backendErr.message || 'Operation requires trusted backend verification authority.'}\n\nThe payment status remains "Pending Verification".`);
     }
-
-    addActivity({
-      type: 'Payment Verified & Booking Confirmed',
-      message: `Advance payment of ₹${targetPayment.amount?.toLocaleString()} verified by ${isAdmin ? 'Admin' : 'Accounts'} (${currentUserName}). Booking Confirmed for ${lead.customer}.`,
-      user: currentUserName,
-      leadId: lead.id
-    });
   };
 
   return (
