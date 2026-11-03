@@ -9,6 +9,7 @@
     "test:security": "node tests/security_and_rbac_audit.mjs",
     "test:penetration": "node tests/direct_api_and_rules_penetration.mjs",
     "test:phase2_1": "node tests/phase2_1_verification.mjs",
+    "test:gate2_1_r": "node tests/security_remediation_gate_2_1_r.mjs",
     "test:acceptance": "node tests/phase_2_sales_workflow_acceptance.mjs",
     "emulators": "npx firebase-tools emulators:start",
     "test:dr": "node scripts/executeFullDisasterRecoveryTest.mjs",

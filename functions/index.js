@@ -204,3 +204,4 @@ export const verifyCustomerPayment = onCall({ cors: true }, async (request) => {
     };
   });
 });
+
