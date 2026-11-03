@@ -139,9 +139,10 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'salesStage', 'stage', 'priority', 'followUp', 'notes', 'customer', 
             'phone', 'email', 'location', 'dealerSpecifications', 'leadScore',
-            'reassignmentRequest', 'updatedAt', 'payments', 'dealerId', 'dealerName',
+            'reassignmentRequest', 'updatedAt', 'payments', 'dealer', 'dealerId', 'dealerName',
             'dealerCode', 'dealerStatus', 'quotationRequested', 'discountRequested',
-            'assignedEmployeeId', 'assignedEmployee', 'assignedEmployeeEmail', 'leadOwnerId'
+            'assignedEmployeeId', 'assignedEmployee', 'assignedEmployeeEmail', 'leadOwnerId',
+            'dealerRequestedAt', 'dealerRequestedBy', 'dealerNotes'
           ]) &&
           // Cannot unilaterally approve dealer allocation (must remain Requested or Pending)
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['dealerStatus']) ||
@@ -153,6 +154,15 @@ service cloud.firestore {
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['payments']) ||
            request.resource.data.payments.customerPayments == resource.data.payments.customerPayments ||
            request.resource.data.payments.customerPayments[request.resource.data.payments.customerPayments.size() - 1].status == 'Pending Verification'
+          ) &&
+          // Strict Pipeline Gate: Cannot advance to Booking Confirmed or Won without verified advance payment
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage', 'salesStage']) ||
+           !(request.resource.data.stage in ['Converted', 'Installation'] || 
+             request.resource.data.salesStage in ['Booking Confirmed', 'Project Handoff']) ||
+           resource.data.paymentVerificationStatus == 'Verified' ||
+           (resource.data.payments.customerPayments.size() > 0 && 
+            resource.data.payments.customerPayments[0].status == 'Verified') ||
+           isAdmin()
           ) &&
           // Cannot unilaterally approve installation
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['installationApprovalStatus']) ||
@@ -177,6 +187,15 @@ service cloud.firestore {
           ]) &&
           // Cannot reassign lead ownership
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedEmployeeId', 'leadOwnerId', 'assignedEmployee', 'dealerId'])) &&
+          // Strict Pipeline Gate: Telecaller cannot advance to Booking Confirmed or Converted directly
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage', 'salesStage']) ||
+           !(request.resource.data.stage in ['Converted', 'Installation'] || 
+             request.resource.data.salesStage in ['Booking Confirmed', 'Project Handoff']) ||
+           resource.data.paymentVerificationStatus == 'Verified' ||
+           (resource.data.payments.customerPayments.size() > 0 && 
+            resource.data.payments.customerPayments[0].status == 'Verified') ||
+           isPaymentVerifier()
+          ) &&
           // Cannot unilaterally verify customer payments
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['payments']) ||
            request.resource.data.payments.customerPayments == resource.data.payments.customerPayments ||
@@ -212,7 +231,7 @@ service cloud.firestore {
     // Sensitive Identity Documents (Aadhaar number, PAN, KYC validation tokens)
     match /leadKyc/{leadId} {
       allow read: if isAdmin() || isSuryaGharIncharge();
-      allow write: if isAdmin() || isSuryaGharIncharge();
+      allow write: if isAdmin() || isSuryaGharIncharge() || isEmployee();
     }
 
     // Internal Management Executive Notes & Margins
@@ -222,7 +241,18 @@ service cloud.firestore {
 
     // Rate limiting tracking for server-side brute force defense
     match /auth_attempts/{docId} {
-      allow read, create, update: if true;
+      allow read: if true;
+      // Protected creation: failedCount can only initialize to 1 with lockoutUntil set to 0
+      allow create: if request.resource.data.failedCount == 1 &&
+                       request.resource.data.lockoutUntil == 0;
+      // Protected update: can only increment failedCount monotonically; cannot forge arbitrary lockout periods
+      allow update: if isAdmin() || (
+        request.resource.data.failedCount == resource.data.failedCount + 1 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['failedCount', 'lockoutUntil', 'lastAttempt', 'sanitizedId']) &&
+        ((request.resource.data.failedCount >= 5 && request.resource.data.lockoutUntil > resource.data.lockoutUntil) ||
+         (request.resource.data.failedCount < 5 && request.resource.data.lockoutUntil == 0))
+      );
+      // Only administrators can clear or delete lockout documents
       allow delete: if isAdmin();
     }
 
@@ -417,20 +447,38 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if isAdmin() || isAccounts();
       allow create: if isAuthenticated() && (
+        // Actor Identity Integrity: Caller UID must match actor ID in audit record
         (request.resource.data.userId == request.auth.uid ||
          request.resource.data.userUid == request.auth.uid ||
          request.resource.data.actorId == request.auth.uid) &&
-        // SENSITIVE AUDIT ACTIONS ANTI-FORGERY GATE:
-        // Ordinary employees CANNOT fabricate financial verification, discount approval, or role changes
-        (!('action' in request.resource.data) || !(request.resource.data.action in [
-          'PAYMENT_VERIFIED', 'PAYMENT_REJECTED', 'DISCOUNT_APPROVED', 
-          'PERMISSION_CHANGED', 'ROLE_CHANGED', 'DEALER_ALLOCATION_APPROVED',
-          'SALARY_CONFIG_UPDATED', 'PAYROLL_DISBURSED', 'PAYROLL_SAVED'
-        ]) || isPaymentVerifier()) &&
-        // Super Admin only actions:
-        (!('action' in request.resource.data) || !(request.resource.data.action in [
-          'PERMISSION_CHANGED', 'ROLE_CHANGED', 'SALARY_CONFIG_UPDATED'
-        ]) || isAdmin())
+        // Explicit Action Allowlist by Role (Anti-Forgery Positive Gate)
+        (
+          // Super Admin / Admin: authorized to log any operational or administrative action
+          isAdmin() ||
+          // Accounts: authorized to log payment verification and payroll audit actions
+          (isAccounts() && request.resource.data.action in [
+            'PAYMENT_VERIFIED', 'PAYMENT_REJECTED', 'PAYROLL_DISBURSED', 
+            'PAYROLL_SAVED', 'LEDGER_ENTRY', 'QUOTATION_DISCOUNT_REVIEW',
+            'ATTENDANCE_CHECK_IN', 'ATTENDANCE_CHECK_OUT', 'TASK_COMPLETED'
+          ]) ||
+          // Sales Manager: authorized for sales pipeline, lead assignment, and quotation logs
+          (isSalesManager() && request.resource.data.action in [
+            'LEAD_STAGE_CHANGED', 'LEAD_ASSIGNED', 'DEALER_ALLOCATION_REQUESTED',
+            'QUOTATION_CREATED', 'QUOTATION_SENT', 'CUSTOMER_CONTACTED', 
+            'CALL_LOGGED', 'ATTENDANCE_CHECK_IN', 'ATTENDANCE_CHECK_OUT', 'TASK_COMPLETED'
+          ]) ||
+          // Telecaller / Employee: authorized for operational customer interactions
+          (isEmployee() && request.resource.data.action in [
+            'CUSTOMER_CONTACTED', 'CALL_LOGGED', 'QUALIFICATION_COMPLETED',
+            'ADVANCE_RECEIPT_UPLOADED', 'LEAD_STAGE_CHANGED', 'ATTENDANCE_CHECK_IN',
+            'ATTENDANCE_CHECK_OUT', 'EOD_REPORT_SUBMITTED', 'TASK_COMPLETED'
+          ]) ||
+          // Regional Dealer: authorized for survey and installation milestones
+          (isDealer() && request.resource.data.action in [
+            'SITE_SURVEY_COMPLETED', 'SURVEY_PHOTOS_UPLOADED', 
+            'INSTALLATION_MILESTONE_UPDATED', 'MATERIAL_RECEIPT_ACKNOWLEDGED'
+          ])
+        )
       );
       allow update, delete: if false; // Absolute immutability: tamper-proof
     }

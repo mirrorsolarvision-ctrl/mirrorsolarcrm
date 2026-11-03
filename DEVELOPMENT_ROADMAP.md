@@ -176,3 +176,4 @@ flowchart LR
   2. Multi-region DR drill with zero data loss ($RPO = 0$, $RTO < 15\text{ mins}$).
   3. Security vulnerability penetration test by independent auditor.
   4. Production handover documentation and administrative runbooks.
+

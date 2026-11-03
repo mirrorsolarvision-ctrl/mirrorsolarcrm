@@ -205,3 +205,4 @@ To prevent clickjacking, MIME-sniffing, XSS, and stale client bundle execution:
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
 - `/index.html` and `/version.json` headers: `Cache-Control: no-cache, no-store, must-revalidate`
+

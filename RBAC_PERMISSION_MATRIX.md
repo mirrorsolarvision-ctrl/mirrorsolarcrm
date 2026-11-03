@@ -83,3 +83,4 @@
    Sales Managers can coordinate and request site surveys with regional dealers (`dealerStatus: 'Requested'`), but formal dealer contract allocation requires Super Admin approval (`dealerStatus: 'Approved'`).
 4. **Rule of Identity & KYC Document Scoping:**
    Private identity numbers (Aadhaar, PAN) are sequestered in `/leadKyc/{leadId}`. Ordinary sales personnel cannot access private customer KYC data.
+

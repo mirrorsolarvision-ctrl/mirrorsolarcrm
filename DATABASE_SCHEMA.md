@@ -225,3 +225,4 @@ erDiagram
 | `lockedUntil` | `number` | Epoch millisecond timestamp until lockout expires |
 | `lastAttempt` | `timestamp` | Timestamp of most recent attempt |
 | `lastIp` | `string` | Client IP address string |
+

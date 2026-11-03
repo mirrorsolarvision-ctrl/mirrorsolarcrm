@@ -85,3 +85,4 @@ Before any task or phase is marked `ACCEPTED`:
 4. [ ] Mobile viewport validation: Controls $\ge 44\text{px}$ touch targets, zero horizontal text overflow on 320px screens.
 5. [ ] Firestore security rules updated and deployed for all new collections.
 6. [ ] Relational integrity verified with disaster recovery snapshot.
+

@@ -134,3 +134,4 @@ Step 4: Simulating Staged Non-Destructive Restoration...
 | **Meta Cloud API Webhook Secrets** | Configuration Required | Phase 2 | Secure Meta WhatsApp App Secret & Webhook verify token in Google Secret Manager. |
 | **Cloud Telephony SIP PBX** | Configuration Required | Phase 2 | Setup Exotel / Tata Tele SIP Trunk credentials for automated call recording streaming. |
 | **Multi-Region Failover Rehearsal** | Planned | Phase 10 | Stage cross-cloud live failover drill simulating primary Google Cloud region loss. |
+

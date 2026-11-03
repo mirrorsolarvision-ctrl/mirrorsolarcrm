@@ -184,6 +184,7 @@ export interface LeadDocument {
   uploadedAt: string;
   notes?: string;
   status: DocumentStatus;
+  isKycSecured?: boolean;
 }
 
 export type EmployeeWorkStatus = 'Not Started' | 'In Progress' | 'Waiting for Documents' | 'Waiting for Customer' | 'Waiting for Approval' | 'Completed';
@@ -218,6 +219,8 @@ export interface CustomerPaymentRecord {
   status: CustomerPaymentStatus;
   paidAt: string;
   recordedBy: string;
+  recordedByUid?: string;
+  recordedByEmail?: string;
   recordedByRole: string;
   proofUrl?: string;
   proofFileName?: string;
@@ -226,6 +229,10 @@ export interface CustomerPaymentRecord {
   notes?: string;
   verifiedAt?: string;
   verifiedBy?: string;
+  verifiedByUid?: string;
+  verifiedByRole?: string;
+  settledBy?: string;
+  settledByRole?: string;
   rejectionReason?: string;
 }
 
@@ -1500,15 +1507,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn("Dealers collection listener warning:", err);
     });
 
-    // 2. Listen for Live Leads
-    const unsubscribeLeads = onSnapshot(collection(db, 'leads'), (snapshot) => {
+    // 2. Listen for Live Leads (Role-Scoped Firestore Query)
+    let unsubscribeLeads = () => {};
+    const eName = (authUser.name || '').toLowerCase().trim();
+    const empCategory = ((authUser as any).employeeCategory || (authUser as any).category || '').toLowerCase();
+    const isSuryaGhar = empCategory.includes('surya') || empCategory.includes('pm surya') || empCategory.includes('surya ghar') || eName.includes('kumari');
+    const isStockIncharge = empCategory.includes('stock') || eName.includes('gopal');
+    const isAccountsRole = ((authUser as any).role === 'Accounts') || empCategory.includes('accounts');
+    const isSalesMgr = authUser.role === 'Admin' || isAccountsRole || 
+      empCategory.includes('sales manager') || 
+      (authUser as any).responsibilities?.primaryResponsibilityId === 'resp_sales_manager';
+    const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge;
+
+    const leadsQuery = isPrivilegedLeadViewer
+      ? collection(db, 'leads')
+      : authUser.role === 'Dealer'
+        ? query(collection(db, 'leads'), where('dealerId', '==', authUser.id))
+        : query(collection(db, 'leads'), where('assignedEmployeeId', '==', authUser.id));
+
+    unsubscribeLeads = onSnapshot(leadsQuery, (snapshot) => {
       const allLeads: MockLead[] = [];
       snapshot.forEach(docSnap => {
         allLeads.push({ id: docSnap.id, ...docSnap.data() } as MockLead);
       });
       allLeads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
-      if (authUser.role === 'Admin') {
+      if (isPrivilegedLeadViewer) {
         setLeads(allLeads);
       } else if (authUser.role === 'Dealer') {
         const dName = (authUser.name || '').toLowerCase().trim();
@@ -1518,37 +1542,27 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           (l.dealerId && l.dealerId === authUser.id)
         ));
       } else if (authUser.role === 'Employee') {
-        const eName = (authUser.name || '').toLowerCase().trim();
         const eId = (authUser.id || '').toLowerCase().trim();
-        const empCategory = ((authUser as any).employeeCategory || (authUser as any).category || '').toLowerCase();
-        const isSuryaGhar = empCategory.includes('surya') || empCategory.includes('pm surya') || empCategory.includes('surya ghar') || eName.includes('kumari');
-        const isStockIncharge = empCategory.includes('stock') || eName.includes('gopal');
+        setLeads(allLeads.filter(l => {
+          const assigned = (l.assignedEmployee || '').toLowerCase();
+          const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
+          const created = (l.createdByName || '').toLowerCase();
+          const creatorId = (l.createdBy || '').toLowerCase();
+          const assignedId = (l.assignedEmployeeId || '').toLowerCase();
 
-        if (isSuryaGhar || isStockIncharge) {
-          // PM Surya Ghar Incharge and Stock Incharge monitor company-wide leads & technical/inventory processing
-          setLeads(allLeads);
-        } else {
-          setLeads(allLeads.filter(l => {
-            const assigned = (l.assignedEmployee || '').toLowerCase();
-            const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
-            const created = (l.createdByName || '').toLowerCase();
-            const creatorId = (l.createdBy || '').toLowerCase();
-            const assignedId = (l.assignedEmployeeId || '').toLowerCase();
-
-            if (eName.includes('siva') || eName.includes('sunkara')) {
-              return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
-            }
-            return (
-              (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
-              (eId && (creatorId === eId || assignedId === eId))
-            );
-          }));
-        }
+          if (eName.includes('siva') || eName.includes('sunkara')) {
+            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
+          }
+          return (
+            (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
+            (eId && (creatorId === eId || assignedId === eId))
+          );
+        }));
       } else {
         setLeads(allLeads);
       }
     }, (err) => {
-      console.warn("Leads listener error:", err);
+      console.warn("Leads listener error (scoped query):", err);
     });
 
     // 3. Listen for Live Quotations
@@ -1597,27 +1611,41 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn("Attendance listener error:", err);
     });
 
-    // 7. Listen for Live Call Logs (/call_leads)
-    const unsubscribeCallLogs = onSnapshot(collection(db, 'call_leads'), (snapshot) => {
-      const liveCallLogs: TelecallerCallLog[] = [];
-      snapshot.forEach(docSnap => {
-        liveCallLogs.push({ id: docSnap.id, ...docSnap.data() } as TelecallerCallLog);
-      });
-      liveCallLogs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    // 7. Listen for Live Call Logs (/call_leads - Role-Scoped Query)
+    let unsubscribeCallLogs = () => {};
 
-      setCallLogs(prev => {
-        const map = new Map<string, TelecallerCallLog>();
-        liveCallLogs.forEach(c => map.set(c.id, c));
-        prev.forEach(c => {
-          if (!map.has(c.id)) map.set(c.id, c);
+    if (authUser.role === 'Dealer') {
+      // Dealers are strictly prohibited from accessing internal telecaller dial desk logs
+      setCallLogs([]);
+    } else {
+      const isCallAdmin = authUser.role === 'Admin' || isAccountsRole || isSalesMgr;
+
+      // Rules are NOT filters: Non-admin telecallers query strictly by their assigned UID
+      const callLogsQuery = isCallAdmin
+        ? collection(db, 'call_leads')
+        : query(collection(db, 'call_leads'), where('telecallerId', '==', authUser.id));
+
+      unsubscribeCallLogs = onSnapshot(callLogsQuery, (snapshot) => {
+        const liveCallLogs: TelecallerCallLog[] = [];
+        snapshot.forEach(docSnap => {
+          liveCallLogs.push({ id: docSnap.id, ...docSnap.data() } as TelecallerCallLog);
         });
-        const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-        try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(merged)); } catch (e) {}
-        return merged;
+        liveCallLogs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+        setCallLogs(prev => {
+          const map = new Map<string, TelecallerCallLog>();
+          liveCallLogs.forEach(c => map.set(c.id, c));
+          prev.forEach(c => {
+            if (!map.has(c.id)) map.set(c.id, c);
+          });
+          const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+          try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
+      }, (err) => {
+        console.warn("Call leads listener error (scoped query):", err);
       });
-    }, (err) => {
-      console.warn("Call leads listener error:", err);
-    });
+    }
 
     return () => {
       unsubscribeUsers();

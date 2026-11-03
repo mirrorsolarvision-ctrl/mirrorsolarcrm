@@ -29,17 +29,43 @@ service firebase.storage {
       return isAdmin() || isAccounts();
     }
 
-    // 1. Customer KYC & Identity Documents:
-    // Anti-IDOR: Path guessing protection.
-    // Read access is restricted to verified company staff and authorized dealers only.
-    match /leads/{leadId}/documents/{docId}/{fileName} {
-      allow read: if isPrivilegedStaff() || (
-        isAuthenticated() && (
-          request.auth.token.email.matches('.*@mirrorsolar\\.in') || 
-          request.auth.token.email.matches('.*@dealer\\.in') || 
-          request.auth.token.email.matches('.*@msv\\.in')
-        )
+    function isSuryaGharIncharge() {
+      return isAuthenticated() && (
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.employeeCategory in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
+        request.auth.token.email in ['kumari.suryaghar@mirrorsolar.in', 'kumari@mirrorsolar.in']
       );
+    }
+
+    function isAssignedStaffOrDealer(leadId) {
+      let lead = firestore.get(/databases/(default)/documents/leads/$(leadId)).data;
+      return isAuthenticated() && (
+        isPrivilegedStaff() ||
+        lead.assignedEmployeeId == request.auth.uid ||
+        lead.leadOwnerId == request.auth.uid ||
+        lead.dealerId == request.auth.uid ||
+        lead.dealerCode == firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.dealerCode
+      );
+    }
+
+    // 1a. Customer Sensitive Identity Documents (Aadhaar, Consent, Electricity Bill KYC):
+    // Strictly restricted to Admin, Accounts, and PM Surya Ghar Incharge.
+    // Authorized dealers and unassigned employees are strictly DENIED access to KYC identity files.
+    match /leads/{leadId}/kyc/{docId}/{fileName} {
+      allow read: if isPrivilegedStaff() || isSuryaGharIncharge() || (
+        isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/leads/$(leadId)).data.assignedEmployeeId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && 
+        isAllowedImageOrPdf() && 
+        request.resource.size < 15 * 1024 * 1024;
+      allow update, delete: if isAdmin();
+    }
+
+    // 1b. Operational Documents (Rooftop Site Survey Photos, Roof Engineering Drawings):
+    // Accessible by Admin, assigned sales staff, and the assigned authorized dealer.
+    match /leads/{leadId}/documents/{docId}/{fileName} {
+      allow read: if isAssignedStaffOrDealer(leadId);
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 15 * 1024 * 1024;

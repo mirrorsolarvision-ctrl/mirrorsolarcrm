@@ -79,6 +79,8 @@ export default function SalesBookingsView({
       date: new Date().toISOString().split('T')[0],
       mode: paymentModeNormalized,
       recordedBy: currentUserName,
+      recordedByUid: currentUserId,
+      recordedByEmail: currentUser?.email || '',
       recordedByRole: isManager ? 'Sales Manager' : 'Telecaller',
       referenceNumber: paymentForm.referenceNumber || `UTR-${Date.now().toString().slice(-8)}`,
       proofFileName: paymentForm.proofFileName || 'payment_receipt.jpg',
@@ -118,8 +120,13 @@ export default function SalesBookingsView({
     const targetPayment = (lead.payments?.customerPayments || []).find(p => p.id === paymentId);
     if (!targetPayment) return;
 
-    // Segregation of duties: prevent self-approval if non-admin recorded the payment
-    if (!isAdmin && targetPayment.recordedBy && targetPayment.recordedBy === currentUserName) {
+    // Segregation of duties: prevent self-approval using immutable UID & fallback name check
+    const isSelfRecorded = (!isAdmin && (
+      (targetPayment.recordedByUid && targetPayment.recordedByUid === currentUserId) ||
+      (targetPayment.recordedBy && targetPayment.recordedBy.toLowerCase().trim() === currentUserName.toLowerCase().trim())
+    ));
+
+    if (isSelfRecorded) {
       alert('Segregation of Duties: You cannot verify a payment you personally recorded. A separate Accounts officer or Admin must verify.');
       return;
     }
@@ -129,6 +136,9 @@ export default function SalesBookingsView({
         return { 
           ...p, 
           status: 'Verified' as const, 
+          verifiedByUid: currentUserId,
+          verifiedBy: currentUserName,
+          verifiedByRole: isAdmin ? 'Admin' : 'Accounts',
           settledBy: currentUserName,
           settledByRole: isAdmin ? 'Admin' : 'Accounts',
           verifiedAt: new Date().toISOString()

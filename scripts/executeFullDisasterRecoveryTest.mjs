@@ -101,6 +101,11 @@ export async function runDisasterRecoveryVerification() {
   console.log('Step 2: Exporting live Firestore database & computing cryptographic hashes...');
   for (const col of COLLECTIONS_TO_VALIDATE) {
     const docs = await fetchLiveDocs(token, col);
+    if (col === 'users') {
+      docs.forEach(doc => {
+        if (doc.fields && doc.fields.password) delete doc.fields.password;
+      });
+    }
     collectionData[col] = docs;
     const filePath = path.join(stageDir, `${col}.json`);
     fs.writeFileSync(filePath, JSON.stringify(docs, null, 2), 'utf8');

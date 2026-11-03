@@ -1,14 +1,16 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Folder, FileText, CheckCircle2, AlertTriangle, 
   Upload, Eye, Check, X, ShieldCheck, Download, 
-  ExternalLink, RefreshCw, Trash2
+  ExternalLink, RefreshCw, Trash2, Lock
 } from 'lucide-react';
 import { useCRM, type MockLead, type LeadDocument } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import { DocumentUploadModal } from '../../components/DocumentUploadModal';
 import { uploadFileToStorage, formatBytes, type CompressionPreset } from '../../utils/cloudStorageUtils';
 import type { CustomerDocType } from '../../types/sales';
+import { db } from '../../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface CustomerDocumentsViewProps {
   onNavigateSubView?: (view: any, params?: any) => void;
@@ -34,6 +36,14 @@ export default function CustomerDocumentsView({
   const currentUserName = currentUser?.name || '';
   const currentUserId = currentUser?.id || '';
 
+  const empCat = (((currentUser as any)?.employeeCategory || (currentUser as any)?.category || '') as string).toLowerCase();
+  const isSuryaGhar = empCat.includes('surya') || currentUserName.toLowerCase().includes('kumari');
+  const isAccounts = (currentUser as any)?.role === 'Accounts' || empCat.includes('accounts');
+  const canAccessKyc = isAdmin || isAccounts || isSuryaGhar;
+
+  // Dedicated Firestore /leadKyc cache for authorized staff
+  const [kycDocsMap, setKycDocsMap] = useState<Record<string, LeadDocument>>({});
+
   // Scoped leads
   const scopedLeads = useMemo(() => {
     if (isManager || isAdmin) return leads.filter(l => !l.archived);
@@ -49,10 +59,40 @@ export default function CustomerDocumentsView({
     return scopedLeads.find(l => l.id === selectedLeadId) || scopedLeads[0];
   }, [scopedLeads, selectedLeadId]);
 
-  // Lead documents
+  useEffect(() => {
+    if (!canAccessKyc || !activeLead?.id) {
+      setKycDocsMap({});
+      return;
+    }
+    let isCancelled = false;
+    getDoc(doc(db, 'leadKyc', activeLead.id)).then(snapshot => {
+      if (!isCancelled && snapshot.exists()) {
+        const data = snapshot.data();
+        const map: Record<string, LeadDocument> = {};
+        ((data.documents || []) as LeadDocument[]).forEach(d => {
+          if (d.category) map[d.category] = d;
+          if (d.documentType) map[d.documentType] = d;
+        });
+        setKycDocsMap(map);
+      }
+    }).catch(err => {
+      console.warn("KYC document retrieval notice:", err.message);
+    });
+    return () => { isCancelled = true; };
+  }, [canAccessKyc, activeLead?.id]);
+
+  // Lead documents merged with secure KYC data for authorized roles
   const activeDocs = useMemo(() => {
-    return (activeLead?.documents || []) as LeadDocument[];
-  }, [activeLead]);
+    const raw = (activeLead?.documents || []) as LeadDocument[];
+    if (!canAccessKyc) return raw;
+    return raw.map(d => {
+      const kycMatch = kycDocsMap[d.category || ''] || kycDocsMap[d.documentType || ''];
+      if (kycMatch && kycMatch.fileUrl) {
+        return { ...d, fileUrl: kycMatch.fileUrl };
+      }
+      return d;
+    });
+  }, [activeLead, canAccessKyc, kycDocsMap]);
 
   // Upload Modal & Progress States
   const [targetDocType, setTargetDocType] = useState<CustomerDocType | null>(null);
@@ -112,7 +152,10 @@ export default function CustomerDocumentsView({
       setUploadProgress(0);
 
       const docId = replacingDocId || `DOC_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      const folderPath = `leads/${activeLead.id}/documents/${docId}`;
+      const isSensitiveKyc = targetDocType === 'Aadhaar Card' || targetDocType === 'Consent Form' || targetDocType === 'Electricity Bill';
+      const folderPath = isSensitiveKyc 
+        ? `leads/${activeLead.id}/kyc/${docId}` 
+        : `leads/${activeLead.id}/documents/${docId}`;
 
       // Upload to Firebase Cloud Storage with progress updates
       const downloadUrl = await uploadFileToStorage(processedFile, folderPath, {
@@ -122,7 +165,7 @@ export default function CustomerDocumentsView({
 
       const safeFileName = processedFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
 
-      const newDoc: LeadDocument = {
+      const fullDocRecord: LeadDocument = {
         id: docId,
         leadId: activeLead.id,
         name: safeFileName,
@@ -139,15 +182,45 @@ export default function CustomerDocumentsView({
         status: 'Uploaded'
       };
 
+      // 1. If sensitive KYC, persist the tokenized download URL into sealed /leadKyc/{leadId}
+      if (isSensitiveKyc) {
+        try {
+          const currentKycSnap = await getDoc(doc(db, 'leadKyc', activeLead.id));
+          const existingKycDocs: LeadDocument[] = currentKycSnap.exists() ? (currentKycSnap.data()?.documents || []) : [];
+          const updatedKycDocs = [
+            ...existingKycDocs.filter(d => (d.category || d.documentType || '').toLowerCase() !== targetDocType.toLowerCase()),
+            fullDocRecord
+          ];
+          await setDoc(doc(db, 'leadKyc', activeLead.id), {
+            leadId: activeLead.id,
+            documents: updatedKycDocs,
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUserName
+          }, { merge: true });
+
+          // Update local secure state immediately
+          setKycDocsMap(prev => ({ ...prev, [targetDocType]: fullDocRecord }));
+        } catch (kycErr) {
+          console.warn("KYC collection persist warning:", kycErr);
+        }
+      }
+
+      // 2. In general lead document, sanitize sensitive KYC to prevent token leaks
+      const sanitizedDocForLead: LeadDocument = isSensitiveKyc ? {
+        ...fullDocRecord,
+        fileUrl: '', // Redacted: prevents token leakage to dealers and general users
+        isKycSecured: true as any
+      } : fullDocRecord;
+
       let updatedDocs: LeadDocument[] = [];
       if (replacingDocId) {
-        updatedDocs = activeDocs.map(d => d.id === replacingDocId ? newDoc : d);
+        updatedDocs = ((activeLead?.documents || []) as LeadDocument[]).map(d => d.id === replacingDocId ? sanitizedDocForLead : d);
       } else {
         // Prevent accidental duplicates of the same category
-        const filtered = activeDocs.filter(d => 
+        const filtered = ((activeLead?.documents || []) as LeadDocument[]).filter(d => 
           (d.category || d.documentType || '').toLowerCase() !== targetDocType.toLowerCase()
         );
-        updatedDocs = [...filtered, newDoc];
+        updatedDocs = [...filtered, sanitizedDocForLead];
       }
 
       await updateLead(activeLead.id, {
@@ -320,6 +393,16 @@ export default function CustomerDocumentsView({
                       >
                         <Eye size={13} /> View / Download
                       </a>
+                    )}
+
+                    {isUploaded && !matchingDoc.fileUrl && (
+                      <span 
+                        className="sales-btn-secondary"
+                        style={{ flex: 1, minWidth: '100px', justifyContent: 'center', fontSize: '0.8rem', background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }}
+                        title="Customer KYC data is sealed. Only Admin, Accounts, or PM Surya Ghar Incharge can access sensitive identity documents."
+                      >
+                        <Lock size={13} /> Confidential KYC
+                      </span>
                     )}
 
                     <button 

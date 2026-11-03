@@ -58,6 +58,7 @@ interface AuthContextType {
   loading: boolean;
   loginUser: (user: CRMUser) => void;
   logoutUser: () => Promise<void>;
+  verifyActiveSession?: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -65,6 +66,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   loginUser: () => {},
   logoutUser: async () => {},
+  verifyActiveSession: async () => true,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -105,6 +107,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(null);
   };
 
+  const verifyActiveSession = async (): Promise<boolean> => {
+    try {
+      if (!auth.currentUser) {
+        localStorage.removeItem('crm_session_user');
+        setCurrentUser(null);
+        return false;
+      }
+      await auth.currentUser.getIdToken(true);
+      return true;
+    } catch (err) {
+      console.warn("Session invalidated by backend authority:", err);
+      localStorage.removeItem('crm_session_user');
+      setCurrentUser(null);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -141,6 +160,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (err) {
           console.error("Error fetching user data:", err);
         }
+      } else {
+        // Session Revocation Gate: Invalidate local state when Firebase Auth session is null
+        localStorage.removeItem('crm_session_user');
+        setCurrentUser(null);
       }
     });
 
@@ -148,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ currentUser, loading, loginUser, logoutUser, verifyActiveSession }}>
       {children}
     </AuthContext.Provider>
   );

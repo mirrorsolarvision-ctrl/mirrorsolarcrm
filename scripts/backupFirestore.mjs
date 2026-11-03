@@ -97,6 +97,12 @@ export async function runBackup() {
     process.stdout.write(`Exporting collection [${col}]... `);
     try {
       const docs = await fetchCollectionDocs(token, col);
+      // Security Sanitation Gate: Never persist sensitive password fields in disk backups
+      if (col === 'users') {
+        docs.forEach(doc => {
+          if (doc.fields && doc.fields.password) delete doc.fields.password;
+        });
+      }
       const filePath = path.join(backupDir, `${col}.json`);
       fs.writeFileSync(filePath, JSON.stringify(docs, null, 2), 'utf8');
       manifest.collections[col] = {

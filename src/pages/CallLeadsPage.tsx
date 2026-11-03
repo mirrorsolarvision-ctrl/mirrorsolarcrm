@@ -10,7 +10,7 @@ import { useUI } from '../context/UIContext';
 import { canForwardCallLeadToDealer } from '../utils/permissionCalculations';
 import { normalizePhoneForWhatsApp } from '../utils/whatsappTemplates';
 import { db } from '../firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, where } from 'firebase/firestore';
 import './CallLeadsPage.css';
 
 // Initial fallback mock data if Firestore is empty
@@ -95,7 +95,15 @@ export default function CallLeadsPage() {
   useEffect(() => {
     let unsubscribe = () => {};
     try {
-      const q = query(collection(db, 'call_leads'), orderBy('createdAt', 'desc'));
+      if (currentUser?.role === 'Dealer') {
+        setCallLeads([]);
+        return;
+      }
+      const isAccounts = (currentUser as any)?.role === 'Accounts' || ((currentUser as any)?.employeeCategory || '').toLowerCase().includes('accounts');
+      const isPrivileged = isAdmin || isAccounts || hasForwardPermission;
+      const q = isPrivileged
+        ? query(collection(db, 'call_leads'))
+        : query(collection(db, 'call_leads'), where('telecallerId', '==', currentUser?.id || ''));
       unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
           const fetched: CallLead[] = [];
@@ -111,7 +119,7 @@ export default function CallLeadsPage() {
       console.warn('Firestore subscription failed, running in local state:', e);
     }
     return () => unsubscribe();
-  }, []);
+  }, [currentUser, isAdmin, hasForwardPermission]);
 
   // Today Date Strings
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);

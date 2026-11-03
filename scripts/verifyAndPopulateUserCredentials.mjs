@@ -70,7 +70,7 @@ const USERS = [
     username: 'kumari',
     employeeId: 'MSV-KUMARI-001',
     email: 'kumari.mirrorsolarvision@gmail.com',
-    password: 'Mirror@0748',
+    password: process.env.ADMIN_BACKUP_PASS || '',
     phone: '7670920748',
     role: 'Employee',
     employeeCategory: 'PM Surya Ghar Work Incharge',
@@ -88,7 +88,7 @@ const USERS = [
     username: 'gopal',
     employeeId: 'MSV-EMP-003',
     email: 'gopal.mirrorsolarvision@gmail.com',
-    password: 'Mirror@2026',
+    password: process.env.ADMIN_BACKUP_PASS || '',
     phone: '9876543210',
     role: 'Employee',
     employeeCategory: 'Stock Incharge',
@@ -105,7 +105,7 @@ const USERS = [
     name: 'Hussain',
     username: 'hussain',
     email: 'hussain@dealer.in',
-    password: 'Mirror@9431',
+    password: process.env.ADMIN_BACKUP_PASS || '',
     phone: '9100309431',
     role: 'Dealer',
     status: 'Active',
@@ -122,7 +122,7 @@ const USERS = [
     name: 'Balaji Peruri (Dealer)',
     username: 'balaji',
     email: 'balaji.dealer@mirrorsolar.in',
-    password: 'Mirror@12420',
+    password: process.env.ADMIN_BACKUP_PASS || '',
     phone: '9182612420',
     role: 'Dealer',
     status: 'Active',
@@ -135,7 +135,7 @@ const USERS = [
 ];
 
 async function syncUsers() {
-  await signInWithEmailAndPassword(auth, "mirroraquaro@gmail.com", "Mirror@10668");
+  await signInWithEmailAndPassword(auth, "mirroraquaro@gmail.com", process.env.ADMIN_BACKUP_PASS || '');
   console.log("Logged in as Admin (mirroraquaro@gmail.com).\n");
 
   // Upsert all clean user records

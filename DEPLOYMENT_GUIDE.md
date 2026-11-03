@@ -118,3 +118,4 @@ npx firebase-tools deploy --only firestore:rules,storage --project crm-webapp-d3
 node scripts/restoreVerification.mjs
 ```
 *Restores data from the pre-flight backup snapshot in `backups/`.*
+
