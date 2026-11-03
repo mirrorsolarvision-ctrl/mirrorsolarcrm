@@ -18,6 +18,10 @@ export default function SalesBookingsView({
   const { currentUser, leads, updateLead, addActivity } = useCRM();
   const isManager = isSalesManager(currentUser);
   const isAdmin = currentUser?.role === 'Admin';
+  const isAccounts = (currentUser?.role as any) === 'Accounts' || 
+                     currentUser?.employeeCategory === 'Accounts' || 
+                     (currentUser as any)?.category === 'Accounts';
+  const canVerifyPayment = isAdmin || isAccounts;
   const currentUserName = currentUser?.name || '';
   const currentUserId = currentUser?.id || '';
 
@@ -106,14 +110,29 @@ export default function SalesBookingsView({
 
   // Admin/Accounts Only Verification
   const handleVerifyPayment = async (lead: MockLead, paymentId: string) => {
-    if (!isAdmin) {
+    if (!canVerifyPayment) {
       alert('Permission Denied: Payment verification is strictly reserved for Admin & Accounts authority.');
+      return;
+    }
+
+    const targetPayment = (lead.payments?.customerPayments || []).find(p => p.id === paymentId);
+    if (!targetPayment) return;
+
+    // Segregation of duties: prevent self-approval if non-admin recorded the payment
+    if (!isAdmin && targetPayment.recordedBy && targetPayment.recordedBy === currentUserName) {
+      alert('Segregation of Duties: You cannot verify a payment you personally recorded. A separate Accounts officer or Admin must verify.');
       return;
     }
 
     const updatedPayments = (lead.payments?.customerPayments || []).map(p => {
       if (p.id === paymentId) {
-        return { ...p, status: 'Verified' as const, settledBy: currentUserName };
+        return { 
+          ...p, 
+          status: 'Verified' as const, 
+          settledBy: currentUserName,
+          settledByRole: isAdmin ? 'Admin' : 'Accounts',
+          verifiedAt: new Date().toISOString()
+        };
       }
       return p;
     });
@@ -121,6 +140,7 @@ export default function SalesBookingsView({
     await updateLead(lead.id, {
       salesStage: 'Booking Confirmed',
       stage: 'Converted',
+      paymentVerificationStatus: 'Verified',
       payments: {
         ...lead.payments,
         customerPayments: updatedPayments
@@ -129,7 +149,7 @@ export default function SalesBookingsView({
 
     addActivity({
       type: 'Payment Verified & Booking Confirmed',
-      message: `Payment verified by Admin. Solar booking confirmed for ${lead.customer}`,
+      message: `Advance payment of ₹${targetPayment.amount?.toLocaleString()} verified by ${isAdmin ? 'Admin' : 'Accounts'} (${currentUserName}). Booking Confirmed for ${lead.customer}.`,
       user: currentUserName,
       leadId: lead.id
     });
@@ -191,7 +211,7 @@ export default function SalesBookingsView({
                   <th>Date</th>
                   <th>Verification Status</th>
                   <th>Booking Status</th>
-                  {isAdmin && <th>Admin Action</th>}
+                  {canVerifyPayment && <th>Verification Action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -232,7 +252,7 @@ export default function SalesBookingsView({
                             {isVerified ? 'Booking Confirmed' : 'Advance Submitted'}
                           </span>
                         </td>
-                        {isAdmin && (
+                        {canVerifyPayment && (
                           <td>
                             {!isVerified && (
                               <button 

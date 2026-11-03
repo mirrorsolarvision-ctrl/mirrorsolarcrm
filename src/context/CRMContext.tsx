@@ -283,6 +283,7 @@ export interface MockLead {
   installationRejectionReason?: string;
   payments?: LeadPayments;
   dealerSpecifications?: DealerProjectSpecifications;
+  paymentVerificationStatus?: 'Verified' | 'Pending Verification' | 'Rejected' | 'None';
   createdBy?: string;
   createdByName?: string;
   createdByRole?: string;
@@ -1591,6 +1592,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn("Attendance listener error:", err);
     });
 
+    // 7. Listen for Live Call Logs (/call_leads)
+    const unsubscribeCallLogs = onSnapshot(collection(db, 'call_leads'), (snapshot) => {
+      const liveCallLogs: TelecallerCallLog[] = [];
+      snapshot.forEach(docSnap => {
+        liveCallLogs.push({ id: docSnap.id, ...docSnap.data() } as TelecallerCallLog);
+      });
+      liveCallLogs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+      setCallLogs(prev => {
+        const map = new Map<string, TelecallerCallLog>();
+        liveCallLogs.forEach(c => map.set(c.id, c));
+        prev.forEach(c => {
+          if (!map.has(c.id)) map.set(c.id, c);
+        });
+        const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+        try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    }, (err) => {
+      console.warn("Call leads listener error:", err);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeDealers();
@@ -1599,6 +1622,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubscribeActivities();
       unsubscribeTasks();
       unsubscribeAttendance();
+      unsubscribeCallLogs();
     };
   }, [authUser]);
 
@@ -2735,35 +2759,63 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
-    const newLog: TelecallerCallLog = {
+    const callerId = logData.telecallerId || currentUser?.id || 'emp_user';
+    const callerName = logData.telecallerName || currentUser?.name || 'Telecaller';
+    const callerEmail = currentUser?.email || '';
+
+    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string } = {
       ...logData,
-      id: 'CALL-' + Date.now(),
-      timestamp: new Date().toISOString()
+      id: 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      timestamp: new Date().toISOString(),
+      telecallerId: callerId,
+      telecallerName: callerName,
+      telecallerEmail: callerEmail,
+      employeeId: callerId,
+      assignedEmployeeId: callerId
     };
+
+    // 1. Optimistic local state update
     setCallLogs(prev => {
-      const updated = [newLog, ...prev];
+      const updated = [newLog, ...prev.filter(c => c.id !== newLog.id)];
       try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
 
+    // 2. Reliable Firestore Persistence to /call_leads
+    try {
+      await setDoc(doc(db, 'call_leads', newLog.id), sanitizeForFirestore(newLog));
+    } catch (err) {
+      console.warn("Error persisting call log to Firestore /call_leads:", err);
+    }
+
+    // 3. Associate with Lead and Timeline
     if (logData.leadId) {
+      const targetLead = leads.find(l => l.id === logData.leadId);
+      const existingCallLogs = targetLead?.callLogs || [];
+      const updatedLeadCallLogs = [newLog, ...existingCallLogs.filter(c => c.id !== newLog.id)];
+
       addActivity({
         type: 'Call Logged',
         message: logData.callDirection + ' call (' + logData.outcome + ') logged: ' + (logData.notes ? logData.notes.slice(0, 60) : ''),
-        user: logData.telecallerName || currentUser?.name || 'Telecaller',
+        user: callerName,
         leadId: logData.leadId
       });
+
+      const leadUpdates: Partial<MockLead> = {
+        callLogs: updatedLeadCallLogs as any
+      };
+
       if (logData.nextFollowUpDate) {
-        updateLead(logData.leadId, {
-          followUp: {
-            date: logData.nextFollowUpDate,
-            time: logData.nextFollowUpTime || '11:00 AM',
-            type: 'Call',
-            status: 'Upcoming',
-            notes: logData.notes
-          }
-        });
+        leadUpdates.followUp = {
+          date: logData.nextFollowUpDate,
+          time: logData.nextFollowUpTime || '11:00 AM',
+          type: 'Call',
+          status: 'Upcoming',
+          notes: logData.notes
+        };
       }
+
+      await updateLead(logData.leadId, leadUpdates);
     }
   };
 
