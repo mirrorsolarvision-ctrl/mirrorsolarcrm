@@ -23,7 +23,9 @@ import {
   AlertCircle,
   Minimize2,
   Maximize2,
-  CheckCircle2
+  CheckCircle2,
+  EyeOff,
+  Eye
 } from 'lucide-react';
 import { useCRM, type MockLead } from '../context/CRMContext';
 import { useQuotations } from '../context/QuotationContext';
@@ -86,6 +88,176 @@ export default function WhatsAppBuddy() {
   const { quotations } = useQuotations();
   const { currentUser } = useAuth();
   const { logAction } = useAudit();
+
+  // Draggable positioning state
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem('wa_buddy_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          const clampedX = Math.min(Math.max(10, parsed.x), window.innerWidth - 75);
+          const clampedY = Math.min(Math.max(10, parsed.y), window.innerHeight - 75);
+          return { x: clampedX, y: clampedY };
+        }
+      }
+    } catch {}
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    return {
+      x: typeof window !== 'undefined' ? Math.max(10, window.innerWidth - (isMobile ? 76 : 84)) : 100,
+      y: typeof window !== 'undefined' ? Math.max(10, window.innerHeight - (isMobile ? 144 : 88)) : 100
+    };
+  });
+
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragRef = useRef<{ startX: number; startY: number; initX: number; initY: number; moved: boolean }>({
+    startX: 0,
+    startY: 0,
+    initX: 0,
+    initY: 0,
+    moved: false
+  });
+
+  // Hideable state
+  const [isHidden, setIsHidden] = useState<boolean>(() => {
+    return localStorage.getItem('wa_buddy_hidden') === 'true';
+  });
+
+  const handleHideBuddy = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsHidden(true);
+    setIsOpen(false);
+    try {
+      localStorage.setItem('wa_buddy_hidden', 'true');
+    } catch {}
+  };
+
+  const handleRestoreBuddy = () => {
+    setIsHidden(false);
+    try {
+      localStorage.setItem('wa_buddy_hidden', 'false');
+    } catch {}
+  };
+
+  // Dragging event handlers for launcher
+  const handleDragStart = (clientX: number, clientY: number) => {
+    dragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      initX: position.x,
+      initY: position.y,
+      moved: false
+    };
+    setIsDragging(true);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('.wa-buddy-launcher-hide-btn')) return;
+    handleDragStart(e.clientX, e.clientY);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    if ((e.target as HTMLElement).closest('.wa-buddy-launcher-hide-btn')) return;
+    handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragRef.current.startX;
+      const deltaY = e.clientY - dragRef.current.startY;
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+        dragRef.current.moved = true;
+      }
+      const newX = Math.min(Math.max(10, dragRef.current.initX + deltaX), window.innerWidth - 70);
+      const newY = Math.min(Math.max(10, dragRef.current.initY + deltaY), window.innerHeight - 70);
+      setPosition({ x: newX, y: newY });
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      if (dragRef.current.moved) {
+        try {
+          localStorage.setItem('wa_buddy_pos', JSON.stringify(position));
+        } catch {}
+      } else {
+        setIsOpen(prev => !prev);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const deltaX = e.touches[0].clientX - dragRef.current.startX;
+      const deltaY = e.touches[0].clientY - dragRef.current.startY;
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+        dragRef.current.moved = true;
+      }
+      const newX = Math.min(Math.max(10, dragRef.current.initX + deltaX), window.innerWidth - 70);
+      const newY = Math.min(Math.max(10, dragRef.current.initY + deltaY), window.innerHeight - 70);
+      setPosition({ x: newX, y: newY });
+    };
+
+    const onTouchEnd = () => {
+      setIsDragging(false);
+      if (dragRef.current.moved) {
+        try {
+          localStorage.setItem('wa_buddy_pos', JSON.stringify(position));
+        } catch {}
+      } else {
+        setIsOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isDragging, position]);
+
+  const getWindowStyle = (): React.CSSProperties => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (isMobile) {
+      return {
+        bottom: '16px',
+        left: '16px',
+        right: '16px',
+        width: 'calc(100vw - 32px)',
+        maxHeight: 'calc(100vh - 100px)'
+      };
+    }
+
+    const windowWidth = isExpanded ? 640 : 440;
+    const windowHeight = 620;
+    
+    let left = position.x - windowWidth + 60;
+    if (left < 16) left = 16;
+    if (left + windowWidth > window.innerWidth - 16) left = window.innerWidth - windowWidth - 16;
+
+    let top = position.y - windowHeight - 16;
+    if (top < 16) {
+      top = position.y + 70;
+      if (top + windowHeight > window.innerHeight - 16) {
+        top = Math.max(16, window.innerHeight - windowHeight - 16);
+      }
+    }
+
+    return {
+      left: `${left}px`,
+      top: `${top}px`,
+      bottom: 'auto',
+      right: 'auto'
+    };
+  };
 
   // Widget visibility & window states
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -467,32 +639,69 @@ export default function WhatsAppBuddy() {
   return (
     <>
       {/* 1. FLOATING LAUNCHER BUDDY BUTTON */}
-      <div 
-        className={`wa-buddy-launcher ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(prev => !prev)}
-        title="WhatsApp Buddy • Smart Solar Message Dispatcher"
-      >
-        <div className="wa-buddy-launcher-ring"></div>
-        <div className="wa-buddy-launcher-inner">
-          <MessageSquare className="wa-buddy-icon" size={24} />
-          <span className="wa-buddy-sun">☀️</span>
-        </div>
-        
-        {urgentLeads.length > 0 && !isOpen && (
-          <span className="wa-buddy-badge" title={`${urgentLeads.length} leads requiring WhatsApp follow-up`}>
-            {urgentLeads.length}
-          </span>
-        )}
+      {!isHidden && (
+        <div 
+          className={`wa-buddy-launcher ${isOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            right: 'auto',
+            bottom: 'auto'
+          }}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          title="WhatsApp Buddy • Drag anywhere to move, click to open"
+        >
+          <div className="wa-buddy-launcher-ring"></div>
+          <div className="wa-buddy-launcher-inner">
+            <MessageSquare className="wa-buddy-icon" size={24} />
+            <span className="wa-buddy-sun">☀️</span>
+          </div>
 
-        <div className="wa-buddy-tooltip">
-          <span className="wa-buddy-tooltip-title">WhatsApp Buddy</span>
-          <span className="wa-buddy-tooltip-sub">Instant Solar Proposal & Follow-up Assistant</span>
+          {/* Quick Hover Hide Button */}
+          <button 
+            type="button" 
+            className="wa-buddy-launcher-hide-btn"
+            onClick={handleHideBuddy}
+            title="Hide WhatsApp Buddy"
+          >
+            <EyeOff size={11} />
+          </button>
+          
+          {urgentLeads.length > 0 && !isOpen && (
+            <span className="wa-buddy-badge" title={`${urgentLeads.length} leads requiring WhatsApp follow-up`}>
+              {urgentLeads.length}
+            </span>
+          )}
+
+          <div className="wa-buddy-tooltip">
+            <span className="wa-buddy-tooltip-title">WhatsApp Buddy</span>
+            <span className="wa-buddy-tooltip-sub">Drag to move • Click to open</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* RESTORE PILL WHEN HIDDEN */}
+      {isHidden && (
+        <button 
+          type="button" 
+          className="wa-buddy-restore-pill"
+          onClick={handleRestoreBuddy}
+          title="Click to show WhatsApp Buddy"
+        >
+          <div className="wa-restore-pulse"></div>
+          <MessageSquare size={14} className="wa-restore-icon" />
+          <span className="wa-restore-text">Show WhatsApp Buddy</span>
+          <Eye size={13} className="wa-restore-eye" />
+        </button>
+      )}
 
       {/* 2. MAIN FLOATING BUDDY PANEL */}
-      {isOpen && (
-        <div className={`wa-buddy-window ${isExpanded ? 'expanded' : ''}`}>
+      {!isHidden && isOpen && (
+        <div 
+          className={`wa-buddy-window ${isExpanded ? 'expanded' : ''}`}
+          style={getWindowStyle()}
+        >
           
           {/* WINDOW HEADER */}
           <div className="wa-buddy-header">
@@ -514,6 +723,13 @@ export default function WhatsAppBuddy() {
             </div>
 
             <div className="wa-buddy-header-actions">
+              <button 
+                className="wa-icon-btn wa-hide-btn"
+                onClick={handleHideBuddy}
+                title="Hide WhatsApp Buddy (Restorable anytime)"
+              >
+                <EyeOff size={16} />
+              </button>
               <button 
                 className="wa-icon-btn"
                 onClick={() => setIsExpanded(prev => !prev)}
