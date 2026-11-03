@@ -106,3 +106,4 @@ if (process.argv[1] && process.argv[1].endsWith('backupFirestore.mjs')) {
     process.exit(1);
   });
 }
+

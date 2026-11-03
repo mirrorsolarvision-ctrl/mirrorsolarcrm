@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff, ShieldCheck, Sparkles, User, Briefcase, Mail, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { useAuth } from './context/AuthContext';
 import { useAudit } from './context/AuditLogContext';
@@ -101,20 +101,44 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     }
   };
 
-  const recordFailedAttempt = (identifier: string) => {
+  const recordFailedAttempt = async (identifier: string) => {
     try {
+      const sanitizedId = identifier.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const attempts = parseInt(localStorage.getItem('crm_login_failed_attempts') || '0', 10) + 1;
       localStorage.setItem('crm_login_failed_attempts', attempts.toString());
-      if (attempts >= MAX_FAILED_ATTEMPTS) {
-        const lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+      
+      let isLocked = attempts >= MAX_FAILED_ATTEMPTS;
+      let lockoutUntil = isLocked ? Date.now() + LOCKOUT_DURATION_MS : 0;
+
+      // Cross-Device Server-Side Lockout in Firestore
+      try {
+        const attemptRef = doc(db, 'auth_attempts', sanitizedId);
+        const snap = await getDoc(attemptRef);
+        const serverData = snap.exists() ? snap.data() : { failedCount: 0 };
+        const serverCount = (serverData.failedCount || 0) + 1;
+        if (serverCount >= MAX_FAILED_ATTEMPTS) {
+          isLocked = true;
+          lockoutUntil = Math.max(lockoutUntil, Date.now() + LOCKOUT_DURATION_MS);
+        }
+        await setDoc(attemptRef, {
+          identifier,
+          failedCount: serverCount,
+          lastAttemptAt: new Date().toISOString(),
+          lockoutUntil
+        }, { merge: true });
+      } catch (err) {
+        console.warn('Server-side rate limit record fallback:', err);
+      }
+
+      if (isLocked) {
         localStorage.setItem('crm_login_lockout_until', lockoutUntil.toString());
-        setLockoutRemainingSec(Math.ceil(LOCKOUT_DURATION_MS / 1000));
+        setLockoutRemainingSec(Math.ceil((lockoutUntil - Date.now()) / 1000));
         logAction({
           action: 'LOGIN_LOCKED_OUT',
           entityType: 'Security',
           entityId: identifier,
-          entityLabel: `Account locked after ${attempts} consecutive failed attempts`,
-          reason: 'Excessive consecutive authentication failures'
+          entityLabel: `Account locked after consecutive failed attempts`,
+          reason: 'Excessive consecutive authentication failures across devices'
         }).catch(() => {});
       } else {
         logAction({
@@ -130,11 +154,23 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     }
   };
 
-  const clearFailedAttempts = () => {
+  const clearFailedAttempts = async (identifier?: string) => {
     try {
       localStorage.removeItem('crm_login_failed_attempts');
       localStorage.removeItem('crm_login_lockout_until');
       setLockoutRemainingSec(0);
+
+      if (identifier) {
+        const sanitizedId = identifier.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        try {
+          await setDoc(doc(db, 'auth_attempts', sanitizedId), {
+            identifier,
+            failedCount: 0,
+            lockoutUntil: 0,
+            lastSuccessAt: new Date().toISOString()
+          }, { merge: true });
+        } catch {}
+      }
     } catch {}
   };
 
@@ -203,15 +239,32 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
 
     const targetEmail = resolveCanonicalEmail(rawInput);
     const inputPass = rawPass.trim();
+    const sanitizedId = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    // Server-side lockout verification (Cross-Device Defense)
+    try {
+      const attemptSnap = await getDoc(doc(db, 'auth_attempts', sanitizedId));
+      if (attemptSnap.exists()) {
+        const attemptData = attemptSnap.data();
+        const serverLockoutUntil = attemptData.lockoutUntil || 0;
+        if (serverLockoutUntil > Date.now()) {
+          const remainingSec = Math.ceil((serverLockoutUntil - Date.now()) / 1000);
+          setLockoutRemainingSec(remainingSec);
+          const mins = Math.ceil(remainingSec / 60);
+          setErrorMsg(`Account temporarily locked across all devices due to repeated authentication failures. Please wait ${mins} minute${mins > 1 ? 's' : ''} or reset password.`);
+          setIsSigningIn(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Server rate limit lookup fallback:', e);
+    }
 
     try {
       // Authenticate directly with Firebase Authentication backend
       const userCredential = await signInWithEmailAndPassword(auth, targetEmail, inputPass);
       const firebaseUser = userCredential.user;
       const uid = firebaseUser.uid;
-
-      // Successful login - clear device failed attempts counter
-      clearFailedAttempts();
 
       // Fetch user profile from Firestore /users/{uid}
       let crmUser: CRMUser | null = null;
@@ -286,6 +339,17 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       }
 
       if (crmUser) {
+        // Account Deactivation & Suspension Enforcement Gate
+        if (crmUser.status === 'Inactive') {
+          await auth.signOut();
+          setErrorMsg("Access Denied: This account has been deactivated by administration. Please contact HR / Admin.");
+          setIsSigningIn(false);
+          return;
+        }
+
+        // Clear server & local failed attempts on authenticated access
+        await clearFailedAttempts(targetEmail);
+
         // Record successful login audit trail
         logAction({
           action: 'LOGIN_SUCCESS',
@@ -304,7 +368,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       }
     } catch (authErr: any) {
       console.warn('Firebase authentication failed:', authErr.code || authErr.message);
-      recordFailedAttempt(targetEmail);
+      await recordFailedAttempt(targetEmail);
 
       if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/user-not-found') {
         setErrorMsg('Invalid username or password. Please verify credentials and try again.');

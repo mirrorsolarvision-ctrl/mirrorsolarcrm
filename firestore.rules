@@ -49,10 +49,10 @@ service cloud.firestore {
       );
     }
 
-    function isTelecaller() {
+    function isSuryaGharIncharge() {
       return isEmployee() && (
-        getUserDoc().employeeCategory in ['Telecaller', 'Sales Manager (Telecaller)'] ||
-        getUserDoc().category in ['Telecaller', 'Sales Manager (Telecaller)']
+        getUserDoc().employeeCategory in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
+        getUserDoc().category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar']
       );
     }
 
@@ -60,13 +60,6 @@ service cloud.firestore {
       return isEmployee() && (
         getUserDoc().employeeCategory == 'Stock Incharge' ||
         getUserDoc().category == 'Stock Incharge'
-      );
-    }
-
-    function isSuryaGharIncharge() {
-      return isEmployee() && (
-        getUserDoc().employeeCategory in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
-        getUserDoc().category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar']
       );
     }
 
@@ -131,7 +124,9 @@ service cloud.firestore {
         // Non-admins cannot set installation approval at creation
         (!('installationApprovalStatus' in request.resource.data) || request.resource.data.installationApprovalStatus == 'None') &&
         // Non-payment-verifiers cannot set paymentVerificationStatus to Verified at creation
-        (!('paymentVerificationStatus' in request.resource.data) || request.resource.data.paymentVerificationStatus != 'Verified' || isPaymentVerifier())
+        (!('paymentVerificationStatus' in request.resource.data) || request.resource.data.paymentVerificationStatus != 'Verified' || isPaymentVerifier()) &&
+        // Dealer allocation status must be None or Requested on create
+        (!('dealerStatus' in request.resource.data) || request.resource.data.dealerStatus in ['None', 'Requested'] || isAdmin())
       );
 
       // Field-Level Update Allowlists
@@ -148,6 +143,12 @@ service cloud.firestore {
             'dealerCode', 'dealerStatus', 'quotationRequested', 'discountRequested',
             'assignedEmployeeId', 'assignedEmployee', 'assignedEmployeeEmail', 'leadOwnerId'
           ]) &&
+          // Cannot unilaterally approve dealer allocation (must remain Requested or Pending)
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['dealerStatus']) ||
+           request.resource.data.dealerStatus in ['Requested', 'Pending', 'None'] ||
+           resource.data.dealerStatus == request.resource.data.dealerStatus ||
+           isAdmin()
+          ) &&
           // Cannot unilaterally verify customer payments
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['payments']) ||
            request.resource.data.payments.customerPayments == resource.data.payments.customerPayments ||
@@ -196,6 +197,32 @@ service cloud.firestore {
         )
       );
 
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 3b. SEPARATE SENSITIVE DOCUMENT COLLECTIONS
+    // ==========================================
+    // Financial Data (Customer Bank Details, Gross Margin, Settlement)
+    match /leadFinancials/{leadId} {
+      allow read: if isAdmin() || isAccounts();
+      allow write: if isPaymentVerifier();
+    }
+
+    // Sensitive Identity Documents (Aadhaar number, PAN, KYC validation tokens)
+    match /leadKyc/{leadId} {
+      allow read: if isAdmin() || isSuryaGharIncharge();
+      allow write: if isAdmin() || isSuryaGharIncharge();
+    }
+
+    // Internal Management Executive Notes & Margins
+    match /leadManagement/{leadId} {
+      allow read, write: if isAdmin() || isSalesManager();
+    }
+
+    // Rate limiting tracking for server-side brute force defense
+    match /auth_attempts/{docId} {
+      allow read, create, update: if true;
       allow delete: if isAdmin();
     }
 
@@ -296,7 +323,6 @@ service cloud.firestore {
     match /stockDispatches/{dispatchId} {
       allow read: if isAuthenticated() && (isAdmin() || isStockIncharge() || resource.data.dealerId == request.auth.uid);
       allow create: if isAdmin() || isStockIncharge();
-      // Dealer can only confirm receipt or submit delivery rejection notes
       allow update: if isAdmin() || isStockIncharge() || (
         isDealer() && resource.data.dealerId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -339,7 +365,7 @@ service cloud.firestore {
     match /attendance/{attId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin(); // Attendance corrections approved by Admin only
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -389,9 +415,20 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if isAdmin() || isAccounts();
       allow create: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.userUid == request.auth.uid ||
-        request.resource.data.actorId == request.auth.uid
+        (request.resource.data.userId == request.auth.uid ||
+         request.resource.data.userUid == request.auth.uid ||
+         request.resource.data.actorId == request.auth.uid) &&
+        // SENSITIVE AUDIT ACTIONS ANTI-FORGERY GATE:
+        // Ordinary employees CANNOT fabricate financial verification, discount approval, or role changes
+        (!('action' in request.resource.data) || !(request.resource.data.action in [
+          'PAYMENT_VERIFIED', 'PAYMENT_REJECTED', 'DISCOUNT_APPROVED', 
+          'PERMISSION_CHANGED', 'ROLE_CHANGED', 'DEALER_ALLOCATION_APPROVED',
+          'SALARY_CONFIG_UPDATED', 'PAYROLL_DISBURSED', 'PAYROLL_SAVED'
+        ]) || isPaymentVerifier()) &&
+        // Super Admin only actions:
+        (!('action' in request.resource.data) || !(request.resource.data.action in [
+          'PERMISSION_CHANGED', 'ROLE_CHANGED', 'SALARY_CONFIG_UPDATED'
+        ]) || isAdmin())
       );
       allow update, delete: if false; // Absolute immutability: tamper-proof
     }

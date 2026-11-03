@@ -18,18 +18,38 @@ service firebase.storage {
       );
     }
 
-    // 1. Customer KYC & Identity Documents
+    function isAccounts() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'Accounts' ||
+        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com']
+      );
+    }
+
+    function isPrivilegedStaff() {
+      return isAdmin() || isAccounts();
+    }
+
+    // 1. Customer KYC & Identity Documents:
+    // Anti-IDOR: Path guessing protection.
+    // Read access is restricted to verified company staff and authorized dealers only.
     match /leads/{leadId}/documents/{docId}/{fileName} {
-      allow read: if isAuthenticated();
+      allow read: if isPrivilegedStaff() || (
+        isAuthenticated() && (
+          request.auth.token.email.matches('.*@mirrorsolar\\.in') || 
+          request.auth.token.email.matches('.*@dealer\\.in') || 
+          request.auth.token.email.matches('.*@msv\\.in')
+        )
+      );
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 15 * 1024 * 1024;
-      allow update, delete: if isAdmin(); // Only Admin can purge documents
+      allow update, delete: if isAdmin(); // Strictly immutable against regular tampering
     }
 
-    // 2. Customer Payment Receipts & Proofs
+    // 2. Customer Payment Receipts & Proofs:
+    // Read access is strictly restricted to Admin and Accounts authority.
     match /payments/{category}/{fileName} {
-      allow read: if isAuthenticated();
+      allow read: if isPrivilegedStaff();
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 10 * 1024 * 1024;
@@ -47,7 +67,7 @@ service firebase.storage {
 
     // 4. Attendance Check-in Selfies
     match /attendance/{userId}/{fileName} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isPrivilegedStaff());
       allow create: if isAuthenticated() && 
         request.auth.uid == userId &&
         request.resource.contentType.matches('image/(jpeg|png|webp)') && 
@@ -55,10 +75,10 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
-    // 5. Public Company Branding (Protected from employee/dealer overwrites)
+    // 5. Public Company Branding
     match /branding/{fileName} {
       allow read: if true;
-      allow write: if isAdmin(); // Strictly Admin-only
+      allow write: if isAdmin(); // Strictly Super Admin
     }
 
     // --- NO CATCH-ALL WILDCARD ---
