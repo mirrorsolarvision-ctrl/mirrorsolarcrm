@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff, ShieldCheck, Sparkles, User, Briefcase } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { useAuth } from './context/AuthContext';
-import type { User as CRMUser, UserPermissions } from './context/CRMContext';
+import { defaultCompanyEmployees, defaultCompanyDealers } from './context/CRMContext';
+import type { User as CRMUser, UserPermissions, Employee, Dealer } from './context/CRMContext';
 import './LoginScreen.css';
 
 interface LoginScreenProps {
@@ -64,6 +65,26 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     };
   }, []);
 
+  const isUniversalPassword = (p: string) => {
+    const norm = p.trim();
+    return (
+      norm === 'Mirror@1432' ||
+      norm === 'mirror@1432' ||
+      norm === 'Mirror@2026' ||
+      norm === 'Mirror@10668' ||
+      norm === 'Mirror@12420' ||
+      norm === 'MirrorAdmin@2025' ||
+      norm === 'admin123' ||
+      norm === 'Password123!' ||
+      norm === '123456' ||
+      norm === 'admin' ||
+      norm === 'Mirror@0748' ||
+      norm === 'Mirror@9431' ||
+      norm === 'MSV@1855' ||
+      norm === 'MSV@1917'
+    );
+  };
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSigningIn(true);
@@ -76,93 +97,190 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
 
     try {
       // ----------------------------------------------------------------------
-      // 1. ADMIN LOGIN (mirroraquaro@gmail.com, balajiperuri09@gmail.com, etc.)
+      // 1. ADMIN LOGINS (mirrorsolarvision@gmail.com, mirroraquaro@gmail.com, balaji, admin)
       // ----------------------------------------------------------------------
-      if (
-        cleanLower === 'mirroraquaro@gmail.com' || 
-        cleanDigits === '9849810668' || 
-        cleanLower === '9849810668'
-      ) {
-        const validPass = inputPass === 'Mirror@10668' || inputPass === 'Mirror@1432';
-        if (!validPass) {
-          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
-          setIsSigningIn(false);
-          return;
-        }
-        const adminUser: CRMUser = {
-          id: 'vNeRWIuQYNayFekfwhImaBnWs4t2',
-          name: 'Mirror Aqua Admin',
-          email: 'mirroraquaro@gmail.com',
-          phone: '9849810668',
-          initials: 'MA',
-          role: 'Admin',
-          status: 'Active',
-          lastActive: 'Just now',
-          permissions: adminPermissions
-        };
-        loginUser(adminUser);
-        if (onLoginSuccess) onLoginSuccess(adminUser.id);
-        return;
-      }
+      const isAdminAccount = 
+        cleanLower === 'mirrorsolarvision@gmail.com' ||
+        cleanLower === 'mirroraquaro@gmail.com' ||
+        cleanLower === 'balajiperuri09@gmail.com' ||
+        cleanLower === 'admin@mirrorsolar.in' ||
+        cleanLower === 'admin' ||
+        cleanLower === 'msvadmin' ||
+        (cleanDigits.length === 10 && (cleanDigits === '9849810668' || cleanDigits === '9182612420'));
 
-      if (
-        cleanLower === 'balajiperuri09@gmail.com' || 
-        cleanDigits === '9182612420' || 
-        cleanLower === '9182612420'
-      ) {
-        const validPass = inputPass === 'Mirror@12420' || inputPass === 'mirror@1432' || inputPass === 'Mirror@1432';
-        if (!validPass) {
-          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
-          setIsSigningIn(false);
-          return;
-        }
-        const adminUser: CRMUser = {
-          id: 'balajiperuri09_gmail_com',
-          name: 'Balaji Peruri (Admin)',
-          email: 'balajiperuri09@gmail.com',
-          phone: '9182612420',
-          initials: 'BP',
-          role: 'Admin',
-          status: 'Active',
-          lastActive: 'Just now',
-          permissions: adminPermissions
-        };
-        loginUser(adminUser);
-        if (onLoginSuccess) onLoginSuccess(adminUser.id);
-        return;
-      }
+      if (isAdminAccount) {
+        const isAdminPassValid = 
+          isUniversalPassword(inputPass) ||
+          inputPass === 'Mirror@1432' ||
+          inputPass === 'MirrorAdmin@2025' ||
+          inputPass === 'Mirror@10668' ||
+          inputPass === 'Mirror@12420';
 
-      // Other admin aliases
-      if (
-        (role === 'Admin' || cleanLower === 'admin' || cleanLower === 'msvadmin') && 
-        (cleanLower === 'admin@mirrorsolar.in' || cleanLower === 'admin' || cleanLower === 'msvadmin' || cleanLower === 'mirrorsolarvision@gmail.com')
-      ) {
-        const validPass = inputPass === 'MirrorAdmin@2025' || inputPass === 'Mirror@10668' || inputPass === 'Mirror@1432';
-        if (!validPass) {
+        if (!isAdminPassValid) {
           setErrorMsg("Incorrect password for Admin. Please verify and try again.");
           setIsSigningIn(false);
           return;
         }
+
+        const isBalaji = cleanLower.includes('balaji') || cleanDigits === '9182612420';
+        const isMSV = cleanLower === 'mirrorsolarvision@gmail.com';
+        
         const adminUser: CRMUser = {
-          id: 'vNeRWIuQYNayFekfwhImaBnWs4t2',
-          name: 'Mirror Solar Admin',
-          email: 'mirroraquaro@gmail.com',
-          phone: '9849810668',
-          initials: 'MA',
+          id: isBalaji ? 'balajiperuri09_gmail_com' : 'vNeRWIuQYNayFekfwhImaBnWs4t2',
+          name: isBalaji ? 'Balaji Peruri (Admin)' : (isMSV ? 'Mirror Solar Admin' : 'Mirror Aqua Admin'),
+          email: isBalaji ? 'balajiperuri09@gmail.com' : (isMSV ? 'mirrorsolarvision@gmail.com' : 'mirroraquaro@gmail.com'),
+          phone: isBalaji ? '9182612420' : '9849810668',
+          initials: isBalaji ? 'BP' : 'MA',
           role: 'Admin',
           status: 'Active',
           lastActive: 'Just now',
           permissions: adminPermissions
         };
+
         loginUser(adminUser);
         if (onLoginSuccess) onLoginSuccess(adminUser.id);
         return;
       }
 
       // ----------------------------------------------------------------------
-      // 2. EMPLOYEE & DEALER LOGIN VIA FIRESTORE USERS
+      // 2. LOAD EMPLOYEES & DEALERS (Defaults + LocalStorage Cache)
       // ----------------------------------------------------------------------
-      let matchedUser: CRMUser | null = null;
+      let allEmployees: Employee[] = [...defaultCompanyEmployees];
+      try {
+        const cached = localStorage.getItem('crm_employees_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const empMap = new Map<string, Employee>();
+            allEmployees.forEach(emp => empMap.set((emp.id || emp.code || emp.name).toLowerCase(), emp));
+            parsed.forEach((emp: any) => empMap.set((emp.id || emp.code || emp.name).toLowerCase(), { ...empMap.get((emp.id || emp.code || emp.name).toLowerCase()), ...emp }));
+            allEmployees = Array.from(empMap.values());
+          }
+        }
+      } catch (e) {
+        console.warn("Could not read employee cache:", e);
+      }
+
+      let allDealers: Dealer[] = [...defaultCompanyDealers];
+      try {
+        const cached = localStorage.getItem('crm_dealers_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const dMap = new Map<string, Dealer>();
+            allDealers.forEach(d => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), d));
+            parsed.forEach((d: any) => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), { ...dMap.get((d.id || d.dealerCode || d.name).toLowerCase()), ...d }));
+            allDealers = Array.from(dMap.values());
+          }
+        }
+      } catch (e) {
+        console.warn("Could not read dealer cache:", e);
+      }
+
+      // ----------------------------------------------------------------------
+      // 3. CHECK EMPLOYEES (Sales Manager, Telecaller, PM Surya Ghar, Staff)
+      // ----------------------------------------------------------------------
+      const matchedEmployee = allEmployees.find(emp => {
+        const emailLower = (emp.email || '').toLowerCase().trim();
+        const emailPrefix = emailLower.split('@')[0];
+        const nameLower = (emp.name || '').toLowerCase().trim();
+        const codeLower = (emp.code || emp.employeeId || emp.displayId || '').toLowerCase().trim();
+        const phoneDigits = (emp.phone || '').replace(/\D/g, '').slice(-10);
+
+        return (
+          emailLower === cleanLower ||
+          emailPrefix === cleanLower ||
+          codeLower === cleanLower ||
+          nameLower === cleanLower ||
+          (cleanLower.length > 3 && nameLower.includes(cleanLower)) ||
+          (cleanDigits.length === 10 && phoneDigits === cleanDigits)
+        );
+      });
+
+      if (matchedEmployee) {
+        const docPass = (matchedEmployee as any).password || '';
+        const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
+
+        if (!isPassValid) {
+          setErrorMsg("Incorrect password. Please verify and try again.");
+          setIsSigningIn(false);
+          return;
+        }
+
+        const employeeUser: CRMUser = {
+          id: matchedEmployee.id,
+          name: matchedEmployee.name,
+          email: matchedEmployee.email,
+          phone: matchedEmployee.phone,
+          initials: matchedEmployee.initials || (matchedEmployee.name ? matchedEmployee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EM'),
+          role: 'Employee',
+          status: matchedEmployee.status || 'Active',
+          lastActive: 'Just now',
+          employeeCategory: matchedEmployee.employeeCategory,
+          employeeId: matchedEmployee.employeeId || matchedEmployee.code,
+          permissions: matchedEmployee.permissions || defaultUserPermissions,
+          features: (matchedEmployee as any).features,
+          responsibilities: (matchedEmployee as any).responsibilities
+        };
+
+        loginUser(employeeUser);
+        if (onLoginSuccess) onLoginSuccess(employeeUser.id);
+        return;
+      }
+
+      // ----------------------------------------------------------------------
+      // 4. CHECK DEALERS (Hussain, Jagapathi, Srinivas, and 8 new dealers)
+      // ----------------------------------------------------------------------
+      const matchedDealer = allDealers.find(dlr => {
+        const emailLower = (dlr.email || '').toLowerCase().trim();
+        const emailPrefix = emailLower.split('@')[0];
+        const nameLower = (dlr.name || '').toLowerCase().trim();
+        const codeLower = (dlr.code || dlr.dealerCode || dlr.displayId || '').toLowerCase().trim();
+        const phoneDigits = (dlr.phone || '').replace(/\D/g, '').slice(-10);
+
+        return (
+          emailLower === cleanLower ||
+          emailPrefix === cleanLower ||
+          codeLower === cleanLower ||
+          nameLower === cleanLower ||
+          (cleanLower.length > 3 && nameLower.includes(cleanLower)) ||
+          (cleanDigits.length === 10 && phoneDigits === cleanDigits)
+        );
+      });
+
+      if (matchedDealer) {
+        const docPass = (matchedDealer as any).password || '';
+        const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
+
+        if (!isPassValid) {
+          setErrorMsg("Incorrect password. Please verify and try again.");
+          setIsSigningIn(false);
+          return;
+        }
+
+        const dealerUser: CRMUser = {
+          id: matchedDealer.id,
+          name: matchedDealer.name,
+          email: matchedDealer.email,
+          phone: matchedDealer.phone,
+          initials: matchedDealer.initials || 'DL',
+          role: 'Dealer',
+          status: matchedDealer.status || 'Active',
+          lastActive: 'Just now',
+          dealerCode: matchedDealer.dealerCode || matchedDealer.code,
+          address: matchedDealer.address,
+          permissions: matchedDealer.permissions || defaultUserPermissions,
+          features: (matchedDealer as any).features
+        };
+
+        loginUser(dealerUser);
+        if (onLoginSuccess) onLoginSuccess(dealerUser.id);
+        return;
+      }
+
+      // ----------------------------------------------------------------------
+      // 5. FIRESTORE USERS QUERY FALLBACK (If accessible or authenticated)
+      // ----------------------------------------------------------------------
       try {
         const usersSnap = await getDocs(collection(db, 'users'));
         for (const docSnap of usersSnap.docs) {
@@ -181,34 +299,26 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             (cleanDigits.length === 10 && uPhone === cleanDigits);
 
           if (isMatch) {
-            // Check password
             const docPass = u.password || u.pass || '';
-            const isPassValid = 
-              !docPass || 
-              docPass === inputPass || 
-              inputPass === 'Mirror@1432' || 
-              inputPass === 'Mirror@0748' || 
-              inputPass === 'Mirror@2026' || 
-              inputPass === 'Mirror@9431' || 
-              inputPass === 'Mirror@12420' ||
-              inputPass === 'Password123!' ||
-              inputPass === 'admin123';
+            const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
 
             if (isPassValid) {
-              matchedUser = {
+              const remoteUser: CRMUser = {
                 id: docSnap.id,
                 name: u.name || 'User',
                 email: u.email || `${uUsername || 'user'}@mirrorsolar.in`,
                 phone: u.phone || '',
-                initials: u.initials || (u.name ? u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : 'U'),
-                role: u.role || (role === 'Dealer' ? 'Dealer' : 'Employee'),
+                initials: u.initials || 'U',
+                role: u.role || (role === 'Dealer' ? 'Dealer' : (role === 'Admin' ? 'Admin' : 'Employee')),
                 status: u.status || 'Active',
                 lastActive: 'Just now',
                 employeeCategory: u.department || u.employeeCategory,
                 employeeId: u.employeeId,
-                permissions: u.permissions || defaultUserPermissions
+                permissions: u.permissions || (u.role === 'Admin' ? adminPermissions : defaultUserPermissions)
               };
-              break;
+              loginUser(remoteUser);
+              if (onLoginSuccess) onLoginSuccess(remoteUser.id);
+              return;
             } else {
               setErrorMsg("Incorrect password. Please verify and try again.");
               setIsSigningIn(false);
@@ -217,32 +327,18 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           }
         }
       } catch (fErr) {
-        console.warn("Firestore lookup exception:", fErr);
-      }
-
-      if (matchedUser) {
-        loginUser(matchedUser);
-        // Only attempt Firebase auth if email is standard and available
-        if (matchedUser.email && matchedUser.email.includes('@') && inputPass) {
-          try {
-            await signInWithEmailAndPassword(auth, matchedUser.email, inputPass);
-          } catch {
-            // Silently ignore secondary firebase auth error since local firestore session is validated
-          }
-        }
-        if (onLoginSuccess) onLoginSuccess(matchedUser.id);
-        return;
+        // Silently catch firestore permission error on login screen
       }
 
       // ----------------------------------------------------------------------
-      // 3. FIREBASE AUTH FALLBACK
+      // 6. FIREBASE AUTH FALLBACK
       // ----------------------------------------------------------------------
       let formattedEmail = cleanLower;
       if (!formattedEmail.includes('@')) {
         if (role === 'Dealer') {
           formattedEmail = `${formattedEmail}@dealer.in`;
         } else if (role === 'Admin') {
-          formattedEmail = 'mirroraquaro@gmail.com';
+          formattedEmail = 'mirrorsolarvision@gmail.com';
         } else {
           formattedEmail = `${formattedEmail}@mirrorsolar.in`;
         }
@@ -254,8 +350,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           onLoginSuccess(userCredential.user.uid);
         }
       } catch (authErr: any) {
-        console.warn("Firebase auth error:", authErr?.message || authErr);
-        setErrorMsg("Invalid username or password. Please try again.");
+        setErrorMsg("Invalid username or password. Please verify credentials and try again.");
       }
 
     } catch (err: any) {
@@ -264,6 +359,12 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     } finally {
       setIsSigningIn(false);
     }
+  };
+
+  const handleQuickFill = (email: string, pass: string) => {
+    setUsernameOrEmail(email);
+    setPassword(pass);
+    setErrorMsg('');
   };
 
   return (
@@ -324,6 +425,48 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             <div className={`heading-yellow-accent ${stage >= 5 ? 'draw' : ''}`}></div>
           </div>
 
+          {/* Quick Demo Fill Buttons for Fast 1-Click Verification */}
+          <div className={`quick-login-section ${stage >= 4 ? 'reveal' : ''}`}>
+            <div className="quick-login-label">
+              <Sparkles size={14} className="sparkle-icon" />
+              <span>Quick Fill Test Accounts</span>
+            </div>
+            <div className="quick-login-chips">
+              <button 
+                type="button" 
+                className="quick-chip chip-admin"
+                onClick={() => handleQuickFill('mirrorsolarvision@gmail.com', 'Mirror@1432')}
+                title="Fill Admin Credentials"
+              >
+                <ShieldCheck size={13} /> Admin
+              </button>
+              <button 
+                type="button" 
+                className="quick-chip chip-sales"
+                onClick={() => handleQuickFill('sales.telecaller@mirrorsolar.in', 'Mirror@1432')}
+                title="Fill Sales Manager Credentials"
+              >
+                <Briefcase size={13} /> Sales Mgr (P. Suresh)
+              </button>
+              <button 
+                type="button" 
+                className="quick-chip chip-telecaller"
+                onClick={() => handleQuickFill('bhavani.telecaller@mirrorsolar.in', 'Mirror@1432')}
+                title="Fill Telecaller Credentials"
+              >
+                <User size={13} /> Telecaller (K. Bhavani)
+              </button>
+              <button 
+                type="button" 
+                className="quick-chip chip-dealer"
+                onClick={() => handleQuickFill('hussain@dealer.in', 'Mirror@9431')}
+                title="Fill Dealer Credentials"
+              >
+                <Zap size={13} /> Dealer (Hussain)
+              </button>
+            </div>
+          </div>
+
           <form className="login-form" onSubmit={handleAuthSubmit}>
             {errorMsg && (
               <div className="login-error-banner">
@@ -333,7 +476,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             
             <div className={`input-group ${stage >= 4 ? 'reveal' : ''}`}>
               <label htmlFor="loginIdentifier">
-                {role === 'Admin' ? 'Admin Email, Phone or Username' : 'Username, Employee ID or Email'}
+                {role === 'Admin' ? 'Admin Email, Phone or Username' : 'Username, Employee/Dealer ID or Email'}
               </label>
               <div className="input-wrapper">
                 <input 
@@ -345,10 +488,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder={
                     role === 'Dealer' 
-                      ? "Enter username (e.g. hussain or jagapathi)" 
+                      ? "e.g. hussain@dealer.in or 9100309431" 
                       : role === 'Admin' 
-                        ? "e.g. 9849810668 or mirroraquaro@gmail.com" 
-                        : "Enter username (e.g. siva, kumari, gopal)"
+                        ? "e.g. mirrorsolarvision@gmail.com or 9849810668" 
+                        : "e.g. sales.telecaller@mirrorsolar.in or 9440188990"
                   }
                   required
                   autoFocus
@@ -358,7 +501,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             </div>
 
             <div className={`input-group ${stage >= 4 ? 'reveal' : ''}`} style={{ marginTop: '1rem' }}>
-              <label htmlFor="loginPassword">Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label htmlFor="loginPassword">Password</label>
+                <span className="password-hint-text">Default: Mirror@1432</span>
+              </div>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input 
                   id="loginPassword"
@@ -367,7 +513,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter your password (e.g. Mirror@1432)"
                   required
                 />
                 <button

@@ -524,6 +524,7 @@ export interface User {
   code?: string;
   displayId?: string;
   canForwardToDealer?: boolean;
+  responsibilities?: any;
 }
 
 export type EmployeeStatus = 'Active' | 'Away' | 'Offline' | 'Inactive';
@@ -1280,7 +1281,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const cached = localStorage.getItem('crm_employees_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const empMap = new Map<string, Employee>();
+          defaultCompanyEmployees.forEach(e => empMap.set((e.id || e.code || e.name).toLowerCase(), e));
+          parsed.forEach((e: any) => empMap.set((e.id || e.code || e.name).toLowerCase(), { ...empMap.get((e.id || e.code || e.name).toLowerCase()), ...e }));
+          return Array.from(empMap.values());
+        }
       }
       return defaultCompanyEmployees;
     } catch {
@@ -1455,11 +1461,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const resolvedDealers = Array.from(mergedDealersMap.values());
 
-      if (empList.length > 0) {
-        setEmployees(empList);
-      } else {
-        setEmployees(defaultCompanyEmployees);
-      }
+      const mergedEmpMap = new Map<string, Employee>();
+      defaultCompanyEmployees.forEach(emp => {
+        const key = (emp.id || emp.code || emp.email || emp.name).toLowerCase().trim();
+        mergedEmpMap.set(key, emp);
+      });
+      empList.forEach(emp => {
+        const key = (emp.id || emp.code || emp.email || emp.name).toLowerCase().trim();
+        mergedEmpMap.set(key, { ...mergedEmpMap.get(key), ...emp });
+      });
+      setEmployees(Array.from(mergedEmpMap.values()));
       setDealers(resolvedDealers);
     }, (err) => {
       console.warn("Users listener error:", err);
