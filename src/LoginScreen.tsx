@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff, ShieldCheck, Sparkles, User, Briefcase } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from './firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { auth } from './firebase';
 import { useAuth } from './context/AuthContext';
 import { defaultCompanyEmployees, defaultCompanyDealers } from './context/CRMContext';
 import type { User as CRMUser, UserPermissions, Employee, Dealer } from './context/CRMContext';
@@ -85,15 +84,14 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     );
   };
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const processLogin = async (rawInput: string, rawPass: string) => {
     setIsSigningIn(true);
     setErrorMsg('');
 
-    const rawInput = usernameOrEmail.trim();
-    const cleanLower = rawInput.toLowerCase();
-    const cleanDigits = rawInput.replace(/\D/g, '').slice(-10);
-    const inputPass = password.trim();
+    const cleanInput = rawInput.trim();
+    const cleanLower = cleanInput.toLowerCase();
+    const cleanDigits = cleanInput.replace(/\D/g, '').slice(-10);
+    const inputPass = rawPass.trim();
 
     try {
       // ----------------------------------------------------------------------
@@ -126,11 +124,11 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         const isMSV = cleanLower === 'mirrorsolarvision@gmail.com';
         
         const adminUser: CRMUser = {
-          id: isBalaji ? 'balajiperuri09_gmail_com' : 'vNeRWIuQYNayFekfwhImaBnWs4t2',
-          name: isBalaji ? 'Balaji Peruri (Admin)' : (isMSV ? 'Mirror Solar Admin' : 'Mirror Aqua Admin'),
+          id: isBalaji ? 'balajiperuri09_gmail_com' : (isMSV ? 'J5Iht5bVwPQEOme5RpHPdruYlqB3' : 'vNeRWIuQYNayFekfwhImaBnWs4t2'),
+          name: isBalaji ? 'Balaji Peruri (Admin)' : (isMSV ? 'Mirror Solar Vision Admin' : 'Mirror Aqua Admin'),
           email: isBalaji ? 'balajiperuri09@gmail.com' : (isMSV ? 'mirrorsolarvision@gmail.com' : 'mirroraquaro@gmail.com'),
           phone: isBalaji ? '9182612420' : '9849810668',
-          initials: isBalaji ? 'BP' : 'MA',
+          initials: isBalaji ? 'BP' : (isMSV ? 'MS' : 'MA'),
           role: 'Admin',
           status: 'Active',
           lastActive: 'Just now',
@@ -138,13 +136,19 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         };
 
         loginUser(adminUser);
+        try {
+          await signInWithEmailAndPassword(auth, adminUser.email, inputPass);
+        } catch {}
         if (onLoginSuccess) onLoginSuccess(adminUser.id);
         return;
       }
 
       // ----------------------------------------------------------------------
-      // 2. LOAD EMPLOYEES & DEALERS (Defaults + LocalStorage Cache)
+      // 2. CHECK EMPLOYEES (Bhavani, Suresh, Siva, Kumari, Gopal, Staff)
       // ----------------------------------------------------------------------
+      const isBhavani = cleanLower.includes('bhavani') || cleanDigits === '9848123456' || cleanLower === 'msv-tc-001';
+      const isSuresh = cleanLower.includes('suresh') || cleanDigits === '9440188990' || cleanLower === 'msv-sales-001';
+
       let allEmployees: Employee[] = [...defaultCompanyEmployees];
       try {
         const cached = localStorage.getItem('crm_employees_cache');
@@ -161,31 +165,15 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         console.warn("Could not read employee cache:", e);
       }
 
-      let allDealers: Dealer[] = [...defaultCompanyDealers];
-      try {
-        const cached = localStorage.getItem('crm_dealers_cache');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const dMap = new Map<string, Dealer>();
-            allDealers.forEach(d => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), d));
-            parsed.forEach((d: any) => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), { ...dMap.get((d.id || d.dealerCode || d.name).toLowerCase()), ...d }));
-            allDealers = Array.from(dMap.values());
-          }
-        }
-      } catch (e) {
-        console.warn("Could not read dealer cache:", e);
-      }
-
-      // ----------------------------------------------------------------------
-      // 3. CHECK EMPLOYEES (Sales Manager, Telecaller, PM Surya Ghar, Staff)
-      // ----------------------------------------------------------------------
       const matchedEmployee = allEmployees.find(emp => {
         const emailLower = (emp.email || '').toLowerCase().trim();
         const emailPrefix = emailLower.split('@')[0];
         const nameLower = (emp.name || '').toLowerCase().trim();
         const codeLower = (emp.code || emp.employeeId || emp.displayId || '').toLowerCase().trim();
         const phoneDigits = (emp.phone || '').replace(/\D/g, '').slice(-10);
+
+        if (isBhavani && (emp.id === 'emp_telecaller_bhavani' || emailLower.includes('bhavani') || nameLower.includes('bhavani'))) return true;
+        if (isSuresh && (emp.id === 'emp_telecaller_sales' || emailLower.includes('sales') || nameLower.includes('suresh'))) return true;
 
         return (
           emailLower === cleanLower ||
@@ -224,13 +212,34 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         };
 
         loginUser(employeeUser);
+        if (employeeUser.email && employeeUser.email.includes('@')) {
+          try {
+            await signInWithEmailAndPassword(auth, employeeUser.email, inputPass);
+          } catch {}
+        }
         if (onLoginSuccess) onLoginSuccess(employeeUser.id);
         return;
       }
 
       // ----------------------------------------------------------------------
-      // 4. CHECK DEALERS (Hussain, Jagapathi, Srinivas, and 8 new dealers)
+      // 3. CHECK DEALERS (Hussain, Jagapathi, Srinivas, and 8 new dealers)
       // ----------------------------------------------------------------------
+      let allDealers: Dealer[] = [...defaultCompanyDealers];
+      try {
+        const cached = localStorage.getItem('crm_dealers_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const dMap = new Map<string, Dealer>();
+            allDealers.forEach(d => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), d));
+            parsed.forEach((d: any) => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), { ...dMap.get((d.id || d.dealerCode || d.name).toLowerCase()), ...d }));
+            allDealers = Array.from(dMap.values());
+          }
+        }
+      } catch (e) {
+        console.warn("Could not read dealer cache:", e);
+      }
+
       const matchedDealer = allDealers.find(dlr => {
         const emailLower = (dlr.email || '').toLowerCase().trim();
         const emailPrefix = emailLower.split('@')[0];
@@ -274,82 +283,52 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         };
 
         loginUser(dealerUser);
+        if (dealerUser.email && dealerUser.email.includes('@')) {
+          try {
+            await signInWithEmailAndPassword(auth, dealerUser.email, inputPass);
+          } catch {}
+        }
         if (onLoginSuccess) onLoginSuccess(dealerUser.id);
         return;
       }
 
       // ----------------------------------------------------------------------
-      // 5. FIRESTORE USERS QUERY FALLBACK (If accessible or authenticated)
-      // ----------------------------------------------------------------------
-      try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        for (const docSnap of usersSnap.docs) {
-          const u = docSnap.data();
-          const uEmail = (u.email || '').toLowerCase().trim();
-          const uUsername = (u.username || '').toLowerCase().trim();
-          const uEmpId = (u.employeeId || '').toLowerCase().trim();
-          const uPhone = (u.phone || '').replace(/\D/g, '').slice(-10);
-          const uName = (u.name || '').toLowerCase().trim();
-
-          const isMatch = 
-            uUsername === cleanLower ||
-            uEmail === cleanLower ||
-            uEmpId === cleanLower ||
-            uName === cleanLower ||
-            (cleanDigits.length === 10 && uPhone === cleanDigits);
-
-          if (isMatch) {
-            const docPass = u.password || u.pass || '';
-            const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
-
-            if (isPassValid) {
-              const remoteUser: CRMUser = {
-                id: docSnap.id,
-                name: u.name || 'User',
-                email: u.email || `${uUsername || 'user'}@mirrorsolar.in`,
-                phone: u.phone || '',
-                initials: u.initials || 'U',
-                role: u.role || (role === 'Dealer' ? 'Dealer' : (role === 'Admin' ? 'Admin' : 'Employee')),
-                status: u.status || 'Active',
-                lastActive: 'Just now',
-                employeeCategory: u.department || u.employeeCategory,
-                employeeId: u.employeeId,
-                permissions: u.permissions || (u.role === 'Admin' ? adminPermissions : defaultUserPermissions)
-              };
-              loginUser(remoteUser);
-              if (onLoginSuccess) onLoginSuccess(remoteUser.id);
-              return;
-            } else {
-              setErrorMsg("Incorrect password. Please verify and try again.");
-              setIsSigningIn(false);
-              return;
-            }
-          }
-        }
-      } catch (fErr) {
-        // Silently catch firestore permission error on login screen
-      }
-
-      // ----------------------------------------------------------------------
-      // 6. FIREBASE AUTH FALLBACK
+      // 4. FIREBASE AUTH BACKEND DIRECT LOGIN
       // ----------------------------------------------------------------------
       let formattedEmail = cleanLower;
       if (!formattedEmail.includes('@')) {
-        if (role === 'Dealer') {
-          formattedEmail = `${formattedEmail}@dealer.in`;
-        } else if (role === 'Admin') {
-          formattedEmail = 'mirrorsolarvision@gmail.com';
-        } else {
-          formattedEmail = `${formattedEmail}@mirrorsolar.in`;
-        }
+        if (isBhavani) formattedEmail = 'bhavani.telecaller@mirrorsolar.in';
+        else if (isSuresh) formattedEmail = 'sales.telecaller@mirrorsolar.in';
+        else if (role === 'Dealer') formattedEmail = `${formattedEmail}@dealer.in`;
+        else if (role === 'Admin') formattedEmail = 'mirrorsolarvision@gmail.com';
+        else formattedEmail = `${formattedEmail}@mirrorsolar.in`;
       }
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, formattedEmail, inputPass);
+        const uid = userCredential.user.uid;
+        
+        const authedUser: CRMUser = {
+          id: uid,
+          name: isBhavani ? 'K. Bhavani' : (isSuresh ? 'P. Suresh' : formattedEmail.split('@')[0]),
+          email: formattedEmail,
+          phone: isBhavani ? '9848123456' : (isSuresh ? '9440188990' : ''),
+          role: isBhavani || isSuresh ? 'Employee' : (role === 'Dealer' ? 'Dealer' : (role === 'Admin' ? 'Admin' : 'Employee')),
+          status: 'Active',
+          lastActive: 'Just now',
+          initials: isBhavani ? 'KB' : (isSuresh ? 'PS' : 'EM'),
+          employeeCategory: isBhavani ? 'Telecaller' : (isSuresh ? 'Sales Manager (Telecaller)' : undefined),
+          employeeId: isBhavani ? 'MSV-TC-001' : (isSuresh ? 'MSV-SALES-001' : undefined),
+          permissions: role === 'Admin' ? adminPermissions : defaultUserPermissions
+        };
+
+        loginUser(authedUser);
         if (onLoginSuccess) {
-          onLoginSuccess(userCredential.user.uid);
+          onLoginSuccess(uid);
         }
+        return;
       } catch (authErr: any) {
+        console.warn("Firebase auth error:", authErr);
         setErrorMsg("Invalid username or password. Please verify credentials and try again.");
       }
 
@@ -361,10 +340,15 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     }
   };
 
-  const handleQuickFill = (email: string, pass: string) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await processLogin(usernameOrEmail, password);
+  };
+
+  const handleQuickLogin = async (email: string, pass: string) => {
     setUsernameOrEmail(email);
     setPassword(pass);
-    setErrorMsg('');
+    await processLogin(email, pass);
   };
 
   return (
@@ -425,44 +409,44 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             <div className={`heading-yellow-accent ${stage >= 5 ? 'draw' : ''}`}></div>
           </div>
 
-          {/* Quick Demo Fill Buttons for Fast 1-Click Verification */}
+          {/* Quick 1-Click Instant Login Section */}
           <div className={`quick-login-section ${stage >= 4 ? 'reveal' : ''}`}>
             <div className="quick-login-label">
               <Sparkles size={14} className="sparkle-icon" />
-              <span>Quick Fill Test Accounts</span>
+              <span>⚡ 1-Click Fast Login (Instant Sign-in)</span>
             </div>
             <div className="quick-login-chips">
               <button 
                 type="button" 
+                className="quick-chip chip-telecaller"
+                onClick={() => handleQuickLogin('bhavani.telecaller@mirrorsolar.in', 'Mirror@1432')}
+                title="Sign in immediately as K. Bhavani"
+              >
+                <User size={13} /> K. Bhavani (Telecaller)
+              </button>
+              <button 
+                type="button" 
+                className="quick-chip chip-sales"
+                onClick={() => handleQuickLogin('sales.telecaller@mirrorsolar.in', 'Mirror@1432')}
+                title="Sign in immediately as P. Suresh"
+              >
+                <Briefcase size={13} /> P. Suresh (Sales Mgr)
+              </button>
+              <button 
+                type="button" 
                 className="quick-chip chip-admin"
-                onClick={() => handleQuickFill('mirrorsolarvision@gmail.com', 'Mirror@1432')}
-                title="Fill Admin Credentials"
+                onClick={() => handleQuickLogin('mirrorsolarvision@gmail.com', 'Mirror@1432')}
+                title="Sign in immediately as Admin"
               >
                 <ShieldCheck size={13} /> Admin
               </button>
               <button 
                 type="button" 
-                className="quick-chip chip-sales"
-                onClick={() => handleQuickFill('sales.telecaller@mirrorsolar.in', 'Mirror@1432')}
-                title="Fill Sales Manager Credentials"
-              >
-                <Briefcase size={13} /> Sales Mgr (P. Suresh)
-              </button>
-              <button 
-                type="button" 
-                className="quick-chip chip-telecaller"
-                onClick={() => handleQuickFill('bhavani.telecaller@mirrorsolar.in', 'Mirror@1432')}
-                title="Fill Telecaller Credentials"
-              >
-                <User size={13} /> Telecaller (K. Bhavani)
-              </button>
-              <button 
-                type="button" 
                 className="quick-chip chip-dealer"
-                onClick={() => handleQuickFill('hussain@dealer.in', 'Mirror@9431')}
-                title="Fill Dealer Credentials"
+                onClick={() => handleQuickLogin('hussain@dealer.in', 'Mirror@9431')}
+                title="Sign in immediately as Hussain (Dealer)"
               >
-                <Zap size={13} /> Dealer (Hussain)
+                <Zap size={13} /> Hussain (Dealer)
               </button>
             </div>
           </div>
@@ -491,7 +475,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                       ? "e.g. hussain@dealer.in or 9100309431" 
                       : role === 'Admin' 
                         ? "e.g. mirrorsolarvision@gmail.com or 9849810668" 
-                        : "e.g. sales.telecaller@mirrorsolar.in or 9440188990"
+                        : "e.g. bhavani.telecaller@mirrorsolar.in or 9848123456"
                   }
                   required
                   autoFocus
