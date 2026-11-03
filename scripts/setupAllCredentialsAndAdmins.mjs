@@ -74,7 +74,7 @@ const TARGET_USERS = [
     username: 'siva',
     employeeId: 'MSV-SIVA-001',
     email: 'msv-siva-001@mirrorsolar.in',
-    password: 'Mirror@1432',
+    password: process.env.ADMIN_BACKUP_PASS || "",
     phone: '8985141432',
     role: 'Employee',
     employeeCategory: 'Marketing Employee',

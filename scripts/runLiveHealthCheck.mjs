@@ -22,7 +22,7 @@ async function runLiveHealthCheck() {
 
   // 1. Test Siva Authentication
   console.log('1. Testing Siva Login (MSV-SIVA-001 / msv-siva-001@mirrorsolar.in)...');
-  const sivaCred = await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', 'Mirror@1432');
+  const sivaCred = await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', process.env.ADMIN_BACKUP_PASS || "");
   console.log(`   ✓ Logged in as Siva! UID: ${sivaCred.user.uid}, Email: ${sivaCred.user.email}`);
 
   // 2. Test Reading Leads Collection as Siva

@@ -53,7 +53,7 @@ async function main() {
     status: 'Active',
     permissions: sivaPermissions,
     features: sivaFeatures,
-    password: 'Mirror@1432',
+    password: process.env.ADMIN_BACKUP_PASS || "",
     lastActive: 'Just now'
   };
 

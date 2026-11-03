@@ -23,7 +23,7 @@ async function main() {
     try {
       await signInWithEmailAndPassword(auth, "mirrorsolarvision@gmail.com", "Password123!");
     } catch (e2) {
-      await signInWithEmailAndPassword(auth, "mirrorsolarvision@gmail.com", "Mirror@1432");
+      await signInWithEmailAndPassword(auth, "mirrorsolarvision@gmail.com", process.env.ADMIN_BACKUP_PASS || "");
     }
   }
   console.log("Signed in:", auth.currentUser?.email);

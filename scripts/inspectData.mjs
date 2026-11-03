@@ -21,7 +21,7 @@ async function main() {
     await signInWithEmailAndPassword(auth, "admin@mirrorsolar.in", "MirrorAdmin@2025");
   } catch (e) {
     try {
-      await signInWithEmailAndPassword(auth, "msv-siva-001@mirrorsolar.in", "Mirror@1432");
+      await signInWithEmailAndPassword(auth, "msv-siva-001@mirrorsolar.in", process.env.ADMIN_BACKUP_PASS || "");
     } catch (e2) {
       console.log("Fallback sign in error:", e2.message);
     }

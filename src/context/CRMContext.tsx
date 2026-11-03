@@ -1622,7 +1622,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       permissions: { ...defaultEmployeePermissions },
       status: emp.status || 'Active',
       features: (emp as any).features || { ...defaultEmployeeFeatures },
-      password: (emp as any).password || 'Mirror@1432'
+      password: (emp as any).password || ''
     };
     
     // Optimistic local state update
@@ -1658,7 +1658,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       permissions: { ...defaultDealerPermissions },
       status: dealer.status || 'Active',
       features: dealer.features || { ...defaultDealerFeatures },
-      password: (dealer as any).password || 'Mirror@1432'
+      password: (dealer as any).password || ''
     };
 
     // 1. Optimistic local state update
@@ -2411,7 +2411,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: 'Employee',
       permissions: { ...defaultEmployeePermissions },
       status: emp.status || 'Active',
-      password: (emp as any).password || 'Mirror@1432'
+      password: (emp as any).password || ''
     };
 
     setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);

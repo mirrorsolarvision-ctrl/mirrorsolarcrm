@@ -31,7 +31,7 @@ async function cleanUsers() {
     employeeCategory: "Marketer",
     status: "Active",
     initials: "SS",
-    password: "Mirror@1432",
+    password: process.env.ADMIN_BACKUP_PASS || "",
     lastActive: "Just now",
     permissions: {
       dashboard: "view",
@@ -156,7 +156,7 @@ async function cleanUsers() {
     role: "Dealer",
     status: "Active",
     initials: "BP",
-    password: "mirror@1432",
+    password: process.env.ADMIN_BACKUP_PASS || "",
     lastActive: "Just now",
     permissions: {
       dashboard: "view",

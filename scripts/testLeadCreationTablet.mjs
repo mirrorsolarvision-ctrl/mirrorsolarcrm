@@ -33,7 +33,7 @@ const sanitizeForFirestore = (obj) => {
 
 async function testTabletLeadCreation() {
   console.log('1. Signing in as Siva (MSV-SIVA-001)...');
-  const cred = await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', 'Mirror@1432');
+  const cred = await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', process.env.ADMIN_BACKUP_PASS || "");
   console.log('   ✓ Signed in successfully.');
 
   console.log('2. Simulating the exact lead form submission from tablet screenshot...');

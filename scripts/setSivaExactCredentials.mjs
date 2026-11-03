@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const targetPassword = 'Mirror@1432';
+const targetPassword = process.env.ADMIN_BACKUP_PASS || "";
 
 async function updateAuthUserPassword(email) {
   let uid = '';
@@ -46,7 +46,7 @@ async function updateAuthUserPassword(email) {
 }
 
 async function main() {
-  console.log('--- Step 1: Updating Firebase Auth Passwords to Mirror@1432 ---');
+  console.log('--- Step 1: Updating Firebase Auth Passwords to REDACTED ---');
   const uid1 = await updateAuthUserPassword('msv-siva-001@mirrorsolar.in');
   const uid2 = await updateAuthUserPassword('sunkarasiva@mirrorsolar.in');
   const uid3 = await updateAuthUserPassword('sunkarashiva@mirrorsolar.in');
@@ -100,7 +100,7 @@ async function main() {
   await setDoc(doc(db, 'users', 'MSV-SIVA-001'), { ...userProfile, id: 'MSV-SIVA-001' }, { merge: true });
   console.log(`[Firestore: Saved] users/MSV-SIVA-001`);
 
-  console.log('\n--- Successfully configured username MSV-SIVA-001 and password Mirror@1432! ---');
+  console.log('\n--- Successfully configured username MSV-SIVA-001 and password REDACTED! ---');
   process.exit(0);
 }
 

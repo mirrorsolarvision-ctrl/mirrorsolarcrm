@@ -22,7 +22,7 @@ async function verifyWorkflows() {
 
   // Authenticate as employee
   console.log('1. Authenticating as staff member (Siva)...');
-  await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', 'Mirror@1432');
+  await signInWithEmailAndPassword(auth, 'msv-siva-001@mirrorsolar.in', process.env.ADMIN_BACKUP_PASS || "");
   console.log('   ✓ Authenticated successfully.\n');
 
   // Step 1: Fetch all users and verify employee categories

@@ -51,7 +51,7 @@ function isLeadAssignedToEmployee(employee, lead) {
 
 async function main() {
   console.log("=== VERIFYING SUNKARA SIVA EMPLOYEE WORKFLOW ===");
-  const userCredential = await signInWithEmailAndPassword(auth, "msv-siva-001@mirrorsolar.in", "Mirror@1432");
+  const userCredential = await signInWithEmailAndPassword(auth, "msv-siva-001@mirrorsolar.in", process.env.ADMIN_BACKUP_PASS || "");
   const sivaUser = {
     id: userCredential.user.uid,
     name: "Sunkara Siva",

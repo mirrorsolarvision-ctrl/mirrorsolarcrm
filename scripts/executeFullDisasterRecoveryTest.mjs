@@ -6,8 +6,24 @@ import path from 'path';
 import crypto from 'crypto';
 import assert from 'assert';
 
-const API_KEY = 'AIzaSyBZE0Zwwvyc963ddo_I8LTc8emlhayZ_NY';
-const PROJECT_ID = 'crm-webapp-d32bc';
+// Load local environment securely without exposing credentials
+if (fs.existsSync('.env')) {
+  const envContent = fs.readFileSync('.env', 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      const idx = trimmed.indexOf('=');
+      const key = trimmed.substring(0, idx).trim();
+      const val = trimmed.substring(idx + 1).trim();
+      if (!process.env[key]) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
+
+const API_KEY = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBZE0Zwwvyc963ddo_I8LTc8emlhayZ_NY';
+const PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID || 'crm-webapp-d32bc';
 
 const COLLECTIONS_TO_VALIDATE = [
   'users',
@@ -20,12 +36,17 @@ const COLLECTIONS_TO_VALIDATE = [
 ];
 
 async function getAdminToken() {
+  const adminPass = process.env.ADMIN_BACKUP_PASS;
+  if (!adminPass) {
+    throw new Error('ADMIN_BACKUP_PASS environment variable is required to execute disaster recovery verification.');
+  }
+
   const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: 'mirrorsolarvision@gmail.com',
-      password: 'Mirror@1432',
+      password: adminPass,
       returnSecureToken: true
     })
   });
