@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Folder, FileText, CheckCircle2, AlertTriangle, 
-  Upload, Eye, Check, X, ShieldCheck, Download
+  Upload, Eye, Check, X, ShieldCheck, Download, 
+  ExternalLink, RefreshCw, Trash2
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM, type MockLead, type LeadDocument } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
+import { DocumentUploadModal } from '../../components/DocumentUploadModal';
+import { uploadFileToStorage, formatBytes, type CompressionPreset } from '../../utils/cloudStorageUtils';
 import type { CustomerDocType } from '../../types/sales';
 
 interface CustomerDocumentsViewProps {
@@ -27,21 +30,20 @@ export default function CustomerDocumentsView({
 }: CustomerDocumentsViewProps) {
   const { currentUser, leads, updateLead, addActivity } = useCRM();
   const isManager = isSalesManager(currentUser);
+  const isAdmin = currentUser?.role === 'Admin';
   const currentUserName = currentUser?.name || '';
   const currentUserId = currentUser?.id || '';
 
   // Scoped leads
   const scopedLeads = useMemo(() => {
-    if (isManager) return leads.filter(l => !l.archived);
+    if (isManager || isAdmin) return leads.filter(l => !l.archived);
     return leads.filter(l => 
       !l.archived && 
       (l.assignedEmployee === currentUserName || l.assignedEmployeeId === currentUserId || l.leadOwnerId === currentUserId)
     );
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, isAdmin, currentUserName, currentUserId]);
 
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialLeadId || (scopedLeads[0]?.id || ''));
-  const [uploadDocType, setUploadDocType] = useState<CustomerDocType | null>(null);
-  const [fileNameInput, setFileNameInput] = useState('');
 
   const activeLead = useMemo(() => {
     return scopedLeads.find(l => l.id === selectedLeadId) || scopedLeads[0];
@@ -49,48 +51,164 @@ export default function CustomerDocumentsView({
 
   // Lead documents
   const activeDocs = useMemo(() => {
-    return activeLead?.documents || [];
+    return (activeLead?.documents || []) as LeadDocument[];
   }, [activeLead]);
 
-  // Handle Upload Simulated File
-  const handleUploadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeLead || !uploadDocType) return;
+  // Upload Modal & Progress States
+  const [targetDocType, setTargetDocType] = useState<CustomerDocType | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [replacingDocId, setReplacingDocId] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-    const newDoc = {
-      id: `DOC-${Date.now()}`,
-      leadId: activeLead.id,
-      documentType: uploadDocType,
-      fileName: fileNameInput || `${uploadDocType.toLowerCase().replace(/\s+/g, '_')}_scan.pdf`,
-      name: fileNameInput || `${uploadDocType.toLowerCase().replace(/\s+/g, '_')}_scan.pdf`,
-      category: uploadDocType,
-      fileSize: 1024 * 350,
-      fileType: 'application/pdf',
-      fileUrl: '',
-      uploadedByRole: isManager ? 'Sales Manager' : 'Telecaller',
-      uploadedByUserId: currentUserId,
-      uploadedAt: new Date().toISOString(),
-      status: 'Uploaded' as const
-    };
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const updated = [...(activeLead.documents || []), newDoc];
-    await updateLead(activeLead.id, {
-      documents: updated as any
-    });
+  // Trigger file input for specific doc type
+  const handleInitiateUpload = (docType: CustomerDocType, existingDocId?: string) => {
+    setTargetDocType(docType);
+    setReplacingDocId(existingDocId || null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  // When user selects a file from disk
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 1. Validation: Max 15MB size limit (storage.rules ceiling)
+    const MAX_SIZE = 15 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert(`File size exceeds 15MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB). Please select a compressed file.`);
+      return;
+    }
+
+    // 2. Validation: Allowed MIME types
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+    if (!isImage && !isPdf) {
+      alert('Invalid file format. Only PDF documents and JPG/PNG/WEBP images are allowed.');
+      return;
+    }
+
+    setSelectedFile(file);
+    setIsUploadModalOpen(true);
+  };
+
+  // Execute Firebase Storage Upload
+  const handleConfirmUpload = async (
+    processedFile: File,
+    notes: string,
+    preset: CompressionPreset
+  ) => {
+    if (!activeLead || !targetDocType) return;
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const docId = replacingDocId || `DOC_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const folderPath = `leads/${activeLead.id}/documents/${docId}`;
+
+      // Upload to Firebase Cloud Storage with progress updates
+      const downloadUrl = await uploadFileToStorage(processedFile, folderPath, {
+        compressPreset: preset,
+        onProgress: (p) => setUploadProgress(p)
+      });
+
+      const safeFileName = processedFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+
+      const newDoc: LeadDocument = {
+        id: docId,
+        leadId: activeLead.id,
+        name: safeFileName,
+        documentType: targetDocType,
+        category: targetDocType,
+        fileName: safeFileName,
+        fileSize: processedFile.size,
+        fileType: processedFile.type || 'application/pdf',
+        fileUrl: downloadUrl,
+        uploadedByRole: isAdmin ? 'Admin' : isManager ? 'Sales Manager' : 'Telecaller',
+        uploadedByUserId: currentUserId,
+        uploadedAt: new Date().toISOString(),
+        notes: notes || '',
+        status: 'Uploaded'
+      };
+
+      let updatedDocs: LeadDocument[] = [];
+      if (replacingDocId) {
+        updatedDocs = activeDocs.map(d => d.id === replacingDocId ? newDoc : d);
+      } else {
+        // Prevent accidental duplicates of the same category
+        const filtered = activeDocs.filter(d => 
+          (d.category || d.documentType || '').toLowerCase() !== targetDocType.toLowerCase()
+        );
+        updatedDocs = [...filtered, newDoc];
+      }
+
+      await updateLead(activeLead.id, {
+        documents: updatedDocs as any
+      });
+
+      addActivity({
+        type: replacingDocId ? 'Document Replaced' : 'Document Uploaded',
+        message: `${targetDocType} (${safeFileName}) uploaded for customer ${activeLead.customer}`,
+        user: currentUserName,
+        leadId: activeLead.id
+      });
+
+      setStatusMessage({ text: `Successfully uploaded ${targetDocType}!`, type: 'success' });
+      setTimeout(() => setStatusMessage(null), 4000);
+
+      setIsUploadModalOpen(false);
+      setSelectedFile(null);
+      setTargetDocType(null);
+      setReplacingDocId(null);
+    } catch (err: any) {
+      console.error('Document upload error:', err);
+      alert(`Upload failed: ${err.message || 'Network error'}. Please try again.`);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Safe removal (Admin only)
+  const handleDeleteDocument = async (docId: string, docName: string) => {
+    if (!isAdmin) {
+      alert('Permission Denied: Only Super Admin can delete customer compliance documents.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to remove "${docName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    const updated = activeDocs.filter(d => d.id !== docId);
+    await updateLead(activeLead.id, { documents: updated as any });
 
     addActivity({
-      type: 'Document Uploaded',
-      message: `Document (${uploadDocType}) uploaded for customer ${activeLead.customer}`,
+      type: 'Document Removed',
+      message: `Admin ${currentUserName} removed compliance document: ${docName}`,
       user: currentUserName,
       leadId: activeLead.id
     });
-
-    setUploadDocType(null);
-    setFileNameInput('');
   };
 
   return (
     <div className="customer-documents-content">
+      {/* Hidden Native File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        style={{ display: 'none' }} 
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        onChange={handleFileSelected}
+      />
+
       {/* Header */}
       <div className="sales-panel" style={{ padding: '1rem 1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -99,7 +217,7 @@ export default function CustomerDocumentsView({
               Customer KYC & PM Surya Ghar Documents
             </h2>
             <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-              Manage essential rooftop KYC papers, site survey photos, and customer subsidy consent forms.
+              Upload and verify essential rooftop KYC papers, site survey photos, and customer subsidy consent forms via Firebase Cloud Storage.
             </p>
           </div>
 
@@ -117,6 +235,20 @@ export default function CustomerDocumentsView({
             </select>
           </div>
         </div>
+
+        {statusMessage && (
+          <div style={{ 
+            marginTop: '0.75rem', 
+            padding: '0.5rem 0.75rem', 
+            borderRadius: '6px', 
+            background: statusMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+            color: statusMessage.type === 'success' ? '#166534' : '#991b1b',
+            fontSize: '0.825rem',
+            fontWeight: 600
+          }}>
+            {statusMessage.text}
+          </div>
+        )}
       </div>
 
       {activeLead && (
@@ -168,20 +300,52 @@ export default function CustomerDocumentsView({
                     </p>
 
                     {matchingDoc && (
-                      <div style={{ fontSize: '0.75rem', color: '#166534', marginTop: '0.5rem', background: '#dcfce7', padding: '3px 8px', borderRadius: '4px' }}>
-                        📄 {matchingDoc.fileName || matchingDoc.name || 'Document'} • {matchingDoc.uploadedAt ? new Date(matchingDoc.uploadedAt).toLocaleDateString() : 'Active'}
+                      <div style={{ fontSize: '0.75rem', color: '#166534', marginTop: '0.5rem', background: '#dcfce7', padding: '6px 10px', borderRadius: '6px' }}>
+                        <div style={{ fontWeight: 600 }}>📄 {matchingDoc.fileName || matchingDoc.name || 'Document'}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#15803d', marginTop: '2px' }}>
+                          {matchingDoc.fileSize ? formatBytes(matchingDoc.fileSize) : 'Standard'} • {matchingDoc.uploadedAt ? new Date(matchingDoc.uploadedAt).toLocaleDateString() : 'Active'} • {matchingDoc.uploadedByRole || 'Staff'}
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {isUploaded && matchingDoc.fileUrl && (
+                      <a 
+                        href={matchingDoc.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="sales-btn-secondary"
+                        style={{ flex: 1, minWidth: '100px', justifyContent: 'center', fontSize: '0.8rem', textDecoration: 'none' }}
+                      >
+                        <Eye size={13} /> View / Download
+                      </a>
+                    )}
+
                     <button 
                       className="sales-btn-primary" 
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', background: isUploaded ? '#16a34a' : '#0284c7' }}
-                      onClick={() => setUploadDocType(item.type)}
+                      style={{ 
+                        flex: 1, 
+                        minWidth: '110px',
+                        justifyContent: 'center', 
+                        fontSize: '0.8rem', 
+                        background: isUploaded ? '#16a34a' : '#0284c7' 
+                      }}
+                      onClick={() => handleInitiateUpload(item.type, matchingDoc?.id)}
                     >
-                      <Upload size={14} /> {isUploaded ? 'Re-upload / Update' : 'Upload Document'}
+                      <Upload size={13} /> {isUploaded ? 'Replace' : 'Upload'}
                     </button>
+
+                    {isUploaded && isAdmin && (
+                      <button 
+                        className="sales-btn-secondary"
+                        style={{ padding: '0.4rem 0.6rem', color: '#dc2626' }}
+                        title="Delete Document (Admin Only)"
+                        onClick={() => handleDeleteDocument(matchingDoc.id, matchingDoc.fileName || matchingDoc.name || item.type)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -190,39 +354,22 @@ export default function CustomerDocumentsView({
         </div>
       )}
 
-      {/* Upload Modal */}
-      {uploadDocType && activeLead && (
-        <div className="sales-modal-overlay" onClick={() => setUploadDocType(null)}>
-          <div className="sales-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="sales-modal-header">
-              <h3>Upload Document: {uploadDocType}</h3>
-              <button className="sales-modal-close-btn" onClick={() => setUploadDocType(null)}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleUploadSubmit}>
-              <div className="sales-modal-body">
-                <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#64748b' }}>
-                  Customer: <strong>{activeLead.customer}</strong> ({activeLead.phone})
-                </p>
-
-                <div className="sales-form-group">
-                  <label>Document File Name / Reference *</label>
-                  <input 
-                    type="text" 
-                    required 
-                    className="sales-form-control"
-                    placeholder={`e.g. ${activeLead.customer.toLowerCase().replace(/\s+/g, '_')}_${uploadDocType.toLowerCase().replace(/\s+/g, '_')}.pdf`}
-                    value={fileNameInput}
-                    onChange={e => setFileNameInput(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="sales-modal-footer">
-                <button type="button" className="sales-btn-secondary" onClick={() => setUploadDocType(null)}>Cancel</button>
-                <button type="submit" className="sales-btn-primary">Confirm & Attach Document</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Smart Compression & Progress Upload Modal */}
+      {isUploadModalOpen && selectedFile && targetDocType && (
+        <DocumentUploadModal
+          isOpen={isUploadModalOpen}
+          file={selectedFile}
+          documentType={targetDocType}
+          onClose={() => {
+            setIsUploadModalOpen(false);
+            setSelectedFile(null);
+            setTargetDocType(null);
+            setReplacingDocId(null);
+          }}
+          onConfirmUpload={handleConfirmUpload}
+          isUploading={isUploading}
+          uploadProgress={uploadProgress}
+        />
       )}
     </div>
   );

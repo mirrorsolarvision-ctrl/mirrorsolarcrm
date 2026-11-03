@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:security": "node tests/security_and_rbac_audit.mjs",
+    "test:phase2_1": "node tests/phase2_1_verification.mjs",
     "test:acceptance": "node tests/phase_2_sales_workflow_acceptance.mjs",
     "test:dr": "node scripts/executeFullDisasterRecoveryTest.mjs",
     "backup": "node scripts/backupFirestore.mjs",

@@ -232,6 +232,7 @@ service cloud.firestore {
         (isEmployee() && (
           resource.data.assignedEmployeeId == request.auth.uid ||
           resource.data.employeeId == request.auth.uid ||
+          resource.data.telecallerId == request.auth.uid ||
           resource.data.assignedEmployee == getUserDoc().name ||
           resource.data.telecallerEmail == request.auth.token.email
         ))
@@ -242,6 +243,7 @@ service cloud.firestore {
         (isEmployee() && (
           resource.data.assignedEmployeeId == request.auth.uid ||
           resource.data.employeeId == request.auth.uid ||
+          resource.data.telecallerId == request.auth.uid ||
           resource.data.assignedEmployee == getUserDoc().name ||
           resource.data.telecallerEmail == request.auth.token.email
         ))

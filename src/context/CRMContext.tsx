@@ -265,6 +265,11 @@ export interface MockLead {
   location: string;
   dealer: string;
   dealerId?: string;
+  dealerCode?: string;
+  dealerStatus?: 'None' | 'Requested' | 'Pending' | 'Approved' | 'Rejected';
+  dealerRequestedAt?: string;
+  dealerRequestedBy?: string;
+  dealerNotes?: string;
   assignedEmployee: string;
   assignedEmployeeId?: string;
   stage: Stage;

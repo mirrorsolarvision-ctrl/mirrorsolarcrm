@@ -55,29 +55,38 @@ export default function SalesDealerCoordinationView({
     e.preventDefault();
     if (!activeLead) return;
 
-    const chosenDealer = activeDealers.find(d => d.id === selectedDealerId) || activeDealers[0];
+    const chosenDealer = activeDealers.find(d => d.id === selectedDealerId);
+    if (!chosenDealer) {
+      alert('Please select an active regional authorized dealer from the dropdown.');
+      return;
+    }
 
     await updateLead(activeLead.id, {
-      dealer: chosenDealer ? chosenDealer.name : (activeLead.dealer || 'Authorized Dealer'),
-      dealerId: chosenDealer ? chosenDealer.id : activeLead.dealerId,
+      dealer: chosenDealer.name,
+      dealerId: chosenDealer.id,
+      dealerCode: chosenDealer.dealerCode || (chosenDealer as any).code || chosenDealer.id,
+      dealerStatus: 'Requested',
+      dealerRequestedAt: new Date().toISOString(),
+      dealerRequestedBy: currentUserName,
+      dealerNotes: surveyNotes,
       salesStage: 'Site Survey Scheduled',
       followUp: {
         date: surveyDate,
         time: surveyTime,
         type: 'Visit',
         status: 'Upcoming',
-        notes: `Dealer Site Survey scheduled with ${chosenDealer ? chosenDealer.name : 'Dealer'}: ${surveyNotes}`
+        notes: `Dealer Site Survey requested with ${chosenDealer.name}: ${surveyNotes}`
       }
     });
 
     addActivity({
       type: 'Site Survey Scheduled',
-      message: `Site survey requested for ${activeLead.customer} with dealer ${chosenDealer ? chosenDealer.name : 'Dealer'} on ${surveyDate}`,
+      message: `Site survey requested for ${activeLead.customer} with dealer ${chosenDealer.name} on ${surveyDate} (Status: Requested)`,
       user: currentUserName,
       leadId: activeLead.id
     });
 
-    alert(`Site survey successfully coordinated with ${chosenDealer ? chosenDealer.name : 'Dealer'}!`);
+    alert(`Site survey request successfully sent to ${chosenDealer.name}! Dealer allocation status set to 'Requested'.`);
   };
 
   // Pending handoff leads
@@ -190,7 +199,16 @@ export default function SalesDealerCoordinationView({
 
               {activeDealerObj ? (
                 <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0b1f3a' }}>{activeDealerObj.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0b1f3a' }}>{activeDealerObj.name}</div>
+                    <span className="sales-badge" style={{ 
+                      background: activeLead.dealerStatus === 'Approved' ? '#dcfce7' : activeLead.dealerStatus === 'Requested' ? '#fef3c7' : '#e0f2fe',
+                      color: activeLead.dealerStatus === 'Approved' ? '#15803d' : activeLead.dealerStatus === 'Requested' ? '#b45309' : '#0369a1',
+                      fontSize: '0.725rem'
+                    }}>
+                      Status: {activeLead.dealerStatus || 'Not Requested'}
+                    </span>
+                  </div>
                   <div style={{ fontSize: '0.825rem', color: '#64748b', marginTop: '2px' }}>
                     <MapPin size={12} style={{ display: 'inline' }} /> {activeDealerObj.address || 'Regional Office'}
                   </div>
