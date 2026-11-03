@@ -67,16 +67,16 @@ function testCallLogScopingAndQueries() {
     if (!authUser || authUser.role === 'Dealer') {
       return { queryType: 'BLOCKED_OR_NONE', constraints: [] };
     }
-    const isCallAdmin = authUser.role === 'Admin' || authUser.role === 'Accounts' || 
+    const isCallAdmin = authUser.role === 'Admin' || authUser.role === 'Accounts' ||
       authUser.employeeCategory === 'Sales Manager' || (authUser.category || '').includes('Sales Manager');
-    
+
     if (isCallAdmin) {
       return { queryType: 'COLLECTION_ALL', path: 'call_leads', constraints: [] };
     }
-    return { 
-      queryType: 'COLLECTION_SCOPED', 
-      path: 'call_leads', 
-      constraints: [{ field: 'telecallerId', op: '==', value: authUser.id }] 
+    return {
+      queryType: 'COLLECTION_SCOPED',
+      path: 'call_leads',
+      constraints: [{ field: 'telecallerId', op: '==', value: authUser.id }]
     };
   };
 
@@ -317,7 +317,7 @@ function testCustomerDocumentConfidentiality() {
   // 3.4 Elimination of Email Domain regex
   const evaluateOldEmailDomainRule = (email) => email.endsWith('@mirrorsolar.in') || email.endsWith('@dealer.in');
   const evaluateHardenedRule = (user) => !!user.uid && (user.role === 'Admin' || user.assignedLeadId === 'lead_101');
-  
+
   const untrustedDomainUser = { uid: 'rogue_01', email: 'rogue@dealer.in', role: 'Dealer', assignedLeadId: 'lead_OTHER' };
   assertTest('3.4', 'UNIT', 'Storage rules eliminate loose email-domain regex shortcuts (@dealer.in cannot read arbitrary leads)',
     evaluateOldEmailDomainRule(untrustedDomainUser.email) === true && // Old would have allowed
@@ -432,7 +432,7 @@ function testDealerTerritoryIsolation() {
   const evaluateDealerUpdate = (dealerAuth, leadDoc, updatedFields) => {
     if (!canDealerReadLead(dealerAuth, leadDoc)) return { allowed: false, reason: 'Not assigned dealer' };
     const allowedDealerKeys = [
-      'dealerSpecifications', 'documents', 'updatedAt', 'notes', 
+      'dealerSpecifications', 'documents', 'updatedAt', 'notes',
       'siteSurveyPhotos', 'siteSurveyNotes', 'technicalFeasibility'
     ];
     const invalidKeys = Object.keys(updatedFields).filter(k => !allowedDealerKeys.includes(k));

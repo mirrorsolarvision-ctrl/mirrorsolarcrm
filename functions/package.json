@@ -1,0 +1,14 @@
+{
+  "name": "msv-crm-functions",
+  "description": "Mirror Solar Vision CRM Trusted Backend Authority",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

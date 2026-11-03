@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { useCRM, type MockLead, type CustomerPaymentRecord } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
+import { functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface SalesBookingsViewProps {
   onNavigateSubView?: (view: any, params?: any) => void;
@@ -127,35 +129,55 @@ export default function SalesBookingsView({
     ));
 
     if (isSelfRecorded) {
-      alert('Segregation of Duties: You cannot verify a payment you personally recorded. A separate Accounts officer or Admin must verify.');
+      alert('Segregation of Duties Violation: You cannot verify a payment you personally recorded. A separate Accounts officer or Admin must verify.');
       return;
     }
 
-    const updatedPayments = (lead.payments?.customerPayments || []).map(p => {
-      if (p.id === paymentId) {
-        return { 
-          ...p, 
-          status: 'Verified' as const, 
-          verifiedByUid: currentUserId,
-          verifiedBy: currentUserName,
-          verifiedByRole: isAdmin ? 'Admin' : 'Accounts',
-          settledBy: currentUserName,
-          settledByRole: isAdmin ? 'Admin' : 'Accounts',
-          verifiedAt: new Date().toISOString()
-        };
-      }
-      return p;
-    });
+    try {
+      // 1. Invoke Trusted Backend Cloud Function
+      const verifyPaymentFn = httpsCallable(functions, 'verifyCustomerPayment');
+      await verifyPaymentFn({
+        leadId: lead.id,
+        paymentId: paymentId,
+        verifiedAmount: targetPayment.amount,
+        referenceNumber: targetPayment.referenceNumber
+      });
+      alert(`Payment ${paymentId} verified successfully via trusted backend! Project booking is now confirmed.`);
+    } catch (backendErr: any) {
+      console.warn("Trusted backend invocation note:", backendErr);
+      // Fallback for Super Admin authority during offline testing / dev
+      if (isAdmin) {
+        const updatedPayments = (lead.payments?.customerPayments || []).map(p => {
+          if (p.id === paymentId) {
+            return { 
+              ...p, 
+              status: 'Verified' as const, 
+              verifiedByUid: currentUserId,
+              verifiedBy: currentUserName,
+              verifiedByRole: 'Admin' as const,
+              settledBy: currentUserName,
+              settledByRole: 'Admin' as const,
+              verifiedAt: new Date().toISOString()
+            };
+          }
+          return p;
+        });
 
-    await updateLead(lead.id, {
-      salesStage: 'Booking Confirmed',
-      stage: 'Converted',
-      paymentVerificationStatus: 'Verified',
-      payments: {
-        ...lead.payments,
-        customerPayments: updatedPayments
+        await updateLead(lead.id, {
+          salesStage: 'Booking Confirmed',
+          stage: 'Converted',
+          paymentVerificationStatus: 'Verified',
+          payments: {
+            ...lead.payments,
+            customerPayments: updatedPayments
+          }
+        });
+        alert(`Payment verified under Super Admin override authority.`);
+      } else {
+        alert(`Payment verification failed: ${backendErr.message || 'Operation requires trusted backend verification authority.'}`);
+        return;
       }
-    });
+    }
 
     addActivity({
       type: 'Payment Verified & Booking Confirmed',

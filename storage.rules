@@ -29,6 +29,13 @@ service firebase.storage {
       return isAdmin() || isAccounts();
     }
 
+    function isDealer() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'Dealer' ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'Dealer'
+      );
+    }
+
     function isSuryaGharIncharge() {
       return isAuthenticated() && (
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
@@ -43,14 +50,20 @@ service firebase.storage {
         isPrivilegedStaff() ||
         lead.assignedEmployeeId == request.auth.uid ||
         lead.leadOwnerId == request.auth.uid ||
-        lead.dealerId == request.auth.uid ||
-        lead.dealerCode == firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.dealerCode
+        (isDealer() && lead.dealerId == request.auth.uid)
       );
     }
 
-    // 1a. Customer Sensitive Identity Documents (Aadhaar, Consent, Electricity Bill KYC):
-    // Strictly restricted to Admin, Accounts, and PM Surya Ghar Incharge.
-    // Authorized dealers and unassigned employees are strictly DENIED access to KYC identity files.
+    // =========================================================================
+    // 1a. Customer Sensitive Identity Documents (Aadhaar, Consent, Electricity KYC)
+    // DEF-009: Strict KYC Upload Authorization Gate
+    // - Unauthenticated: STRICTLY DENIED
+    // - Dealers: STRICTLY DENIED (Zero access to customer KYC files)
+    // - Unassigned Employees: STRICTLY DENIED
+    // - Assigned Staff: ALLOWED
+    // - PM Surya Ghar Incharge: ALLOWED
+    // - Super Admin: ALLOWED
+    // =========================================================================
     match /leads/{leadId}/kyc/{docId}/{fileName} {
       allow read: if isPrivilegedStaff() || isSuryaGharIncharge() || (
         isAuthenticated() && 
@@ -58,22 +71,31 @@ service firebase.storage {
       );
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
-        request.resource.size < 15 * 1024 * 1024;
+        request.resource.size < 15 * 1024 * 1024 &&
+        !isDealer() &&
+        (
+          isPrivilegedStaff() || 
+          isSuryaGharIncharge() || 
+          firestore.get(/databases/(default)/documents/leads/$(leadId)).data.assignedEmployeeId == request.auth.uid ||
+          firestore.get(/databases/(default)/documents/leads/$(leadId)).data.leadOwnerId == request.auth.uid
+        );
       allow update, delete: if isAdmin();
     }
 
-    // 1b. Operational Documents (Rooftop Site Survey Photos, Roof Engineering Drawings):
-    // Accessible by Admin, assigned sales staff, and the assigned authorized dealer.
+    // =========================================================================
+    // 1b. Operational Documents (Rooftop Site Survey Photos, Roof Drawings)
+    // DEF-011: Strict Dealer UID Authorization (No dealerCode fallback)
+    // =========================================================================
     match /leads/{leadId}/documents/{docId}/{fileName} {
       allow read: if isAssignedStaffOrDealer(leadId);
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
-        request.resource.size < 15 * 1024 * 1024;
-      allow update, delete: if isAdmin(); // Strictly immutable against regular tampering
+        request.resource.size < 15 * 1024 * 1024 &&
+        isAssignedStaffOrDealer(leadId);
+      allow update, delete: if isAdmin();
     }
 
-    // 2. Customer Payment Receipts & Proofs:
-    // Read access is strictly restricted to Admin and Accounts authority.
+    // 2. Customer Payment Receipts & Proofs
     match /payments/{category}/{fileName} {
       allow read: if isPrivilegedStaff();
       allow create: if isAuthenticated() && 
@@ -104,7 +126,7 @@ service firebase.storage {
     // 5. Public Company Branding
     match /branding/{fileName} {
       allow read: if true;
-      allow write: if isAdmin(); // Strictly Super Admin
+      allow write: if isAdmin();
     }
 
     // --- NO CATCH-ALL WILDCARD ---

@@ -102,9 +102,7 @@ service cloud.firestore {
         isSuryaGharIncharge() || 
         isStockIncharge() || 
         (isDealer() && (
-          resource.data.dealerId == request.auth.uid || 
-          resource.data.dealerCode == getUserDoc().dealerCode ||
-          resource.data.dealerId == getUserDoc().id
+          resource.data.dealerId == request.auth.uid
         )) ||
         (isEmployee() && (
           resource.data.assignedEmployeeId == request.auth.uid || 
@@ -131,8 +129,16 @@ service cloud.firestore {
 
       // Field-Level Update Allowlists
       allow update: if isAuthenticated() && (
-        // A. Admin or Accounts: Full update authority (including payment verification & allocation)
-        isPaymentVerifier() || 
+        // A. Super Admin: Full operational authority
+        isAdmin() || 
+
+        // A2. Accounts Authority: Direct client SDK updates restricted to accounting notes/details
+        // DEF-010: Direct client SDK writes CANNOT mark payments as Verified; trusted Cloud Function required
+        (isAccounts() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'notes', 'updatedAt', 'accountsNotes', 'billingDetails', 'gstin'
+          ])
+        ) || 
 
         // B. Sales Manager: can edit sales fields, reassign leads, advance pipeline
         (isSalesManager() &&
@@ -203,11 +209,9 @@ service cloud.firestore {
           )
         ) ||
 
-        // D. Dealer: can only submit technical site survey & document data
+        // D. Dealer: can only submit technical site survey & document data for assigned dealer UID
         (isDealer() && (
-          resource.data.dealerId == request.auth.uid || 
-          resource.data.dealerCode == getUserDoc().dealerCode ||
-          resource.data.dealerId == getUserDoc().id
+          resource.data.dealerId == request.auth.uid
         ) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'dealerSpecifications', 'documents', 'updatedAt', 'notes', 
@@ -229,9 +233,24 @@ service cloud.firestore {
     }
 
     // Sensitive Identity Documents (Aadhaar number, PAN, KYC validation tokens)
+    // DEF-009: Strict KYC Upload & Read Authorization via lead assignment UIDs
     match /leadKyc/{leadId} {
-      allow read: if isAdmin() || isSuryaGharIncharge();
-      allow write: if isAdmin() || isSuryaGharIncharge() || isEmployee();
+      allow read: if isAuthenticated() && (
+        isAdmin() || isSuryaGharIncharge() || (
+          isEmployee() && (
+            get(/databases/$(database)/documents/leads/$(leadId)).data.assignedEmployeeId == request.auth.uid ||
+            get(/databases/$(database)/documents/leads/$(leadId)).data.leadOwnerId == request.auth.uid
+          )
+        )
+      );
+      allow write: if isAuthenticated() && (
+        isAdmin() || isSuryaGharIncharge() || (
+          isEmployee() && (
+            get(/databases/$(database)/documents/leads/$(leadId)).data.assignedEmployeeId == request.auth.uid ||
+            get(/databases/$(database)/documents/leads/$(leadId)).data.leadOwnerId == request.auth.uid
+          )
+        )
+      );
     }
 
     // Internal Management Executive Notes & Margins
@@ -256,27 +275,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // DEF-012: Call-Log Identity, Write Protection, and Scoping
     match /call_leads/{callId} {
+      // Sales management oversight + Telecaller own records only. Accounts access removed.
       allow read: if isAuthenticated() && (
-        isAdmin() || isSalesManager() || isAccounts() ||
-        (isEmployee() && (
-          resource.data.assignedEmployeeId == request.auth.uid ||
-          resource.data.employeeId == request.auth.uid ||
-          resource.data.telecallerId == request.auth.uid ||
-          resource.data.assignedEmployee == getUserDoc().name ||
-          resource.data.telecallerEmail == request.auth.token.email
-        ))
-      );
-      allow create: if isAuthenticated() && (isAdmin() || isSalesManager() || isEmployee());
-      allow update: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
         (isEmployee() && (
-          resource.data.assignedEmployeeId == request.auth.uid ||
-          resource.data.employeeId == request.auth.uid ||
           resource.data.telecallerId == request.auth.uid ||
-          resource.data.assignedEmployee == getUserDoc().name ||
-          resource.data.telecallerEmail == request.auth.token.email
+          resource.data.employeeId == request.auth.uid ||
+          resource.data.assignedEmployeeId == request.auth.uid
         ))
+      );
+      // Identity Protection: Telecaller can only create call records under their own authenticated UID
+      allow create: if isAuthenticated() && (
+        isAdmin() || isSalesManager() ||
+        (isEmployee() && request.resource.data.telecallerId == request.auth.uid)
+      ) && request.resource.data.keys().hasAll(['id', 'telecallerId', 'timestamp']);
+
+      // Immutability Protection: Telecaller cannot alter telecallerId, id, or leadId after creation
+      allow update: if isAuthenticated() && (
+        isAdmin() || isSalesManager() ||
+        (isEmployee() && 
+          resource.data.telecallerId == request.auth.uid &&
+          request.resource.data.telecallerId == resource.data.telecallerId &&
+          request.resource.data.id == resource.data.id &&
+          (!('leadId' in resource.data) || request.resource.data.leadId == resource.data.leadId)
+        )
       );
       allow delete: if isAdmin();
     }
