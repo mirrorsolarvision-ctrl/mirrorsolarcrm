@@ -11,13 +11,20 @@ service firebase.storage {
              request.resource.contentType == 'application/pdf';
     }
 
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'Admin' ||
+        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com']
+      );
+    }
+
     // 1. Customer KYC & Identity Documents
     match /leads/{leadId}/documents/{docId}/{fileName} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 15 * 1024 * 1024;
-      allow update, delete: if false; // Immutability
+      allow update, delete: if isAdmin(); // Only Admin can purge documents
     }
 
     // 2. Customer Payment Receipts & Proofs
@@ -26,7 +33,7 @@ service firebase.storage {
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 10 * 1024 * 1024;
-      allow update, delete: if false;
+      allow update, delete: if false; // Immutable payment records
     }
 
     // 3. Milestone Completion Proofs
@@ -35,7 +42,7 @@ service firebase.storage {
       allow create: if isAuthenticated() && 
         isAllowedImageOrPdf() && 
         request.resource.size < 15 * 1024 * 1024;
-      allow update, delete: if false;
+      allow update, delete: if isAdmin();
     }
 
     // 4. Attendance Check-in Selfies
@@ -48,10 +55,10 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
-    // 5. Public Company Branding
+    // 5. Public Company Branding (Protected from employee/dealer overwrites)
     match /branding/{fileName} {
       allow read: if true;
-      allow write: if isAuthenticated(); // Controlled branding updates
+      allow write: if isAdmin(); // Strictly Admin-only
     }
 
     // --- NO CATCH-ALL WILDCARD ---

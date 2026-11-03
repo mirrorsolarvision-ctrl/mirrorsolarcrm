@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff, ShieldCheck, Sparkles, User, Briefcase } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2, Zap, Eye, EyeOff, ShieldCheck, Sparkles, User, Briefcase, Mail, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import logoUrl from './assets/mirrorsolarlogo.png';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import { useAuth } from './context/AuthContext';
+import { useAudit } from './context/AuditLogContext';
 import { defaultCompanyEmployees, defaultCompanyDealers } from './context/CRMContext';
 import type { User as CRMUser, UserPermissions, Employee, Dealer } from './context/CRMContext';
 import './LoginScreen.css';
@@ -36,8 +38,12 @@ const defaultUserPermissions: UserPermissions = {
   profile: 'full'
 };
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout
+
 export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScreenProps) {
   const { loginUser } = useAuth();
+  const { logAction } = useAudit();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [stage, setStage] = useState(0);
@@ -47,6 +53,15 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
+  // Password reset modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
+  // Brute force lockout state
+  const [lockoutRemainingSec, setLockoutRemainingSec] = useState<number>(0);
+
   useEffect(() => {
     // Entrance animations
     const t1 = setTimeout(() => setStage(1), 100);
@@ -55,286 +70,249 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     const t4 = setTimeout(() => setStage(4), 550);
     const t5 = setTimeout(() => setStage(5), 700);
 
+    // Check lockout timer
+    checkLockout();
+
+    const interval = setInterval(() => {
+      checkLockout();
+    }, 1000);
+
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
       clearTimeout(t5);
+      clearInterval(interval);
     };
   }, []);
 
-  const isUniversalPassword = (p: string) => {
-    const norm = p.trim();
-    return (
-      norm === 'Mirror@1432' ||
-      norm === 'mirror@1432' ||
-      norm === 'Mirror@2026' ||
-      norm === 'Mirror@10668' ||
-      norm === 'Mirror@12420' ||
-      norm === 'MirrorAdmin@2025' ||
-      norm === 'admin123' ||
-      norm === 'Password123!' ||
-      norm === '123456' ||
-      norm === 'admin' ||
-      norm === 'Mirror@0748' ||
-      norm === 'Mirror@9431' ||
-      norm === 'MSV@1855' ||
-      norm === 'MSV@1917'
-    );
+  const checkLockout = () => {
+    try {
+      const lockoutUntil = parseInt(localStorage.getItem('crm_login_lockout_until') || '0', 10);
+      const now = Date.now();
+      if (lockoutUntil > now) {
+        setLockoutRemainingSec(Math.ceil((lockoutUntil - now) / 1000));
+      } else {
+        setLockoutRemainingSec(0);
+      }
+    } catch {
+      setLockoutRemainingSec(0);
+    }
+  };
+
+  const recordFailedAttempt = (identifier: string) => {
+    try {
+      const attempts = parseInt(localStorage.getItem('crm_login_failed_attempts') || '0', 10) + 1;
+      localStorage.setItem('crm_login_failed_attempts', attempts.toString());
+      if (attempts >= MAX_FAILED_ATTEMPTS) {
+        const lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+        localStorage.setItem('crm_login_lockout_until', lockoutUntil.toString());
+        setLockoutRemainingSec(Math.ceil(LOCKOUT_DURATION_MS / 1000));
+        logAction({
+          action: 'LOGIN_LOCKED_OUT',
+          entityType: 'Security',
+          entityId: identifier,
+          entityLabel: `Account locked after ${attempts} consecutive failed attempts`,
+          reason: 'Excessive consecutive authentication failures'
+        }).catch(() => {});
+      } else {
+        logAction({
+          action: 'LOGIN_FAILED',
+          entityType: 'User',
+          entityId: identifier,
+          entityLabel: `Failed login attempt ${attempts}/${MAX_FAILED_ATTEMPTS}`,
+          reason: 'Invalid credentials entered'
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Error recording failed login attempt:', e);
+    }
+  };
+
+  const clearFailedAttempts = () => {
+    try {
+      localStorage.removeItem('crm_login_failed_attempts');
+      localStorage.removeItem('crm_login_lockout_until');
+      setLockoutRemainingSec(0);
+    } catch {}
+  };
+
+  const resolveCanonicalEmail = (rawInput: string): string => {
+    const clean = rawInput.trim();
+    const lower = clean.toLowerCase();
+    const digits = clean.replace(/\D/g, '').slice(-10);
+
+    if (clean.includes('@')) {
+      return clean;
+    }
+
+    // Admin aliases
+    if (['admin', 'msvadmin', 'mirrorsolarvision'].includes(lower) || digits === '9849810668') {
+      return 'mirrorsolarvision@gmail.com';
+    }
+    if (lower.includes('balaji') || digits === '9182612420') {
+      return 'balajiperuri09@gmail.com';
+    }
+    if (lower.includes('aqua') || lower === 'mirroraquaro@gmail.com') {
+      return 'mirroraquaro@gmail.com';
+    }
+
+    // Telecaller & Sales Aliases
+    if (lower.includes('bhavani') || digits === '9848123456' || lower === 'msv-tc-001') {
+      return 'bhavani.telecaller@mirrorsolar.in';
+    }
+    if (lower.includes('suresh') || digits === '9440188990' || lower === 'msv-sales-001') {
+      return 'sales.telecaller@mirrorsolar.in';
+    }
+
+    // Employees lookup
+    for (const emp of defaultCompanyEmployees) {
+      const empCode = (emp.code || emp.employeeId || '').toLowerCase();
+      const empPhone = (emp.phone || '').replace(/\D/g, '').slice(-10);
+      const empName = (emp.name || '').toLowerCase();
+      if (empCode === lower || (digits.length === 10 && empPhone === digits) || (lower.length > 3 && empName.includes(lower))) {
+        return emp.email;
+      }
+    }
+
+    // Dealers lookup
+    for (const dlr of defaultCompanyDealers) {
+      const dlrCode = (dlr.code || dlr.dealerCode || '').toLowerCase();
+      const dlrPhone = (dlr.phone || '').replace(/\D/g, '').slice(-10);
+      const dlrName = (dlr.name || '').toLowerCase();
+      if (dlrCode === lower || (digits.length === 10 && dlrPhone === digits) || (lower.length > 3 && dlrName.includes(lower))) {
+        return dlr.email;
+      }
+    }
+
+    if (role === 'Dealer') return `${lower}@dealer.in`;
+    if (role === 'Admin') return `${lower}@mirrorsolarvision.com`;
+    return `${lower}@mirrorsolar.in`;
   };
 
   const processLogin = async (rawInput: string, rawPass: string) => {
+    if (lockoutRemainingSec > 0) {
+      const mins = Math.ceil(lockoutRemainingSec / 60);
+      setErrorMsg(`Too many failed login attempts. Account temporarily locked for security. Try again in ${mins} minute${mins > 1 ? 's' : ''} or reset password.`);
+      return;
+    }
+
     setIsSigningIn(true);
     setErrorMsg('');
 
-    const cleanInput = rawInput.trim();
-    const cleanLower = cleanInput.toLowerCase();
-    const cleanDigits = cleanInput.replace(/\D/g, '').slice(-10);
+    const targetEmail = resolveCanonicalEmail(rawInput);
     const inputPass = rawPass.trim();
 
     try {
-      // ----------------------------------------------------------------------
-      // 1. ADMIN LOGINS (mirrorsolarvision@gmail.com, mirroraquaro@gmail.com, balaji, admin)
-      // ----------------------------------------------------------------------
-      const isAdminAccount = 
-        cleanLower === 'mirrorsolarvision@gmail.com' ||
-        cleanLower === 'mirroraquaro@gmail.com' ||
-        cleanLower === 'balajiperuri09@gmail.com' ||
-        cleanLower === 'admin@mirrorsolar.in' ||
-        cleanLower === 'admin' ||
-        cleanLower === 'msvadmin' ||
-        (cleanDigits.length === 10 && (cleanDigits === '9849810668' || cleanDigits === '9182612420'));
+      // Authenticate directly with Firebase Authentication backend
+      const userCredential = await signInWithEmailAndPassword(auth, targetEmail, inputPass);
+      const firebaseUser = userCredential.user;
+      const uid = firebaseUser.uid;
 
-      if (isAdminAccount) {
-        const isAdminPassValid = 
-          isUniversalPassword(inputPass) ||
-          inputPass === 'Mirror@1432' ||
-          inputPass === 'MirrorAdmin@2025' ||
-          inputPass === 'Mirror@10668' ||
-          inputPass === 'Mirror@12420';
+      // Successful login - clear device failed attempts counter
+      clearFailedAttempts();
 
-        if (!isAdminPassValid) {
-          setErrorMsg("Incorrect password for Admin. Please verify and try again.");
-          setIsSigningIn(false);
-          return;
-        }
-
-        const isBalaji = cleanLower.includes('balaji') || cleanDigits === '9182612420';
-        const isMSV = cleanLower === 'mirrorsolarvision@gmail.com';
-        
-        const adminUser: CRMUser = {
-          id: isBalaji ? 'balajiperuri09_gmail_com' : (isMSV ? 'J5Iht5bVwPQEOme5RpHPdruYlqB3' : 'vNeRWIuQYNayFekfwhImaBnWs4t2'),
-          name: isBalaji ? 'Balaji Peruri (Admin)' : (isMSV ? 'Mirror Solar Vision Admin' : 'Mirror Aqua Admin'),
-          email: isBalaji ? 'balajiperuri09@gmail.com' : (isMSV ? 'mirrorsolarvision@gmail.com' : 'mirroraquaro@gmail.com'),
-          phone: isBalaji ? '9182612420' : '9849810668',
-          initials: isBalaji ? 'BP' : (isMSV ? 'MS' : 'MA'),
-          role: 'Admin',
-          status: 'Active',
-          lastActive: 'Just now',
-          permissions: adminPermissions
-        };
-
-        loginUser(adminUser);
-        try {
-          await signInWithEmailAndPassword(auth, adminUser.email, inputPass);
-        } catch {}
-        if (onLoginSuccess) onLoginSuccess(adminUser.id);
-        return;
-      }
-
-      // ----------------------------------------------------------------------
-      // 2. CHECK EMPLOYEES (Bhavani, Suresh, Siva, Kumari, Gopal, Staff)
-      // ----------------------------------------------------------------------
-      const isBhavani = cleanLower.includes('bhavani') || cleanDigits === '9848123456' || cleanLower === 'msv-tc-001';
-      const isSuresh = cleanLower.includes('suresh') || cleanDigits === '9440188990' || cleanLower === 'msv-sales-001';
-
-      let allEmployees: Employee[] = [...defaultCompanyEmployees];
+      // Fetch user profile from Firestore /users/{uid}
+      let crmUser: CRMUser | null = null;
       try {
-        const cached = localStorage.getItem('crm_employees_cache');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const empMap = new Map<string, Employee>();
-            allEmployees.forEach(emp => empMap.set((emp.id || emp.code || emp.name).toLowerCase(), emp));
-            parsed.forEach((emp: any) => empMap.set((emp.id || emp.code || emp.name).toLowerCase(), { ...empMap.get((emp.id || emp.code || emp.name).toLowerCase()), ...emp }));
-            allEmployees = Array.from(empMap.values());
-          }
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        if (userSnap.exists()) {
+          crmUser = { id: uid, ...userSnap.data() } as CRMUser;
         }
-      } catch (e) {
-        console.warn("Could not read employee cache:", e);
+      } catch (docErr) {
+        console.warn('Could not read user profile from Firestore, falling back to local registry:', docErr);
       }
 
-      const matchedEmployee = allEmployees.find(emp => {
-        const emailLower = (emp.email || '').toLowerCase().trim();
-        const emailPrefix = emailLower.split('@')[0];
-        const nameLower = (emp.name || '').toLowerCase().trim();
-        const codeLower = (emp.code || emp.employeeId || emp.displayId || '').toLowerCase().trim();
-        const phoneDigits = (emp.phone || '').replace(/\D/g, '').slice(-10);
+      // If document wasn't found in /users, match against known registries
+      if (!crmUser) {
+        const lowerEmail = targetEmail.toLowerCase();
+        const matchedEmp = defaultCompanyEmployees.find(e => e.email.toLowerCase() === lowerEmail);
+        const matchedDlr = defaultCompanyDealers.find(d => d.email.toLowerCase() === lowerEmail);
+        const isAdmin = ['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com'].includes(lowerEmail);
 
-        if (isBhavani && (emp.id === 'emp_telecaller_bhavani' || emailLower.includes('bhavani') || nameLower.includes('bhavani'))) return true;
-        if (isSuresh && (emp.id === 'emp_telecaller_sales' || emailLower.includes('sales') || nameLower.includes('suresh'))) return true;
-
-        return (
-          emailLower === cleanLower ||
-          emailPrefix === cleanLower ||
-          codeLower === cleanLower ||
-          nameLower === cleanLower ||
-          (cleanLower.length > 3 && nameLower.includes(cleanLower)) ||
-          (cleanDigits.length === 10 && phoneDigits === cleanDigits)
-        );
-      });
-
-      if (matchedEmployee) {
-        const docPass = (matchedEmployee as any).password || '';
-        const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
-
-        if (!isPassValid) {
-          setErrorMsg("Incorrect password. Please verify and try again.");
-          setIsSigningIn(false);
-          return;
+        if (isAdmin) {
+          crmUser = {
+            id: uid,
+            name: lowerEmail.includes('balaji') ? 'Balaji Peruri (Admin)' : 'Mirror Solar Vision Admin',
+            email: targetEmail,
+            phone: lowerEmail.includes('balaji') ? '9182612420' : '9849810668',
+            role: 'Admin',
+            status: 'Active',
+            lastActive: 'Just now',
+            initials: 'MS',
+            permissions: adminPermissions
+          };
+        } else if (matchedEmp) {
+          crmUser = {
+            id: uid,
+            name: matchedEmp.name,
+            email: targetEmail,
+            phone: matchedEmp.phone || '',
+            role: 'Employee',
+            employeeCategory: matchedEmp.employeeCategory,
+            employeeId: matchedEmp.employeeId || matchedEmp.code,
+            status: 'Active',
+            lastActive: 'Just now',
+            initials: matchedEmp.initials || 'EM',
+            permissions: matchedEmp.permissions || defaultUserPermissions
+          };
+        } else if (matchedDlr) {
+          crmUser = {
+            id: uid,
+            name: matchedDlr.name,
+            email: targetEmail,
+            phone: matchedDlr.phone || '',
+            role: 'Dealer',
+            dealerCode: matchedDlr.dealerCode || matchedDlr.code,
+            status: 'Active',
+            lastActive: 'Just now',
+            initials: matchedDlr.initials || 'DL',
+            permissions: matchedDlr.permissions || defaultUserPermissions
+          };
+        } else {
+          crmUser = {
+            id: uid,
+            name: targetEmail.split('@')[0],
+            email: targetEmail,
+            phone: '',
+            role: role === 'Admin' ? 'Admin' : (role === 'Dealer' ? 'Dealer' : 'Employee'),
+            status: 'Active',
+            lastActive: 'Just now',
+            initials: 'MS',
+            permissions: role === 'Admin' ? adminPermissions : defaultUserPermissions
+          };
         }
-
-        const employeeUser: CRMUser = {
-          id: matchedEmployee.id,
-          name: matchedEmployee.name,
-          email: matchedEmployee.email,
-          phone: matchedEmployee.phone,
-          initials: matchedEmployee.initials || (matchedEmployee.name ? matchedEmployee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EM'),
-          role: 'Employee',
-          status: matchedEmployee.status || 'Active',
-          lastActive: 'Just now',
-          employeeCategory: matchedEmployee.employeeCategory,
-          employeeId: matchedEmployee.employeeId || matchedEmployee.code,
-          permissions: matchedEmployee.permissions || defaultUserPermissions,
-          features: (matchedEmployee as any).features,
-          responsibilities: (matchedEmployee as any).responsibilities
-        };
-
-        loginUser(employeeUser);
-        if (employeeUser.email && employeeUser.email.includes('@')) {
-          try {
-            await signInWithEmailAndPassword(auth, employeeUser.email, inputPass);
-          } catch {}
-        }
-        if (onLoginSuccess) onLoginSuccess(employeeUser.id);
-        return;
       }
 
-      // ----------------------------------------------------------------------
-      // 3. CHECK DEALERS (Hussain, Jagapathi, Srinivas, and 8 new dealers)
-      // ----------------------------------------------------------------------
-      let allDealers: Dealer[] = [...defaultCompanyDealers];
-      try {
-        const cached = localStorage.getItem('crm_dealers_cache');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const dMap = new Map<string, Dealer>();
-            allDealers.forEach(d => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), d));
-            parsed.forEach((d: any) => dMap.set((d.id || d.dealerCode || d.name).toLowerCase(), { ...dMap.get((d.id || d.dealerCode || d.name).toLowerCase()), ...d }));
-            allDealers = Array.from(dMap.values());
-          }
-        }
-      } catch (e) {
-        console.warn("Could not read dealer cache:", e);
-      }
+      if (crmUser) {
+        // Record successful login audit trail
+        logAction({
+          action: 'LOGIN_SUCCESS',
+          entityType: 'User',
+          entityId: uid,
+          entityLabel: targetEmail,
+          diffSummary: `Signed in as ${crmUser.role}${crmUser.employeeCategory ? ` (${crmUser.employeeCategory})` : ''}`
+        }).catch(() => {});
 
-      const matchedDealer = allDealers.find(dlr => {
-        const emailLower = (dlr.email || '').toLowerCase().trim();
-        const emailPrefix = emailLower.split('@')[0];
-        const nameLower = (dlr.name || '').toLowerCase().trim();
-        const codeLower = (dlr.code || dlr.dealerCode || dlr.displayId || '').toLowerCase().trim();
-        const phoneDigits = (dlr.phone || '').replace(/\D/g, '').slice(-10);
+        // Set user session in context & storage
+        loginUser(crmUser);
 
-        return (
-          emailLower === cleanLower ||
-          emailPrefix === cleanLower ||
-          codeLower === cleanLower ||
-          nameLower === cleanLower ||
-          (cleanLower.length > 3 && nameLower.includes(cleanLower)) ||
-          (cleanDigits.length === 10 && phoneDigits === cleanDigits)
-        );
-      });
-
-      if (matchedDealer) {
-        const docPass = (matchedDealer as any).password || '';
-        const isPassValid = !docPass || docPass === inputPass || isUniversalPassword(inputPass);
-
-        if (!isPassValid) {
-          setErrorMsg("Incorrect password. Please verify and try again.");
-          setIsSigningIn(false);
-          return;
-        }
-
-        const dealerUser: CRMUser = {
-          id: matchedDealer.id,
-          name: matchedDealer.name,
-          email: matchedDealer.email,
-          phone: matchedDealer.phone,
-          initials: matchedDealer.initials || 'DL',
-          role: 'Dealer',
-          status: matchedDealer.status || 'Active',
-          lastActive: 'Just now',
-          dealerCode: matchedDealer.dealerCode || matchedDealer.code,
-          address: matchedDealer.address,
-          permissions: matchedDealer.permissions || defaultUserPermissions,
-          features: (matchedDealer as any).features
-        };
-
-        loginUser(dealerUser);
-        if (dealerUser.email && dealerUser.email.includes('@')) {
-          try {
-            await signInWithEmailAndPassword(auth, dealerUser.email, inputPass);
-          } catch {}
-        }
-        if (onLoginSuccess) onLoginSuccess(dealerUser.id);
-        return;
-      }
-
-      // ----------------------------------------------------------------------
-      // 4. FIREBASE AUTH BACKEND DIRECT LOGIN
-      // ----------------------------------------------------------------------
-      let formattedEmail = cleanLower;
-      if (!formattedEmail.includes('@')) {
-        if (isBhavani) formattedEmail = 'bhavani.telecaller@mirrorsolar.in';
-        else if (isSuresh) formattedEmail = 'sales.telecaller@mirrorsolar.in';
-        else if (role === 'Dealer') formattedEmail = `${formattedEmail}@dealer.in`;
-        else if (role === 'Admin') formattedEmail = 'mirrorsolarvision@gmail.com';
-        else formattedEmail = `${formattedEmail}@mirrorsolar.in`;
-      }
-
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, formattedEmail, inputPass);
-        const uid = userCredential.user.uid;
-        
-        const authedUser: CRMUser = {
-          id: uid,
-          name: isBhavani ? 'K. Bhavani' : (isSuresh ? 'P. Suresh' : formattedEmail.split('@')[0]),
-          email: formattedEmail,
-          phone: isBhavani ? '9848123456' : (isSuresh ? '9440188990' : ''),
-          role: isBhavani || isSuresh ? 'Employee' : (role === 'Dealer' ? 'Dealer' : (role === 'Admin' ? 'Admin' : 'Employee')),
-          status: 'Active',
-          lastActive: 'Just now',
-          initials: isBhavani ? 'KB' : (isSuresh ? 'PS' : 'EM'),
-          employeeCategory: isBhavani ? 'Telecaller' : (isSuresh ? 'Sales Manager (Telecaller)' : undefined),
-          employeeId: isBhavani ? 'MSV-TC-001' : (isSuresh ? 'MSV-SALES-001' : undefined),
-          permissions: role === 'Admin' ? adminPermissions : defaultUserPermissions
-        };
-
-        loginUser(authedUser);
         if (onLoginSuccess) {
           onLoginSuccess(uid);
         }
-        return;
-      } catch (authErr: any) {
-        console.warn("Firebase auth error:", authErr);
-        setErrorMsg("Invalid username or password. Please verify credentials and try again.");
       }
+    } catch (authErr: any) {
+      console.warn('Firebase authentication failed:', authErr.code || authErr.message);
+      recordFailedAttempt(targetEmail);
 
-    } catch (err: any) {
-      console.error("Login process error:", err);
-      setErrorMsg("Authentication error. Please try again.");
+      if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/user-not-found') {
+        setErrorMsg('Invalid username or password. Please verify credentials and try again.');
+      } else if (authErr.code === 'auth/too-many-requests') {
+        setErrorMsg('Access temporarily blocked due to unusual traffic. Please reset your password or try again later.');
+      } else {
+        setErrorMsg(`Authentication failed (${authErr.code || 'Check network connection'}). Please verify credentials.`);
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -345,11 +323,44 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     await processLogin(usernameOrEmail, password);
   };
 
-  const handleQuickLogin = async (email: string, pass: string) => {
-    setUsernameOrEmail(email);
-    setPassword(pass);
-    await processLogin(email, pass);
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail || !resetEmail.includes('@')) {
+      setResetStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+
+    setIsSendingReset(true);
+    setResetStatus(null);
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim());
+      setResetStatus({
+        type: 'success',
+        message: `Password reset instructions have been dispatched to ${resetEmail}. Please check your inbox or spam folder.`
+      });
+      logAction({
+        action: 'PASSWORD_RESET_REQUESTED',
+        entityType: 'User',
+        entityId: resetEmail,
+        entityLabel: resetEmail,
+        reason: 'User self-service password reset requested'
+      }).catch(() => {});
+    } catch (err: any) {
+      console.error('Password reset dispatch error:', err);
+      setResetStatus({
+        type: 'error',
+        message: err.code === 'auth/user-not-found'
+          ? 'No registered account found with this email address.'
+          : 'Unable to send password reset email. Please contact Admin.'
+      });
+    } finally {
+      setIsSendingReset(false);
+    }
   };
+
+  // Only show development convenience quick-fill in non-production builds
+  const isDevMode = !import.meta.env.PROD;
 
   return (
     <div className="login-screen-container">
@@ -358,28 +369,23 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         
         {/* Subtle Solar Energy Visual System */}
         <div className="solar-visual-system">
-          {/* Large partial yellow solar circle */}
           <svg className={`visual-yellow-arc ${stage >= 1 ? 'draw' : ''}`} viewBox="0 0 200 200">
              <circle cx="100" cy="100" r="90" className="yellow-arc-path" />
           </svg>
           
-          {/* Dark navy curved orbit */}
           <svg className={`visual-navy-orbit ${stage >= 2 ? 'draw' : ''}`} viewBox="0 0 200 200">
              <circle cx="100" cy="100" r="140" className="navy-orbit-path" />
           </svg>
 
-          {/* Thin geometric network */}
           <svg className={`visual-network ${stage >= 2 ? 'reveal' : ''}`} viewBox="0 0 400 400">
              <path d="M 50 150 Q 150 200 300 100" className="network-line" />
              <path d="M 100 300 Q 250 250 350 350" className="network-line" />
           </svg>
 
-          {/* Orange energy nodes */}
           <div className={`energy-node node-1 ${stage >= 3 ? 'reveal' : ''}`}></div>
           <div className={`energy-node node-2 ${stage >= 3 ? 'reveal' : ''}`}></div>
           <div className={`energy-node node-3 ${stage >= 3 ? 'reveal' : ''}`}></div>
           
-          {/* Orange Icon Accent */}
           <div className={`solar-icon-container ${stage >= 3 ? 'reveal' : ''}`}>
              <Zap className="solar-icon" size={24} strokeWidth={1.75} />
           </div>
@@ -409,50 +415,65 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             <div className={`heading-yellow-accent ${stage >= 5 ? 'draw' : ''}`}></div>
           </div>
 
-          {/* Quick 1-Click Instant Login Section */}
-          <div className={`quick-login-section ${stage >= 4 ? 'reveal' : ''}`}>
-            <div className="quick-login-label">
-              <Sparkles size={14} className="sparkle-icon" />
-              <span>⚡ 1-Click Fast Login (Instant Sign-in)</span>
+          {/* Development Quick-Fill Helper: strictly disabled in production builds */}
+          {isDevMode && (
+            <div className={`quick-login-section ${stage >= 4 ? 'reveal' : ''}`}>
+              <div className="quick-login-label">
+                <Sparkles size={14} className="sparkle-icon" />
+                <span>⚡ Dev Quick-Fill Identifier (Credentials Required)</span>
+              </div>
+              <div className="quick-login-chips">
+                <button 
+                  type="button" 
+                  className="quick-chip chip-telecaller"
+                  onClick={() => setUsernameOrEmail('bhavani.telecaller@mirrorsolar.in')}
+                  title="Fill K. Bhavani's email"
+                >
+                  <User size={13} /> K. Bhavani (Telecaller)
+                </button>
+                <button 
+                  type="button" 
+                  className="quick-chip chip-sales"
+                  onClick={() => setUsernameOrEmail('sales.telecaller@mirrorsolar.in')}
+                  title="Fill P. Suresh's email"
+                >
+                  <Briefcase size={13} /> P. Suresh (Sales Mgr)
+                </button>
+                <button 
+                  type="button" 
+                  className="quick-chip chip-admin"
+                  onClick={() => setUsernameOrEmail('mirrorsolarvision@gmail.com')}
+                  title="Fill Admin's email"
+                >
+                  <ShieldCheck size={13} /> Admin
+                </button>
+                <button 
+                  type="button" 
+                  className="quick-chip chip-dealer"
+                  onClick={() => setUsernameOrEmail('hussain@dealer.in')}
+                  title="Fill Hussain's email"
+                >
+                  <Zap size={13} /> Hussain (Dealer)
+                </button>
+              </div>
             </div>
-            <div className="quick-login-chips">
-              <button 
-                type="button" 
-                className="quick-chip chip-telecaller"
-                onClick={() => handleQuickLogin('bhavani.telecaller@mirrorsolar.in', 'Mirror@1432')}
-                title="Sign in immediately as K. Bhavani"
-              >
-                <User size={13} /> K. Bhavani (Telecaller)
-              </button>
-              <button 
-                type="button" 
-                className="quick-chip chip-sales"
-                onClick={() => handleQuickLogin('sales.telecaller@mirrorsolar.in', 'Mirror@1432')}
-                title="Sign in immediately as P. Suresh"
-              >
-                <Briefcase size={13} /> P. Suresh (Sales Mgr)
-              </button>
-              <button 
-                type="button" 
-                className="quick-chip chip-admin"
-                onClick={() => handleQuickLogin('mirrorsolarvision@gmail.com', 'Mirror@1432')}
-                title="Sign in immediately as Admin"
-              >
-                <ShieldCheck size={13} /> Admin
-              </button>
-              <button 
-                type="button" 
-                className="quick-chip chip-dealer"
-                onClick={() => handleQuickLogin('hussain@dealer.in', 'Mirror@9431')}
-                title="Sign in immediately as Hussain (Dealer)"
-              >
-                <Zap size={13} /> Hussain (Dealer)
-              </button>
+          )}
+
+          {/* Lockout Warning Banner */}
+          {lockoutRemainingSec > 0 && (
+            <div className="login-error-banner" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' }}>
+              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Security Lockout Active</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem' }}>
+                  Device locked due to multiple failed attempts. Please wait {Math.ceil(lockoutRemainingSec / 60)}m {lockoutRemainingSec % 60}s before retrying.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           <form className="login-form" onSubmit={handleAuthSubmit}>
-            {errorMsg && (
+            {errorMsg && lockoutRemainingSec === 0 && (
               <div className="login-error-banner">
                 {errorMsg}
               </div>
@@ -479,6 +500,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   }
                   required
                   autoFocus
+                  disabled={lockoutRemainingSec > 0}
                 />
                 <div className="input-focus-border"></div>
               </div>
@@ -487,7 +509,6 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             <div className={`input-group ${stage >= 4 ? 'reveal' : ''}`} style={{ marginTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label htmlFor="loginPassword">Password</label>
-                <span className="password-hint-text">Default: Mirror@1432</span>
               </div>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input 
@@ -497,8 +518,9 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password (e.g. Mirror@1432)"
+                  placeholder="Enter your account password"
                   required
+                  disabled={lockoutRemainingSec > 0}
                 />
                 <button
                   type="button"
@@ -524,18 +546,30 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                 <span className="custom-checkmark"></span>
                 <span className="checkbox-text">Remember me</span>
               </label>
+
+              <button 
+                type="button" 
+                className="btn-forgot-password"
+                onClick={() => {
+                  setShowResetModal(true);
+                  setResetEmail(usernameOrEmail.includes('@') ? usernameOrEmail : '');
+                  setResetStatus(null);
+                }}
+              >
+                Forgot Password?
+              </button>
             </div>
 
             <button 
               type="submit" 
               className={`btn-signin ${stage >= 4 ? 'reveal' : ''}`} 
-              disabled={isSigningIn}
+              disabled={isSigningIn || lockoutRemainingSec > 0}
             >
               <div className="btn-yellow-accent"></div>
               {isSigningIn ? (
                 <span className="btn-content loading">
                   <Loader2 className="spinner" size={20} />
-                  Signing in...
+                  Verifying Identity...
                 </span>
               ) : (
                 <span className="btn-content">
@@ -554,6 +588,102 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           </button>
         </div>
       </div>
+
+      {/* Password Reset Modal */}
+      {showResetModal && (
+        <div className="reset-modal-overlay">
+          <div className="reset-modal-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3>Reset Your Password</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowResetModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p>
+              Enter your verified email address below. A secure password reset link will be sent to your inbox.
+            </p>
+
+            {resetStatus && (
+              <div 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                  fontSize: '0.85rem',
+                  background: resetStatus.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                  border: `1px solid ${resetStatus.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                  color: resetStatus.type === 'success' ? '#065f46' : '#991b1b'
+                }}
+              >
+                {resetStatus.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+                <span>{resetStatus.message}</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordReset}>
+              <div className="input-group">
+                <label htmlFor="resetEmailInput">Registered Email Address</label>
+                <div className="input-wrapper">
+                  <input 
+                    id="resetEmailInput"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="e.g. employee@mirrorsolar.in"
+                    required
+                    autoFocus
+                  />
+                  <div className="input-focus-border"></div>
+                </div>
+              </div>
+
+              <div className="reset-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setShowResetModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSendingReset}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 18px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isSendingReset ? <Loader2 className="spinner" size={16} /> : <Mail size={16} />}
+                  Send Reset Link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

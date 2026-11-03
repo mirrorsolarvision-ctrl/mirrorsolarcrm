@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, onSnapshot, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import type { AuditLogEntry, AuditAction, EntityType } from '../types/audit';
 import { useAuth } from './AuthContext';
@@ -37,6 +37,12 @@ export const AuditLogProvider: React.FC<{ children: ReactNode }> = ({ children }
   const { currentUser } = useAuth();
 
   useEffect(() => {
+    // Audit logs read access is restricted by Firestore rules to Admin and Accounts roles
+    const canReadAudit = currentUser?.role === 'Admin' || (currentUser as any)?.role === 'Accounts';
+    if (!canReadAudit || !auth.currentUser) {
+      return;
+    }
+
     try {
       const q = query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(500));
       const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -52,7 +58,7 @@ export const AuditLogProvider: React.FC<{ children: ReactNode }> = ({ children }
     } catch (err) {
       console.warn('Audit logs init fallback:', err);
     }
-  }, []);
+  }, [currentUser]);
 
   const logAction = async (params: {
     action: AuditAction;
@@ -64,27 +70,34 @@ export const AuditLogProvider: React.FC<{ children: ReactNode }> = ({ children }
     diffSummary?: string;
     reason?: string;
   }) => {
-    const entry: Omit<AuditLogEntry, 'id'> = {
-      userId: currentUser?.id || 'system',
-      userName: currentUser?.name || 'System User',
+    const authUid = auth.currentUser?.uid || currentUser?.id || 'system';
+    
+    const entry: any = {
+      userId: authUid,
+      userUid: authUid,
+      actorId: authUid,
+      userName: currentUser?.name || auth.currentUser?.displayName || auth.currentUser?.email || 'System User',
       userRole: (currentUser?.role as any) || 'System',
-      dealerId: (currentUser as any)?.dealerId,
+      dealerId: (currentUser as any)?.dealerId || undefined,
       action: params.action,
       entityType: params.entityType,
       entityId: params.entityId,
-      entityLabel: params.entityLabel,
+      entityLabel: params.entityLabel || '',
       timestamp: new Date().toISOString(),
-      previousValue: params.previousValue,
-      newValue: params.newValue,
-      diffSummary: params.diffSummary,
-      reason: params.reason
+      previousValue: params.previousValue !== undefined ? params.previousValue : null,
+      newValue: params.newValue !== undefined ? params.newValue : null,
+      diffSummary: params.diffSummary || '',
+      reason: params.reason || ''
     };
 
     try {
-      await addDoc(collection(db, 'auditLogs'), entry);
+      if (auth.currentUser) {
+        await addDoc(collection(db, 'auditLogs'), entry);
+      }
     } catch (err) {
-      console.error('Failed to write audit log to Firestore:', err);
-      // Local optimistic update
+      console.warn('Failed to write audit log to Firestore (optimistic local fallback):', err);
+    } finally {
+      // Local optimistic update so UI sees the change immediately
       setLogs((prev) => [{ id: `local-audit-${Date.now()}`, ...entry }, ...prev]);
     }
   };

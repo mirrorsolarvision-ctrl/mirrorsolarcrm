@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:security": "node tests/security_and_rbac_audit.mjs",
+    "backup": "node scripts/backupFirestore.mjs",
+    "backup:verify": "node scripts/restoreVerification.mjs",
     "deploy": "cmd /c scripts\\deploy.bat",
     "deploy:hosting": "cmd /c scripts\\deploy.bat --hosting",
     "deploy:rules": "cmd /c scripts\\deploy.bat --rules",

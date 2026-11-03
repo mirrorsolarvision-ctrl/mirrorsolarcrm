@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  GitFork, ArrowRight, PhoneCall, MessageSquare, 
-  Flame, CheckCircle2, ChevronRight, User, RefreshCw, X
+  PhoneCall, MessageSquare, 
+  ChevronRight, X, AlertTriangle, CheckCircle2, ShieldCheck, FileText, Calendar, UserCheck
 } from 'lucide-react';
 import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useAudit } from '../../context/AuditLogContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import type { SalesStage } from '../../types/sales';
 
@@ -13,19 +14,30 @@ interface SalesPipelineViewProps {
   onOpenWhatsApp?: (lead: MockLead) => void;
 }
 
-const PIPELINE_STAGES: { key: SalesStage; label: string; color: string }[] = [
-  { key: 'New Lead', label: '1. New Enquiries', color: '#0284c7' },
-  { key: 'Contact Attempted', label: '2. 1st Call Attempted', color: '#38bdf8' },
-  { key: 'Contacted', label: '3. Contacted', color: '#6366f1' },
-  { key: 'Qualified', label: '4. Qualified (4-Pillar)', color: '#8b5cf6' },
-  { key: 'Site Survey Scheduled', label: '5. Survey Scheduled', color: '#06b6d4' },
-  { key: 'Site Survey Completed', label: '6. Survey Completed', color: '#10b981' },
-  { key: 'Quotation Sent', label: '7. Proposal Sent', color: '#f59e0b' },
-  { key: 'Negotiation', label: '8. Negotiation / Discount', color: '#d97706' },
-  { key: 'Advance Submitted', label: '9. Advance Submitted', color: '#f97316' },
-  { key: 'Booking Confirmed', label: '10. Booking Confirmed', color: '#16a34a' },
-  { key: 'Project Handoff', label: '11. Dealer Handoff', color: '#0b1f3a' },
-  { key: 'Lost', label: '12. Lost / Dropped', color: '#94a3b8' }
+export const PIPELINE_STAGES: { key: SalesStage; label: string; color: string; description: string }[] = [
+  { key: 'New Lead', label: '1. New Enquiries', color: '#0284c7', description: 'Fresh lead inbox awaiting first call' },
+  { key: 'Contact Attempted', label: '2. 1st Call Attempted', color: '#38bdf8', description: 'Dialed within 15-min SLA' },
+  { key: 'Contacted', label: '3. Contacted', color: '#6366f1', description: 'Customer spoke with telecaller' },
+  { key: 'Qualified', label: '4. Qualified (4-Pillar)', color: '#8b5cf6', description: 'Load, roof, bill & budget recorded' },
+  { key: 'Site Survey Scheduled', label: '5. Survey Scheduled', color: '#06b6d4', description: 'Dealer visit appointment booked' },
+  { key: 'Site Survey Completed', label: '6. Survey Completed', color: '#10b981', description: 'Technical feasibility confirmed' },
+  { key: 'Quotation Sent', label: '7. Proposal Sent', color: '#f59e0b', description: 'Official pricing & subsidy proposal' },
+  { key: 'Negotiation', label: '8. Negotiation', color: '#d97706', description: 'Discount approval & terms discussion' },
+  { key: 'Advance Submitted', label: '9. Advance Submitted', color: '#f97316', description: 'Token advance receipt uploaded' },
+  { key: 'Booking Confirmed', label: '10. Booking Confirmed', color: '#16a34a', description: 'Payment verified by Accounts/Admin' },
+  { key: 'Project Handoff', label: '11. Project Handoff (Closed Won)', color: '#0b1f3a', description: 'Dealer accepted for installation' },
+  { key: 'Lost', label: '12. Closed Lost (Dropped)', color: '#94a3b8', description: 'Unqualified or competitor lost' }
+];
+
+const LOSS_REASONS = [
+  'Competitor quoted lower pricing',
+  'Rooftop shading / Structural unsuitability',
+  'Customer postponed to next financial year',
+  'DISCOM transformer capacity / sanctioned load limit',
+  'Financing / Loan rejection',
+  'Tenant / Not property owner',
+  'Customer unresponsive after repeated follow-ups',
+  'Other / Unspecified reason'
 ];
 
 export default function SalesPipelineView({
@@ -33,22 +45,26 @@ export default function SalesPipelineView({
   onOpenCallLogModal,
   onOpenWhatsApp
 }: SalesPipelineViewProps) {
-  const { currentUser, leads, updateLeadSalesStage } = useCRM();
+  const { currentUser, leads, updateLeadSalesStage, updateLead } = useCRM();
+  const { logAction } = useAudit();
   const isManager = isSalesManager(currentUser);
+  const isAdmin = currentUser?.role === 'Admin';
   const currentUserName = currentUser?.name || '';
   const currentUserId = currentUser?.id || '';
 
-  const [activeStageFilter, setActiveStageFilter] = useState<string>('all');
   const [selectedLeadForAdvance, setSelectedLeadForAdvance] = useState<MockLead | null>(null);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [lossReason, setLossReason] = useState<string>(LOSS_REASONS[0]);
+  const [targetStageSelected, setTargetStageSelected] = useState<SalesStage | null>(null);
 
   // Scoped leads
   const scopedLeads = useMemo(() => {
-    if (isManager) return leads.filter(l => !l.archived);
+    if (isManager || isAdmin) return leads.filter(l => !l.archived);
     return leads.filter(l => 
       !l.archived && 
       (l.assignedEmployee === currentUserName || l.assignedEmployeeId === currentUserId || l.leadOwnerId === currentUserId)
     );
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, isAdmin, currentUserName, currentUserId]);
 
   // Group leads by stage
   const stageGroups = useMemo(() => {
@@ -79,10 +95,113 @@ export default function SalesPipelineView({
     return groups;
   }, [scopedLeads]);
 
-  // Handle stage change
-  const handleAdvanceStage = async (leadId: string, nextStage: SalesStage) => {
+  // Validate Stage Transition Gates
+  const validateTransition = (lead: MockLead, targetStage: SalesStage): { ok: boolean; reason?: string } => {
+    // 1. Moving to Site Survey Scheduled: Requires dealer assignment or appointment schedule
+    if (targetStage === 'Site Survey Scheduled') {
+      if (!lead.dealer && !lead.dealerId) {
+        return {
+          ok: false,
+          reason: 'Dealer allocation is required before scheduling a Site Survey. Please assign a regional dealer.'
+        };
+      }
+    }
+
+    // 2. Moving to Quotation Sent: Requires system capacity preference
+    if (targetStage === 'Quotation Sent') {
+      const capacity = lead.qualificationData?.preferredCapacityKw || (lead as any).capacityPreferenceKw || (lead as any).preferredCapacityKw;
+      if (!capacity) {
+        return {
+          ok: false,
+          reason: 'Preferred system capacity (kW) must be recorded before sending a quotation.'
+        };
+      }
+    }
+
+    // 3. Moving to Booking Confirmed: Strict financial gate
+    if (targetStage === 'Booking Confirmed') {
+      const customerPayments = lead.payments?.customerPayments || [];
+      const hasVerifiedPayment = customerPayments.some(p => p.status === 'Verified');
+      if (!hasVerifiedPayment) {
+        return {
+          ok: false,
+          reason: 'Financial Security Gate: Advance payment evidence must be verified by Accounts or Super Admin before confirming booking.'
+        };
+      }
+    }
+
+    // 4. Moving to Project Handoff: Requires confirmed booking and dealer
+    if (targetStage === 'Project Handoff') {
+      const isBookingConfirmed = lead.salesStage === 'Booking Confirmed' || lead.stage === 'Converted';
+      if (!isBookingConfirmed) {
+        return {
+          ok: false,
+          reason: 'Lead must reach "Booking Confirmed" with verified payment before handoff to Operations.'
+        };
+      }
+      if (!lead.dealerId && !lead.dealer) {
+        return {
+          ok: false,
+          reason: 'A regional dealer must be assigned to receive the project handoff.'
+        };
+      }
+    }
+
+    return { ok: true };
+  };
+
+  // Handle stage change request
+  const handleStageClick = (targetStage: SalesStage) => {
+    if (!selectedLeadForAdvance) return;
+    setTargetStageSelected(targetStage);
+    setTransitionError(null);
+
+    const validation = validateTransition(selectedLeadForAdvance, targetStage);
+    if (!validation.ok) {
+      setTransitionError(validation.reason || 'Stage transition gate requirement not met.');
+      return;
+    }
+
+    if (targetStage !== 'Lost') {
+      commitStageTransition(selectedLeadForAdvance.id, targetStage);
+    }
+  };
+
+  const commitStageTransition = async (leadId: string, nextStage: SalesStage, explicitLossReason?: string) => {
+    const lead = scopedLeads.find(l => l.id === leadId);
+    const prevStage = lead?.salesStage || 'New Lead';
+
+    const updates: any = {
+      salesStage: nextStage
+    };
+
+    if (nextStage === 'Lost' && explicitLossReason) {
+      updates.lossReason = explicitLossReason;
+      updates.notes = `${lead?.notes ? lead.notes + '\n' : ''}[Closed Lost Reason: ${explicitLossReason}]`;
+    } else if (nextStage === 'Booking Confirmed') {
+      updates.stage = 'Converted';
+    } else if (nextStage === 'Project Handoff') {
+      updates.stage = 'Installation';
+    }
+
+    await updateLead(leadId, updates);
     await updateLeadSalesStage(leadId, nextStage);
+
+    // Audit log immutable record
+    logAction({
+      action: 'LEAD_STAGE_CHANGED',
+      entityType: 'Lead',
+      entityId: leadId,
+      entityLabel: lead?.customer || leadId,
+      previousValue: prevStage,
+      newValue: nextStage,
+      diffSummary: `Pipeline transition from ${prevStage} to ${nextStage}`,
+      reason: explicitLossReason || 'Pipeline stage progression'
+    }).catch(() => {});
+
     setSelectedLeadForAdvance(null);
+    setTargetStageSelected(null);
+    setTransitionError(null);
   };
 
   return (
@@ -92,10 +211,10 @@ export default function SalesPipelineView({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 style={{ margin: '0 0 0.25rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#0b1f3a' }}>
-              12-Stage Inbound Sales Pipeline Funnel
+              12-Stage Gated Inbound Sales Pipeline Funnel
             </h2>
             <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-              Enquiry-to-Booking solar conversion pipeline from first 15m contact to formal project dealer handoff.
+              Enquiry-to-Booking solar conversion pipeline with stage validation gates and separated Closed Won / Closed Lost outcomes.
             </p>
           </div>
 
@@ -127,8 +246,11 @@ export default function SalesPipelineView({
             >
               {/* Column Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '2px solid', borderColor: stage.color }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0b1f3a' }}>{stage.label}</span>
-                <span style={{ background: 'white', padding: '1px 8px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, color: stage.color }}>
+                <div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0b1f3a', display: 'block' }}>{stage.label}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{stage.description}</span>
+                </div>
+                <span style={{ background: 'white', padding: '2px 8px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, color: stage.color, alignSelf: 'flex-start' }}>
                   {leadsInStage.length}
                 </span>
               </div>
@@ -172,6 +294,12 @@ export default function SalesPipelineView({
                           📱 {lead.phone} • 📍 {lead.location?.split(',')[0]}
                         </div>
 
+                        {lead.dealer && (
+                          <div style={{ fontSize: '0.72rem', color: '#0284c7', background: '#f0f9ff', padding: '2px 6px', borderRadius: '4px' }}>
+                            Dealer: {lead.dealer}
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
                           <span style={{ fontSize: '0.75rem', color: '#0369a1', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px' }}>
                             {lead.qualificationData?.preferredCapacityKw || 3} kW Solar
@@ -179,7 +307,11 @@ export default function SalesPipelineView({
                           <button 
                             className="sales-btn-secondary"
                             style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}
-                            onClick={() => setSelectedLeadForAdvance(lead)}
+                            onClick={() => {
+                              setSelectedLeadForAdvance(lead);
+                              setTransitionError(null);
+                              setTargetStageSelected(null);
+                            }}
                           >
                             Advance <ChevronRight size={12} />
                           </button>
@@ -222,38 +354,94 @@ export default function SalesPipelineView({
         })}
       </div>
 
-      {/* Advance Stage Modal */}
+      {/* Advance Stage Modal with Validation Gates */}
       {selectedLeadForAdvance && (
         <div className="sales-modal-overlay" onClick={() => setSelectedLeadForAdvance(null)}>
-          <div className="sales-modal-content" onClick={e => e.stopPropagation()}>
+          <div className="sales-modal-content" style={{ maxWidth: '640px' }} onClick={e => e.stopPropagation()}>
             <div className="sales-modal-header">
-              <h3>Advance Sales Stage: {selectedLeadForAdvance.customer}</h3>
+              <h3>Advance Stage Gate: {selectedLeadForAdvance.customer}</h3>
               <button className="sales-modal-close-btn" onClick={() => setSelectedLeadForAdvance(null)}><X size={20} /></button>
             </div>
             <div className="sales-modal-body">
               <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#64748b' }}>
-                Current Stage: <strong>{selectedLeadForAdvance.salesStage || 'New Lead'}</strong>
+                Current Stage: <strong style={{ color: '#0b1f3a' }}>{selectedLeadForAdvance.salesStage || 'New Lead'}</strong>
               </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                {PIPELINE_STAGES.map(s => (
-                  <button
-                    key={s.key}
-                    className="sales-btn-secondary"
-                    style={{
-                      justifyContent: 'flex-start',
-                      padding: '0.6rem 0.75rem',
-                      borderColor: selectedLeadForAdvance.salesStage === s.key ? s.color : '#e2e8f0',
-                      background: selectedLeadForAdvance.salesStage === s.key ? '#f8fafc' : 'white',
-                      fontWeight: selectedLeadForAdvance.salesStage === s.key ? 700 : 500
-                    }}
-                    onClick={() => handleAdvanceStage(selectedLeadForAdvance.id, s.key)}
-                  >
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.color, marginRight: '6px' }}></span>
-                    {s.label}
-                  </button>
-                ))}
+              {transitionError && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  background: '#fef2f2',
+                  border: '1px solid #fca5a5',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  color: '#991b1b',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem'
+                }}>
+                  <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong>Prerequisite Condition Not Satisfied:</strong>
+                    <p style={{ margin: '3px 0 0 0' }}>{transitionError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Target Stage Options */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
+                {PIPELINE_STAGES.map(s => {
+                  const isCurrent = (selectedLeadForAdvance.salesStage || 'New Lead') === s.key;
+                  const isSelected = targetStageSelected === s.key;
+
+                  return (
+                    <button
+                      key={s.key}
+                      className="sales-btn-secondary"
+                      style={{
+                        justifyContent: 'flex-start',
+                        padding: '0.6rem 0.75rem',
+                        borderColor: isSelected ? s.color : (isCurrent ? '#cbd5e1' : '#e2e8f0'),
+                        background: isSelected ? '#f0f9ff' : (isCurrent ? '#f8fafc' : 'white'),
+                        fontWeight: isSelected || isCurrent ? 700 : 500,
+                        textAlign: 'left'
+                      }}
+                      onClick={() => handleStageClick(s.key)}
+                    >
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.color, marginRight: '6px', flexShrink: 0 }}></span>
+                      <span style={{ fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {s.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Special Loss Reason Selector when moving to Lost */}
+              {targetStageSelected === 'Lost' && (
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                    Mandatory Reason for Dropping / Closing Lost:
+                  </label>
+                  <select 
+                    className="sales-form-input"
+                    value={lossReason}
+                    onChange={e => setLossReason(e.target.value)}
+                    style={{ marginBottom: '0.75rem' }}
+                  >
+                    {LOSS_REASONS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <button 
+                    className="sales-btn-primary"
+                    style={{ background: '#dc2626', borderColor: '#b91c1c' }}
+                    onClick={() => commitStageTransition(selectedLeadForAdvance.id, 'Lost', lossReason)}
+                  >
+                    Confirm Drop Lead
+                  </button>
+                </div>
+              )}
             </div>
             <div className="sales-modal-footer">
               <button className="sales-btn-secondary" onClick={() => setSelectedLeadForAdvance(null)}>Cancel</button>
@@ -264,4 +452,3 @@ export default function SalesPipelineView({
     </div>
   );
 }
-

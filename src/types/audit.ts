@@ -13,7 +13,20 @@ export type AuditAction =
   | 'INVENTORY_REVERSED'
   | 'LEAD_STAGE_CHANGED'
   | 'LEAD_CREATED'
+  | 'LEAD_REASSIGNED'
   | 'LEAD_DELETED'
+  | 'DISCOUNT_REQUESTED'
+  | 'DISCOUNT_APPROVED'
+  | 'DISCOUNT_REJECTED'
+  | 'PAYMENT_SUBMITTED'
+  | 'PAYMENT_VERIFIED'
+  | 'PAYMENT_REJECTED'
+  | 'DEALER_ALLOCATED'
+  | 'DEALER_ALLOCATION_APPROVED'
+  | 'LOGIN_SUCCESS'
+  | 'LOGIN_FAILED'
+  | 'LOGIN_LOCKED_OUT'
+  | 'PASSWORD_RESET_REQUESTED'
   | 'PERMISSION_CHANGED'
   | 'ATTENDANCE_CHECK_IN'
   | 'ATTENDANCE_CHECK_OUT'
@@ -38,7 +51,8 @@ export type EntityType =
   | 'Payroll'
   | 'User'
   | 'Permission'
-  | 'Payment';
+  | 'Payment'
+  | 'Security';
 
 export interface AuditLogEntry {
   id: string;
