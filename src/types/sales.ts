@@ -114,6 +114,7 @@ export type CallOutcome =
 
 export interface TelecallerCallLog {
   id: string;
+  operationId?: string;
   leadId?: string;
   customerName: string;
   phone: string;

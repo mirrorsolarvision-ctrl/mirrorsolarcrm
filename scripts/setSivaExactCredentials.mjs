@@ -5,12 +5,13 @@
  * - Hardcoded credentials have been removed.
  * - Password storage in Firestore documents is strictly forbidden and removed.
  * - Standalone user documents indexed by non-UID (e.g. employee code) are prohibited.
+ * - Requires verified UID-to-email identity match before profile modification.
  * - This script is disabled by default.
  */
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 if (process.env.ALLOW_DATA_MODIFICATION !== 'true') {
   console.error('[ABORTED] Script execution is disabled. Set ALLOW_DATA_MODIFICATION=true to run.');
@@ -20,6 +21,7 @@ if (process.env.ALLOW_DATA_MODIFICATION !== 'true') {
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const targetAuthUid = process.env.TARGET_AUTH_UID;
+const EXPECTED_EMAIL = 'siva.mirrorsolarvision@gmail.com';
 
 if (!adminEmail || !adminPassword || !targetAuthUid) {
   console.error('[ABORTED] Missing required environment variables: ADMIN_EMAIL, ADMIN_PASSWORD, TARGET_AUTH_UID.');
@@ -28,11 +30,11 @@ if (!adminEmail || !adminPassword || !targetAuthUid) {
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBZE0Zwwvyc963ddo_I8LTc8emlhayZ_NY",
-  authDomain: "crm-webapp-d32bc.firebaseapp.com",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "crm-webapp-d32bc.firebaseapp.com",
   projectId: process.env.FIREBASE_PROJECT_ID || "crm-webapp-d32bc",
-  storageBucket: "crm-webapp-d32bc.firebasestorage.app",
-  messagingSenderId: "940267952934",
-  appId: "1:940267952934:web:18ba7928b92968bcdcbfe7"
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "crm-webapp-d32bc.firebasestorage.app",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "940267952934",
+  appId: process.env.FIREBASE_APP_ID || "1:940267952934:web:18ba7928b92968bcdcbfe7"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -43,6 +45,18 @@ async function main() {
   await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
   console.log('Authenticated admin session established.');
 
+  // Pre-verification: Verify UID-to-email identity match before profile modification
+  const userDocRef = doc(db, 'users', targetAuthUid);
+  const userDocSnap = await getDoc(userDocRef);
+
+  if (userDocSnap.exists()) {
+    const existing = userDocSnap.data();
+    if (existing.email && existing.email.toLowerCase() !== EXPECTED_EMAIL.toLowerCase()) {
+      console.error(`[SECURITY ABORT] Target UID "${targetAuthUid}" holds email "${existing.email}", which does not match expected email "${EXPECTED_EMAIL}". Modification aborted to prevent identity spoofing or account takeover.`);
+      process.exit(1);
+    }
+  }
+
   const userProfile = {
     id: targetAuthUid,
     employeeId: 'MSV-SIVA-001',
@@ -50,7 +64,7 @@ async function main() {
     displayId: 'MSV/EMP/SUNKARASIVA',
     name: 'Sunkara Siva',
     initials: 'SS',
-    email: 'siva.mirrorsolarvision@gmail.com',
+    email: EXPECTED_EMAIL,
     phone: '8985141432',
     role: 'Employee',
     employeeCategory: 'Marketing Employee',
@@ -82,8 +96,8 @@ async function main() {
   };
 
   // Only write to /users/{AUTH_UID} - Never store passwords in Firestore
-  await setDoc(doc(db, 'users', targetAuthUid), userProfile, { merge: true });
-  console.log(`[Firestore: Profile Updated] users/${targetAuthUid}`);
+  await setDoc(userDocRef, userProfile, { merge: true });
+  console.log(`[Firestore: Profile Updated] Verified identity users/${targetAuthUid} for ${EXPECTED_EMAIL}`);
 
   process.exit(0);
 }

@@ -2811,10 +2811,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error("Lead ID is mandatory for creating a call log.");
     }
 
-    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string; callerId?: string } = {
+    const operationId = (logData as any).operationId || (logData as any).id || ('CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string; callerId?: string; operationId?: string } = {
       ...logData,
-      id: 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-      timestamp: new Date().toISOString(),
+      id: operationId,
+      operationId: operationId,
+      timestamp: (logData as any).timestamp || new Date().toISOString(),
       telecallerId: callerUid,
       callerId: callerUid,
       employeeId: callerUid,

@@ -5,7 +5,7 @@ import {
   PhoneIncoming, Target, ShieldAlert, Award,
   ArrowUpRight, Phone, Check, RefreshCw
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM, type MockLead, getIndiaDateString } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 
 interface SalesDashboardViewProps {
@@ -24,23 +24,22 @@ export default function SalesDashboardView({
   const currentUserName = currentUser?.name || '';
   const currentUserId = currentUser?.id || currentUser?.uid || '';
 
-  // Scope leads: Telecaller sees only their own assigned leads, Sales Manager sees all team leads
+  // Scope leads: Telecaller sees only their own assigned leads by UID, Sales Manager sees all team leads
   const scopedLeads = useMemo(() => {
     if (isManager) return leads.filter(l => !l.archived);
     return leads.filter(l => 
       !l.archived && 
-      ((l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
-       (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+      ((l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
        (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId))
     );
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, currentUserId]);
 
-  // Scope call logs: Telecaller sees only their own calls, Sales Manager sees team calls
-  const todayDateStr = new Date().toISOString().split('T')[0];
+  // Scope call logs: Telecaller sees only their own calls by UID, Sales Manager sees team calls
+  const todayDateStr = getIndiaDateString();
   const scopedCallLogs = useMemo(() => {
     if (isManager) return callLogs;
-    return callLogs.filter(c => c.telecallerId === currentUserId || c.telecallerName === currentUserName);
-  }, [callLogs, isManager, currentUserId, currentUserName]);
+    return callLogs.filter(c => c.telecallerId === currentUserId || (c as any).callerId === currentUserId);
+  }, [callLogs, isManager, currentUserId]);
 
   const todayCalls = useMemo(() => {
     return scopedCallLogs.filter(c => c.timestamp?.startsWith(todayDateStr) || c.callDate === todayDateStr);

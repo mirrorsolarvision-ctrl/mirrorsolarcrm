@@ -7,6 +7,7 @@ import RouteLoadingFallback from './components/RouteLoadingFallback';
 import ErrorBoundary from './components/ErrorBoundary';
 import WhatsAppBuddy from './components/WhatsAppBuddy';
 import VersionUpdateBanner from './components/VersionUpdateBanner';
+import EnvironmentIndicator from './components/EnvironmentIndicator';
 
 // Lazy-loaded top-level views for rapid initial startup
 const RoleSelection = lazy(() => import('./RoleSelection'));
@@ -236,6 +237,9 @@ function AppContent() {
 
       {/* Persistent WhatsApp Buddy Floating Copilot */}
       {authUser && <WhatsAppBuddy />}
+
+      {/* Visible Staging Environment Indicator */}
+      <EnvironmentIndicator />
     </>
   );
 }

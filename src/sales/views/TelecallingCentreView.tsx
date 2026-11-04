@@ -5,7 +5,7 @@ import {
   Filter, User, ChevronRight, X, PhoneMissed, PhoneForwarded,
   AlertTriangle, Check, Phone
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM, type MockLead, getIndiaDateString } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import type { CallOutcome } from '../../types/sales';
 
@@ -60,8 +60,8 @@ export default function TelecallingCentreView({
     return list;
   }, [callLogs, isManager, currentUserId, currentUserName, filterTelecaller, filterOutcome]);
 
-  // Today's Stats
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Today's Stats (calculated using Asia/Kolkata date boundary)
+  const todayStr = getIndiaDateString();
   const todayCalls = useMemo(() => {
     return scopedCallLogs.filter(c => c.timestamp?.startsWith(todayStr) || c.callDate === todayStr);
   }, [scopedCallLogs, todayStr]);
@@ -139,8 +139,25 @@ export default function TelecallingCentreView({
   // Submit Call Log
   const handleSubmitCallLog = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!callForm.leadId) {
+      setSubmitError('Lead selection is mandatory. Standalone call logs without an assigned lead are not permitted.');
+      return;
+    }
+
     if (!callForm.customerName || !callForm.phone) {
       setSubmitError('Please provide customer name and phone number.');
+      return;
+    }
+
+    // Lead ownership check
+    const targetLead = leads.find(l => l.id === callForm.leadId);
+    if (!targetLead) {
+      setSubmitError('Selected lead could not be found in active records.');
+      return;
+    }
+
+    if (!isManager && targetLead.assignedEmployeeId !== currentUserId && targetLead.leadOwnerId !== currentUserId) {
+      setSubmitError('Unauthorized: The selected lead is not assigned to your authenticated account.');
       return;
     }
 
@@ -154,8 +171,11 @@ export default function TelecallingCentreView({
     setSubmitError(null);
 
     try {
+      const stableOpId = 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       await addCallLog({
-        leadId: callForm.leadId || undefined,
+        id: stableOpId,
+        operationId: stableOpId,
+        leadId: callForm.leadId,
         customerName: callForm.customerName,
         phone: callForm.phone,
         callDirection: callForm.callDirection,
@@ -168,19 +188,7 @@ export default function TelecallingCentreView({
         nextFollowUpTime: isFollowUpRequired || callForm.nextFollowUpTime ? callForm.nextFollowUpTime : undefined,
         telecallerId: currentUserId,
         telecallerName: currentUserName
-      });
-
-      // Advance salesStage if first call on New Lead
-      if (callForm.leadId) {
-        const currentLead = leads.find(l => l.id === callForm.leadId);
-        if (currentLead && (!currentLead.firstCallAttemptAt || currentLead.salesStage === 'New Lead')) {
-          const newStage = (callForm.updatedLeadStatus || (callForm.outcome.startsWith('Connected') || callForm.outcome === 'Connected' ? 'Contacted' : 'Contact Attempted')) as any;
-          await updateLead(callForm.leadId, {
-            firstCallAttemptAt: new Date().toISOString(),
-            salesStage: newStage
-          });
-        }
-      }
+      } as any);
 
       setSubmitSuccess(`Call record for ${callForm.customerName} successfully saved to Firestore!`);
 
@@ -425,7 +433,7 @@ export default function TelecallingCentreView({
                 )}
 
                 {/* Customer Selection if not preselected */}
-                {!callForm.customerName ? (
+                {!callForm.leadId ? (
                   <div className="sales-form-group">
                     <label>Select Customer from Assigned Leads *</label>
                     <select 
@@ -442,6 +450,9 @@ export default function TelecallingCentreView({
                         <option key={l.id} value={l.id}>{l.customer} ({l.phone}) - {l.location}</option>
                       ))}
                     </select>
+                    <div style={{ color: '#d97706', fontSize: '0.78rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertTriangle size={12} /> Lead selection is mandatory. Standalone call logs without an assigned lead are disabled.
+                    </div>
                   </div>
                 ) : (
                   <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -591,10 +602,11 @@ export default function TelecallingCentreView({
                 </button>
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !callForm.leadId}
                   className="sales-btn-primary"
+                  title={!callForm.leadId ? 'Select an assigned lead before submitting' : undefined}
                 >
-                  {isSubmitting ? 'Saving to Firestore...' : 'Save Call Log & Update Lead'}
+                  {isSubmitting ? 'Saving to Firestore...' : (!callForm.leadId ? 'Select Lead to Save Call' : 'Save Call Log & Update Lead')}
                 </button>
               </div>
             </form>

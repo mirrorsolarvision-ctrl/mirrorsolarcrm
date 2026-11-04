@@ -4,7 +4,7 @@ import {
   AlertTriangle, MapPin, RefreshCw, X, Phone, 
   ChevronLeft, ChevronRight, Calendar, Zap
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM, type MockLead, getIndiaDateString } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import { findDuplicateLeadByPhone } from '../../utils/salesCalculations';
 import type { DuplicateCheckResult } from '../../types/sales';
@@ -146,7 +146,7 @@ export default function SalesLeadsView({
       newLeadForm.priority === 'Warm' ? 'Medium' : 'Low';
 
     const nowIso = new Date().toISOString();
-    const todayYmd = nowIso.split('T')[0];
+    const todayYmd = getIndiaDateString();
 
     await addLead({
       customer: newLeadForm.customer,

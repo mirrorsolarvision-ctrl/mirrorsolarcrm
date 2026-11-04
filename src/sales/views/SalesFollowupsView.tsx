@@ -3,7 +3,7 @@ import {
   Clock, CheckCircle2, AlertTriangle, 
   PhoneCall, MessageSquare, Phone, UserCheck
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM, type MockLead, getIndiaDateString } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 
 interface SalesFollowupsViewProps {
@@ -26,23 +26,22 @@ export default function SalesFollowupsView({
 
   const [activeTab, setActiveTab] = useState<string>(initialFilter);
   const [rescheduleLead, setRescheduleLead] = useState<MockLead | null>(null);
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newDate, setNewDate] = useState(getIndiaDateString());
   const [newTime, setNewTime] = useState('11:00 AM');
   const [newNotes, setNewNotes] = useState('');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getIndiaDateString();
 
-  // Scoped leads: Telecallers only see their assigned leads
+  // Scoped leads: Telecallers only see their assigned leads (strict UID authorization)
   const scopedLeads = useMemo(() => {
     if (isManager) return leads.filter(l => !l.archived && l.followUp);
     return leads.filter(l => 
       !l.archived && 
       l.followUp &&
-      ((l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
-       (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+      ((l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
        (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId))
     );
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, currentUserId]);
 
   // Buckets
   const todayFollowups = useMemo(() => {

@@ -71,7 +71,7 @@ let failCount = 0;
 function report(testNum, name, passed, details = '') {
   const icon = passed ? '✓' : '✗';
   const status = passed ? 'PASS' : 'FAIL';
-  console.log(`  ${icon} [Test ${testNum}] [FIREBASE EMULATOR] ${status}: ${name}`);
+  console.log(`  ${icon} [Test ${testNum}] [EMULATOR] ${status}: ${name}`);
   if (details) {
     console.log(`       Evidence: ${details}`);
   }
@@ -388,20 +388,76 @@ async function runAcceptance() {
   // Switch back to Telecaller 1 (S. Ananya)
   await signInWithEmailAndPassword(auth, telecallerEmail, testPassword);
 
-  // TEST 7: Telecaller cannot modify any immutable identity field
+  // TEST 7: Immutability tests for EVERY immutable call-log field individually
+  // 7a: Mutate id
   try {
-    await updateDoc(doc(db, 'call_leads', validCallId), {
-      telecallerId: otherEmpUser.uid // Attempting to transfer ownership
-    });
-    report(7, 'Telecaller modifying immutable telecallerId DENIED', false, 'Expected PERMISSION_DENIED on altering telecallerId.');
+    await updateDoc(doc(db, 'call_leads', validCallId), { id: 'FORGED_ID_12345' });
+    report('7a', 'Telecaller modifying immutable field "id" DENIED', false, 'Expected PERMISSION_DENIED');
   } catch (e) {
     const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
-    report(
-      7,
-      'Telecaller modifying immutable telecallerId DENIED',
-      isDenied,
-      `Immutability enforced: telecallerId, callerId, leadId, id, timestamp are immutable (${e.code}).`
-    );
+    report('7a', 'Telecaller modifying immutable field "id" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7b: Mutate leadId
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { leadId: 'FORGED_LEAD_12345' });
+    report('7b', 'Telecaller modifying immutable field "leadId" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7b', 'Telecaller modifying immutable field "leadId" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7c: Mutate telecallerId
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { telecallerId: otherEmpUser.uid });
+    report('7c', 'Telecaller modifying immutable field "telecallerId" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7c', 'Telecaller modifying immutable field "telecallerId" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7d: Mutate callerId
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { callerId: otherEmpUser.uid });
+    report('7d', 'Telecaller modifying immutable field "callerId" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7d', 'Telecaller modifying immutable field "callerId" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7e: Mutate employeeId
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { employeeId: otherEmpUser.uid });
+    report('7e', 'Telecaller modifying immutable field "employeeId" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7e', 'Telecaller modifying immutable field "employeeId" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7f: Mutate assignedEmployeeId
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { assignedEmployeeId: otherEmpUser.uid });
+    report('7f', 'Telecaller modifying immutable field "assignedEmployeeId" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7f', 'Telecaller modifying immutable field "assignedEmployeeId" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7g: Mutate timestamp
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { timestamp: '2020-01-01T00:00:00.000Z' });
+    report('7g', 'Telecaller modifying immutable field "timestamp" DENIED', false, 'Expected PERMISSION_DENIED');
+  } catch (e) {
+    const isDenied = e.code === 'permission-denied' || e.message.includes('permission');
+    report('7g', 'Telecaller modifying immutable field "timestamp" DENIED', isDenied, `Blocked: ${e.code}`);
+  }
+
+  // 7h: Mutate allowed field (notes) succeeds
+  try {
+    await updateDoc(doc(db, 'call_leads', validCallId), { notes: 'Customer callback requested in evening - confirmed on phone.' });
+    report('7h', 'Telecaller modifying allowed field "notes" ALLOWED', true, 'Successfully updated permitted call log note.');
+  } catch (e) {
+    report('7h', 'Telecaller modifying allowed field "notes" ALLOWED', false, e.message);
   }
 
   // TEST 8: Assigned telecaller can create and retrieve a valid call log
@@ -447,7 +503,7 @@ async function runAcceptance() {
     const freshLeadSnap = await getDoc(doc(db, 'leads', leadAId));
     const isPersisted = freshCallSnap.exists() && 
                         freshLeadSnap.exists() && 
-                        freshCallSnap.data().notes === 'Customer callback requested in evening';
+                        freshCallSnap.data().notes.startsWith('Customer callback requested in evening');
     report(
       10,
       'Fresh session retrieval of persisted call-log and lead state',

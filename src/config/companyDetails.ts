@@ -46,7 +46,7 @@ export const LOCKED_COMPANY_DETAILS: CompanyDetails = {
   phone: "+91 91826 12420",
   alternatePhone: "+91 98765 43210",
   email: "mirrorsolarvision@gmail.com",
-  website: "https://crm-webapp-d32bc.web.app",
+  website: "https://crm.mirrorsolarvision.com",
   gstin: "36AAECM8921R1Z9",
   panNumber: "AAECM8921R",
   cinNumber: "U40106TG2022PTC160000",
