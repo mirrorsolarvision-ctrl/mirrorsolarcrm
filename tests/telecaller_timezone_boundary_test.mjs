@@ -143,3 +143,4 @@ console.log(`  TIMEZONE SUITE RESULTS: ${passCount} PASSED | ${failCount} FAILED
 console.log('================================================================================\n');
 
 if (failCount > 0) process.exit(1);
+

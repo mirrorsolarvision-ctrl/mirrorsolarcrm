@@ -4,7 +4,7 @@
  * Inspects generated Vite production & staging bundles to prove:
  * 1. Staging build explicitly uses project "crm-webapp-staging-msv"
  * 2. Staging build contains zero references to production "crm-webapp-d32bc" as its active project
- * 3. Environment check throws and blocks release if staging resolves to production
+ * 3. Extracts and displays actual bundle configuration snippets as forensic proof
  */
 
 import fs from 'fs';
@@ -39,6 +39,7 @@ let foundStagingProject = false;
 let foundProductionProject = false;
 let stagingLocations = [];
 let productionLocations = [];
+let configSnippet = '';
 
 for (const file of assetFiles) {
   const filePath = path.join(distAssetsDir, file);
@@ -47,6 +48,11 @@ for (const file of assetFiles) {
   if (content.includes('crm-webapp-staging-msv')) {
     foundStagingProject = true;
     stagingLocations.push(file);
+
+    if (content.includes('AIzaSy_STAGING_KEY') || content.includes('authDomain')) {
+      const idx = content.indexOf('crm-webapp-staging-msv');
+      configSnippet = content.slice(Math.max(0, idx - 100), Math.min(content.length, idx + 260));
+    }
   }
 
   // Check if production project ID leaked into staging bundle
@@ -64,6 +70,12 @@ if (foundStagingProject) {
 
 console.log(`- Production Project "crm-webapp-d32bc" detected in staging bundle: ${foundProductionProject}`);
 
+if (configSnippet) {
+  console.log('\n--- EXTRACTED BUNDLE RUNTIME CONFIGURATION SNIPPET ---');
+  console.log(configSnippet);
+  console.log('------------------------------------------------------');
+}
+
 // 3. Evaluate results
 console.log('\n--- VERIFICATION VERDICT ---');
 if (foundStagingProject && !foundProductionProject) {
@@ -77,4 +89,3 @@ if (foundStagingProject && !foundProductionProject) {
   console.error('✗ FAIL: Staging project "crm-webapp-staging-msv" was not found in the bundle.');
   process.exit(1);
 }
-

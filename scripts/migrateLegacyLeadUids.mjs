@@ -170,3 +170,4 @@ runAuditAndMigration().catch(err => {
   console.error('Fatal migration audit error:', err);
   process.exit(1);
 });
+
