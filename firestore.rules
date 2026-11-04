@@ -186,13 +186,18 @@ service cloud.firestore {
         ) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'salesStage', 'stage', 'priority', 'followUp', 'notes', 'customer', 
-            'phone', 'email', 'location', 'dealerSpecifications', 'leadScore',
+            'phone', 'email', 'location', 'pincode', 'dealerSpecifications', 'leadScore',
             'updatedAt', 'payments', 'callNotes', 'callOutcome', 'customerResponseNotes',
             'monthlyUnits', 'sanctionedLoad', 'monthlyBill', 'roofType', 'roofArea',
-            'qualificationScore', 'qualification', 'systemCapacityKw', 'dealerNotes'
+            'qualificationScore', 'qualification', 'qualificationData', 'callLogs',
+            'firstCallAttemptAt', 'slaStatus', 'lastCallDate', 'customerRequirement',
+            'reassignmentRequest', 'systemCapacityKw', 'dealerNotes'
           ]) &&
-          // Cannot reassign lead ownership
-          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignedEmployeeId', 'leadOwnerId', 'assignedEmployee', 'dealerId'])) &&
+          // Cannot reassign lead ownership, alter dealer allocation, verify payments, or approve installations
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'assignedEmployeeId', 'leadOwnerId', 'assignedEmployee', 'dealerId',
+            'dealerStatus', 'paymentVerificationStatus', 'installationApprovalStatus'
+          ])) &&
           // Strict Pipeline Gate: Telecaller cannot advance to Booking Confirmed or Converted directly
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage', 'salesStage']) ||
            !(request.resource.data.stage in ['Converted', 'Installation'] || 

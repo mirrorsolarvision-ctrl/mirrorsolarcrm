@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Clock, Calendar, CheckCircle2, AlertTriangle, 
-  PhoneCall, MessageSquare, Plus, CheckSquare, 
-  X, AlertCircle, ChevronRight
+  Clock, CheckCircle2, AlertTriangle, 
+  PhoneCall, MessageSquare, Phone, UserCheck
 } from 'lucide-react';
 import { useCRM, type MockLead } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
@@ -15,7 +14,7 @@ interface SalesFollowupsViewProps {
 }
 
 export default function SalesFollowupsView({
-  onNavigateSubView: _onNavigateSubView,
+  onNavigateSubView,
   onOpenCallLogModal,
   onOpenWhatsApp,
   initialFilter = 'today'
@@ -23,7 +22,7 @@ export default function SalesFollowupsView({
   const { currentUser, leads, updateLead, addActivity } = useCRM();
   const isManager = isSalesManager(currentUser);
   const currentUserName = currentUser?.name || '';
-  const currentUserId = currentUser?.id || '';
+  const currentUserId = currentUser?.id || currentUser?.uid || '';
 
   const [activeTab, setActiveTab] = useState<string>(initialFilter);
   const [rescheduleLead, setRescheduleLead] = useState<MockLead | null>(null);
@@ -33,13 +32,15 @@ export default function SalesFollowupsView({
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Scoped leads
+  // Scoped leads: Telecallers only see their assigned leads
   const scopedLeads = useMemo(() => {
     if (isManager) return leads.filter(l => !l.archived && l.followUp);
     return leads.filter(l => 
       !l.archived && 
       l.followUp &&
-      (l.assignedEmployee === currentUserName || l.assignedEmployeeId === currentUserId || l.leadOwnerId === currentUserId)
+      ((l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
+       (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+       (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId))
     );
   }, [leads, isManager, currentUserName, currentUserId]);
 
@@ -123,7 +124,7 @@ export default function SalesFollowupsView({
     <div className="sales-followups-content">
       {/* Follow-up Leakage Alert Banner */}
       {overdueFollowups.length > 0 && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <AlertTriangle size={24} color="#dc2626" />
             <div>
@@ -153,11 +154,11 @@ export default function SalesFollowupsView({
               Follow-ups & Customer Callback Scheduler
             </h2>
             <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-              Maintain daily calling discipline, never miss a callback, and prevent lead leakage.
+              Maintain daily calling discipline, never miss a callback, and prevent customer lead leakage.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button
               className={`sales-subnav-btn ${activeTab === 'today' ? 'active' : ''}`}
               onClick={() => setActiveTab('today')}
@@ -193,7 +194,7 @@ export default function SalesFollowupsView({
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
             <CheckCircle2 size={40} style={{ margin: '0 auto 0.75rem auto', color: '#16a34a', opacity: 0.6 }} />
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#0b1f3a' }}>No follow-ups in this tab</h4>
-            <p style={{ margin: 0, fontSize: '0.875rem' }}>All callbacks for this view have been attended to or none are scheduled.</p>
+            <p style={{ margin: 0, fontSize: '0.875rem' }}>All callbacks for this view have been attended to or none are currently scheduled.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
@@ -219,40 +220,60 @@ export default function SalesFollowupsView({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0b1f3a' }}>{lead.customer}</span>
                       <span className={`sales-badge ${isOverdue ? 'hot' : 'warm'}`}>
-                        {isOverdue ? '⚠️ Overdue' : 'Scheduled'}
+                        {isOverdue ? '⚠️ Overdue' : lead.followUp?.status || 'Scheduled'}
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
-                      📱 {lead.phone} • 📍 {lead.location}
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '3px' }}>
+                      <a href={`tel:${lead.phone}`} style={{ color: '#0284c7', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                        <Phone size={12} /> {lead.phone}
+                      </a>
+                      {' • '}📍 {lead.location || 'AP'}
                     </div>
 
                     <div style={{ background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '6px', margin: '0.75rem 0', fontSize: '0.8rem', color: '#334155', border: '1px solid #f1f5f9' }}>
                       <div style={{ fontWeight: 600, color: '#0369a1', marginBottom: '2px' }}>
-                        ⏰ Scheduled Callback: {lead.followUp?.date} at {lead.followUp?.time || '11:00 AM'}
+                        ⏰ Callback Scheduled: {lead.followUp?.date} at {lead.followUp?.time || '11:00 AM'}
                       </div>
                       <div>{lead.followUp?.notes || 'Follow-up regarding solar quotation and subsidy.'}</div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    {/* Action 1: One-click Call Now */}
                     <button 
                       className="sales-btn-primary" 
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }}
-                      onClick={() => onOpenCallLogModal ? onOpenCallLogModal(lead) : undefined}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.75rem', padding: '0.4rem 0.6rem' }}
+                      title="Open Call Logging Desk"
+                      onClick={() => onOpenCallLogModal ? onOpenCallLogModal(lead) : (onNavigateSubView && onNavigateSubView('telecalling'))}
                     >
-                      <PhoneCall size={14} /> Call Now
+                      <PhoneCall size={13} /> Call Now
                     </button>
+
+                    {/* Action 2: One-click Qualify */}
                     <button 
                       className="sales-btn-secondary" 
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', color: '#16a34a', borderColor: '#bbf7d0' }}
-                      onClick={() => onOpenWhatsApp ? onOpenWhatsApp(lead) : undefined}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.75rem', padding: '0.4rem 0.6rem' }}
+                      title="Open Solar Feasibility Qualification"
+                      onClick={() => onNavigateSubView && onNavigateSubView('qualification', { leadId: lead.id })}
                     >
-                      <MessageSquare size={14} /> WhatsApp
+                      <UserCheck size={13} /> Qualify
                     </button>
+
+                    {/* Action 3: WhatsApp */}
                     <button 
                       className="sales-btn-secondary" 
-                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem' }}
+                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', color: '#16a34a', borderColor: '#bbf7d0' }}
+                      title="Send WhatsApp Message"
+                      onClick={() => onOpenWhatsApp ? onOpenWhatsApp(lead) : (onNavigateSubView && onNavigateSubView('whatsapp', { leadId: lead.id }))}
+                    >
+                      <MessageSquare size={13} />
+                    </button>
+
+                    {/* Action 4: Reschedule */}
+                    <button 
+                      className="sales-btn-secondary" 
+                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
                       title="Reschedule Callback"
                       onClick={() => {
                         setRescheduleLead(lead);
@@ -263,14 +284,16 @@ export default function SalesFollowupsView({
                     >
                       Reschedule
                     </button>
+
+                    {/* Action 5: Mark Completed */}
                     {lead.followUp?.status !== 'Completed' && (
                       <button 
                         className="sales-btn-secondary" 
-                        style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem', color: '#16a34a' }}
-                        title="Mark Completed"
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', color: '#16a34a' }}
+                        title="Mark Follow-up as Completed"
                         onClick={() => handleMarkCompleted(lead)}
                       >
-                        <CheckCircle2 size={14} />
+                        <CheckCircle2 size={13} /> Done
                       </button>
                     )}
                   </div>
@@ -286,37 +309,41 @@ export default function SalesFollowupsView({
         <div className="sales-modal-overlay" onClick={() => setRescheduleLead(null)}>
           <div className="sales-modal-content" onClick={e => e.stopPropagation()}>
             <div className="sales-modal-header">
-              <h3>Reschedule Callback: {rescheduleLead.customer}</h3>
-              <button className="sales-modal-close-btn" onClick={() => setRescheduleLead(null)}><X size={20} /></button>
+              <h3><Clock size={18} style={{ display: 'inline', marginRight: '6px' }} /> Reschedule Customer Callback</h3>
+              <button className="sales-modal-close-btn" onClick={() => setRescheduleLead(null)}>×</button>
             </div>
             <div className="sales-modal-body">
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', color: '#475569' }}>
+                Customer: <strong>{rescheduleLead.customer}</strong> ({rescheduleLead.phone})
+              </p>
               <div className="sales-form-row">
                 <div className="sales-form-group">
                   <label>New Callback Date *</label>
                   <input 
                     type="date" 
-                    className="sales-form-control" 
-                    value={newDate} 
-                    onChange={e => setNewDate(e.target.value)} 
+                    required
+                    className="sales-form-control"
+                    value={newDate}
+                    onChange={e => setNewDate(e.target.value)}
                   />
                 </div>
                 <div className="sales-form-group">
                   <label>New Callback Time *</label>
                   <input 
                     type="time" 
-                    className="sales-form-control" 
-                    value={newTime} 
-                    onChange={e => setNewTime(e.target.value)} 
+                    required
+                    className="sales-form-control"
+                    value={newTime}
+                    onChange={e => setNewTime(e.target.value)}
                   />
                 </div>
               </div>
-
               <div className="sales-form-group">
                 <label>Callback Reason / Reminder Notes</label>
                 <textarea 
                   rows={3} 
                   className="sales-form-control"
-                  placeholder="e.g. Customer requested to call back after discussing with family..."
+                  placeholder="e.g. Customer asked to call back after 6 PM once spouse is home..."
                   value={newNotes}
                   onChange={e => setNewNotes(e.target.value)}
                 />
@@ -324,7 +351,7 @@ export default function SalesFollowupsView({
             </div>
             <div className="sales-modal-footer">
               <button className="sales-btn-secondary" onClick={() => setRescheduleLead(null)}>Cancel</button>
-              <button className="sales-btn-primary" onClick={handleReschedule}>Save New Callback Schedule</button>
+              <button className="sales-btn-primary" onClick={handleReschedule}>Confirm Rescheduled Callback</button>
             </div>
           </div>
         </div>

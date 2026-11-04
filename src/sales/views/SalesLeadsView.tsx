@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Users, Search, Plus, Filter, PhoneCall, MessageSquare, 
-  Flame, CheckCircle2, AlertTriangle, ArrowRight, UserCheck, 
-  MapPin, Tag, RefreshCw, X, ShieldAlert, Sparkles, Building
+  Users, Search, Plus, PhoneCall, MessageSquare, 
+  AlertTriangle, MapPin, RefreshCw, X, Phone, 
+  ChevronLeft, ChevronRight, Calendar, Zap
 } from 'lucide-react';
 import { useCRM, type MockLead } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
-import { findDuplicateLeadByPhone, toE164Phone } from '../../utils/salesCalculations';
+import { findDuplicateLeadByPhone } from '../../utils/salesCalculations';
 import type { DuplicateCheckResult } from '../../types/sales';
 
 interface SalesLeadsViewProps {
@@ -25,10 +25,12 @@ export default function SalesLeadsView({
   const { currentUser, leads, employees, addLead, updateLead, addActivity } = useCRM();
   const isManager = isSalesManager(currentUser);
   const currentUserName = currentUser?.name || '';
-  const currentUserId = currentUser?.id || '';
+  const currentUserId = currentUser?.id || currentUser?.uid || '';
 
   const [activeFilter, setActiveFilter] = useState<string>(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [reassignModalLead, setReassignModalLead] = useState<MockLead | null>(null);
   const [reassignTargetEmp, setReassignTargetEmp] = useState('');
@@ -40,10 +42,11 @@ export default function SalesLeadsView({
     phone: '',
     district: 'Krishna',
     town: '',
-    location: '',
-    source: 'Website',
+    pincode: '',
+    source: 'Website Form',
     priority: 'Warm' as 'Hot' | 'Warm' | 'Cold',
     capacityKw: '3',
+    monthlyBill: '',
     assignedEmployee: isManager ? 'P. Suresh' : currentUserName,
     notes: ''
   });
@@ -61,9 +64,9 @@ export default function SalesLeadsView({
     let list = leads.filter(l => !l.archived);
     if (!isManager) {
       list = list.filter(l => 
-        l.assignedEmployee === currentUserName || 
-        l.assignedEmployeeId === currentUserId || 
-        l.leadOwnerId === currentUserId
+        (l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
+        (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+        (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId)
       );
     }
     return list;
@@ -78,8 +81,10 @@ export default function SalesLeadsView({
         const matchName = lead.customer?.toLowerCase().includes(query);
         const matchPhone = lead.phone?.includes(query);
         const matchLoc = lead.location?.toLowerCase().includes(query);
+        const matchTown = lead.town?.toLowerCase().includes(query);
+        const matchPin = lead.pincode?.includes(query);
         const matchStage = lead.salesStage?.toLowerCase().includes(query);
-        if (!matchName && !matchPhone && !matchLoc && !matchStage) return false;
+        if (!matchName && !matchPhone && !matchLoc && !matchTown && !matchPin && !matchStage) return false;
       }
 
       // Tab filter
@@ -94,6 +99,25 @@ export default function SalesLeadsView({
       return true;
     });
   }, [scopedLeads, searchQuery, activeFilter]);
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedLeads = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return filteredLeads.slice(startIndex, startIndex + pageSize);
+  }, [filteredLeads, safeCurrentPage, pageSize]);
+
+  // Reset page when filter or search changes
+  const handleFilterChange = (filterId: string) => {
+    setActiveFilter(filterId);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
 
   // Active Telecallers for Assignment
   const activeTelecallers = useMemo(() => {
@@ -118,51 +142,44 @@ export default function SalesLeadsView({
     const assignedEmp = isManager ? newLeadForm.assignedEmployee : currentUserName;
     const targetEmpObj = employees.find(emp => emp.name === assignedEmp);
 
+    const mappedPriority: 'High' | 'Medium' | 'Low' = 
+      newLeadForm.priority === 'Hot' ? 'High' : 
+      newLeadForm.priority === 'Warm' ? 'Medium' : 'Low';
+
+    const nowIso = new Date().toISOString();
+    const todayYmd = nowIso.split('T')[0];
+
     await addLead({
       customer: newLeadForm.customer,
-      phone: toE164Phone(newLeadForm.phone),
+      phone: newLeadForm.phone,
       email: '',
       location: fullLocation,
-      dealer: 'Pending Allocation',
+      district: newLeadForm.district,
+      town: newLeadForm.town,
+      pincode: newLeadForm.pincode,
+      source: newLeadForm.source,
+      priority: mappedPriority,
+      capacityKw: newLeadForm.capacityKw,
+      monthlyBill: newLeadForm.monthlyBill ? Number(newLeadForm.monthlyBill) : undefined,
+      dealer: 'Company Direct',
+      stage: 'Lead',
       assignedEmployee: assignedEmp,
       assignedEmployeeId: targetEmpObj?.id || currentUserId,
-      leadOwnerId: targetEmpObj?.id || currentUserId,
-      leadOwnerName: assignedEmp,
-      stage: 'Lead',
+      leadOwnerId: currentUserId,
+      leadOwnerName: currentUserName,
       salesStage: 'New Lead',
-      priority: newLeadForm.priority === 'Hot' ? 'High' : newLeadForm.priority === 'Warm' ? 'Medium' : 'Low',
-      source: newLeadForm.source,
-      notes: newLeadForm.notes,
-      qualificationData: {
-        preferredCapacityKw: Number(newLeadForm.capacityKw) || 3,
-        discom: 'APCPDCL',
-        expectedTimeline: newLeadForm.priority === 'Hot' ? 'Immediate' : 'Within 30 Days'
-      },
-      leadScore: {
-        total: newLeadForm.priority === 'Hot' ? 80 : newLeadForm.priority === 'Warm' ? 60 : 35,
-        category: newLeadForm.priority,
-        readinessScore: 20,
-        unitsScore: 20,
-        roofScore: 20,
-        financingScore: 20,
-        calculatedAt: new Date().toISOString()
-      },
       followUp: {
-        date: new Date().toISOString().split('T')[0],
+        date: todayYmd,
         time: '11:00 AM',
         type: 'Call',
         status: 'Due Today',
-        notes: 'Initial 15-minute response call'
+        notes: 'Initial contact call'
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      archived: false
-    });
-
-    addActivity({
-      type: 'Lead Created',
-      message: `New solar lead added: ${newLeadForm.customer} (${newLeadForm.source}) - Assigned to ${assignedEmp}`,
-      user: currentUserName || 'Sales Staff'
+      updatedAt: nowIso,
+      createdAt: nowIso,
+      archived: false,
+      callLogs: [],
+      notes: newLeadForm.notes
     });
 
     setIsAddModalOpen(false);
@@ -171,37 +188,34 @@ export default function SalesLeadsView({
       phone: '',
       district: 'Krishna',
       town: '',
-      location: '',
-      source: 'Website',
+      pincode: '',
+      source: 'Website Form',
       priority: 'Warm',
       capacityKw: '3',
+      monthlyBill: '',
       assignedEmployee: isManager ? 'P. Suresh' : currentUserName,
       notes: ''
     });
   };
 
-  // Handle Lead Reassignment
+  // Handle Reassignment
   const handleSaveReassignment = async () => {
     if (!reassignModalLead) return;
 
     if (isManager) {
-      // Direct Reassign by Manager
-      const targetEmpObj = employees.find(e => e.name === reassignTargetEmp);
+      const targetEmp = employees.find(e => e.name === reassignTargetEmp);
       await updateLead(reassignModalLead.id, {
         assignedEmployee: reassignTargetEmp,
-        assignedEmployeeId: targetEmpObj?.id || '',
-        leadOwnerName: reassignTargetEmp,
-        leadOwnerId: targetEmpObj?.id || '',
+        assignedEmployeeId: targetEmp?.id || '',
         reassignmentRequest: undefined
       });
       addActivity({
         type: 'Lead Reassigned',
-        message: `Lead ${reassignModalLead.customer} reassigned to ${reassignTargetEmp} by Sales Manager`,
+        message: `Lead ${reassignModalLead.customer} reassigned to ${reassignTargetEmp}`,
         user: currentUserName,
         leadId: reassignModalLead.id
       });
     } else {
-      // Reassignment Request by Telecaller
       await updateLead(reassignModalLead.id, {
         reassignmentRequest: {
           requestedBy: currentUserName,
@@ -266,7 +280,7 @@ export default function SalesLeadsView({
                 key={tab.id}
                 className={`sales-subnav-btn ${activeFilter === tab.id ? 'active' : ''}`}
                 style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
-                onClick={() => setActiveFilter(tab.id)}
+                onClick={() => handleFilterChange(tab.id)}
               >
                 {tab.label}
               </button>
@@ -276,12 +290,12 @@ export default function SalesLeadsView({
           <div style={{ position: 'relative', minWidth: '260px' }}>
             <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input 
-              type="text"
-              placeholder="Search customer, mobile, city..."
+              type="text" 
+              placeholder="Search customer, phone, town, pincode..."
               className="sales-form-control"
               style={{ paddingLeft: '2.25rem', fontSize: '0.85rem' }}
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
             />
           </div>
         </div>
@@ -300,60 +314,126 @@ export default function SalesLeadsView({
             <table className="sales-table">
               <thead>
                 <tr>
-                  <th>Customer & Mobile</th>
-                  <th>Location</th>
+                  <th>Customer & Mobile (Click to Call)</th>
+                  <th>Location & Pincode</th>
                   <th>Lead Source</th>
-                  <th>Priority & Score</th>
-                  <th>Sales Funnel Stage</th>
-                  {isManager && <th>Assigned To</th>}
+                  <th>Capacity / Bill</th>
+                  <th>Creation Date</th>
+                  <th>Funnel Stage</th>
+                  {isManager && <th>Assigned Telecaller</th>}
+                  <th>Last Call Date</th>
                   <th>Next Follow-up</th>
                   <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLeads.map(lead => {
+                {paginatedLeads.map(lead => {
                   const isHot = lead.leadScore?.category === 'Hot' || lead.priority === 'High';
                   const isWarm = lead.leadScore?.category === 'Warm' || lead.priority === 'Medium';
                   const isSlaBreached = lead.slaStatus === 'SLA Breached';
 
+                  const locDisplay = lead.town 
+                    ? `${lead.town}, ${lead.district || lead.location || 'AP'}`
+                    : (lead.location || lead.district || 'Andhra Pradesh');
+
+                  const capacityDisplay = lead.capacityKw 
+                    ? `${lead.capacityKw} kW` 
+                    : (lead.qualificationData?.preferredCapacityKw 
+                        ? `${lead.qualificationData.preferredCapacityKw} kW` 
+                        : (lead.monthlyBill ? `₹${lead.monthlyBill}/mo` : '3 kW'));
+
+                  const createdDisplay = lead.createdAt 
+                    ? new Date(lead.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) 
+                    : (lead.date || 'Today');
+
+                  const lastCallDisplay = lead.lastCallDate 
+                    || (lead.callLogs && lead.callLogs.length > 0 ? lead.callLogs[lead.callLogs.length - 1].date : null);
+
                   return (
                     <tr key={lead.id}>
+                      {/* Customer & Click to Call */}
                       <td>
                         <div style={{ fontWeight: 600, color: '#0b1f3a' }}>{lead.customer}</div>
-                        <div style={{ fontSize: '0.775rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {lead.phone}
+                        <div style={{ marginTop: '3px' }}>
+                          <a 
+                            href={`tel:${lead.phone}`}
+                            style={{ 
+                              color: '#0284c7', 
+                              textDecoration: 'none', 
+                              fontSize: '0.8rem', 
+                              fontWeight: 600, 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px' 
+                            }}
+                            title="Click to dial customer phone"
+                          >
+                            <Phone size={13} /> {lead.phone}
+                          </a>
                         </div>
                         {lead.reassignmentRequest?.status === 'Pending' && (
-                          <span style={{ fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', marginTop: '2px', display: 'inline-block' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', marginTop: '3px', display: 'inline-block' }}>
                             ⚠️ Reassignment Requested
                           </span>
                         )}
                       </td>
+
+                      {/* Location & Pincode */}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.825rem' }}>
-                          <MapPin size={13} color="#64748b" /> {lead.location || 'Andhra Pradesh'}
+                          <MapPin size={13} color="#64748b" /> {locDisplay}
                         </div>
+                        {lead.pincode && (
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', paddingLeft: '17px' }}>
+                            PIN: <strong>{lead.pincode}</strong>
+                          </div>
+                        )}
                       </td>
+
+                      {/* Lead Source */}
                       <td>
                         <span style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', color: '#334155' }}>
-                          {lead.source || 'Website'}
+                          {lead.source || 'Website Form'}
                         </span>
                       </td>
+
+                      {/* Capacity / Monthly Bill */}
                       <td>
-                        <span className={`sales-badge ${isHot ? 'hot' : isWarm ? 'warm' : 'cold'}`}>
-                          {isHot ? '🔥 Hot' : isWarm ? '⚡ Warm' : '❄️ Cold'} ({lead.leadScore?.total || 50} pts)
+                        <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Zap size={13} color="#d97706" /> {capacityDisplay}
+                        </div>
+                        {lead.monthlyBill && (
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            ₹{lead.monthlyBill}/mo bill
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Creation Date */}
+                      <td>
+                        <div style={{ fontSize: '0.8rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar size={12} color="#64748b" /> {createdDisplay}
+                        </div>
+                      </td>
+
+                      {/* Funnel Stage */}
+                      <td>
+                        <span className="sales-badge" style={{ background: '#e0f2fe', color: '#0369a1' }}>
+                          {lead.salesStage || 'New Lead'}
                         </span>
+                        <div style={{ marginTop: '3px' }}>
+                          <span className={`sales-badge ${isHot ? 'hot' : isWarm ? 'warm' : 'cold'}`} style={{ fontSize: '0.7rem' }}>
+                            {isHot ? '🔥 Hot' : isWarm ? '⚡ Warm' : '❄️ Cold'} ({lead.leadScore?.total || 50} pts)
+                          </span>
+                        </div>
                         {isSlaBreached && (
                           <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, marginTop: '2px' }}>
                             15m SLA Breached
                           </div>
                         )}
                       </td>
-                      <td>
-                        <span className="sales-badge" style={{ background: '#e0f2fe', color: '#0369a1' }}>
-                          {lead.salesStage || 'New Lead'}
-                        </span>
-                      </td>
+
+                      {/* Manager view: Assigned To */}
                       {isManager && (
                         <td>
                           <div style={{ fontSize: '0.825rem', fontWeight: 500, color: '#0b1f3a' }}>
@@ -361,9 +441,22 @@ export default function SalesLeadsView({
                           </div>
                         </td>
                       )}
+
+                      {/* Last Call Date */}
+                      <td>
+                        {lastCallDisplay ? (
+                          <div style={{ fontSize: '0.8rem', color: '#334155' }}>
+                            {lastCallDisplay}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>No calls yet</span>
+                        )}
+                      </td>
+
+                      {/* Next Follow-up */}
                       <td>
                         {lead.followUp?.date ? (
-                          <div style={{ fontSize: '0.8rem', color: '#334155' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#0b1f3a' }}>
                             {lead.followUp.date}
                             <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>
                               {lead.followUp.time || '11:00 AM'}
@@ -373,6 +466,8 @@ export default function SalesLeadsView({
                           <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>None</span>
                         )}
                       </td>
+
+                      {/* Actions */}
                       <td>
                         <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
                           <button
@@ -381,7 +476,7 @@ export default function SalesLeadsView({
                             title="Log Call"
                             onClick={() => onOpenCallLogModal ? onOpenCallLogModal(lead) : onNavigateSubView('telecalling')}
                           >
-                            <PhoneCall size={13} />
+                            <PhoneCall size={13} /> Call
                           </button>
                           <button
                             className="sales-btn-secondary"
@@ -394,7 +489,7 @@ export default function SalesLeadsView({
                           <button
                             className="sales-btn-secondary"
                             style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
-                            title="4-Pillar Qualification"
+                            title="Solar Feasibility Qualification"
                             onClick={() => onNavigateSubView('qualification', { leadId: lead.id })}
                           >
                             Qualify
@@ -417,6 +512,60 @@ export default function SalesLeadsView({
                 })}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '1rem', 
+              borderTop: '1px solid #e2e8f0', 
+              flexWrap: 'wrap', 
+              gap: '0.75rem' 
+            }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                Showing <strong>{filteredLeads.length > 0 ? (safeCurrentPage - 1) * pageSize + 1 : 0}</strong> to <strong>{Math.min(safeCurrentPage * pageSize, filteredLeads.length)}</strong> of <strong>{filteredLeads.length}</strong> leads
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Rows per page:</span>
+                <select 
+                  className="sales-form-control" 
+                  style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                  value={pageSize}
+                  onChange={e => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginLeft: '0.5rem' }}>
+                  <button 
+                    className="sales-btn-secondary"
+                    style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  >
+                    <ChevronLeft size={14} /> Previous
+                  </button>
+                  <span style={{ padding: '0 0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#0b1f3a' }}>
+                    Page {safeCurrentPage} of {totalPages}
+                  </span>
+                  <button 
+                    className="sales-btn-secondary"
+                    style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  >
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -431,7 +580,6 @@ export default function SalesLeadsView({
             </div>
             <form onSubmit={handleCreateLead}>
               <div className="sales-modal-body">
-                {/* Duplicate Phone Alert Warning */}
                 {dupResult && (
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', color: '#b91c1c', fontSize: '0.85rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
@@ -495,6 +643,17 @@ export default function SalesLeadsView({
                       onChange={e => setNewLeadForm({ ...newLeadForm, town: e.target.value })}
                     />
                   </div>
+                  <div className="sales-form-group">
+                    <label>Pincode</label>
+                    <input 
+                      type="text" 
+                      maxLength={6}
+                      className="sales-form-control" 
+                      placeholder="e.g. 520001"
+                      value={newLeadForm.pincode}
+                      onChange={e => setNewLeadForm({ ...newLeadForm, pincode: e.target.value })}
+                    />
+                  </div>
                 </div>
 
                 <div className="sales-form-row">
@@ -505,9 +664,9 @@ export default function SalesLeadsView({
                       value={newLeadForm.source}
                       onChange={e => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
                     >
+                      <option value="Website Form">Website Form</option>
                       <option value="Facebook Ads">Facebook Ads</option>
                       <option value="Google Ads">Google Ads</option>
-                      <option value="Website Form">Website Form</option>
                       <option value="WhatsApp Business">WhatsApp Business</option>
                       <option value="Customer Referral">Customer Referral</option>
                       <option value="Dealer Walk-in">Dealer Walk-in</option>
@@ -545,6 +704,17 @@ export default function SalesLeadsView({
                     </select>
                   </div>
 
+                  <div className="sales-form-group">
+                    <label>Approx. Monthly Bill (₹)</label>
+                    <input 
+                      type="number"
+                      className="sales-form-control"
+                      placeholder="e.g. 3500"
+                      value={newLeadForm.monthlyBill}
+                      onChange={e => setNewLeadForm({ ...newLeadForm, monthlyBill: e.target.value })}
+                    />
+                  </div>
+
                   {isManager && (
                     <div className="sales-form-group">
                       <label>Assign to Telecaller</label>
@@ -565,7 +735,7 @@ export default function SalesLeadsView({
                   <label>Initial Notes / Requirement</label>
                   <textarea 
                     rows={2} 
-                    className="sales-form-control"
+                    className="sales-form-control" 
                     placeholder="Customer inquired about PM Surya Ghar 3kW setup..."
                     value={newLeadForm.notes}
                     onChange={e => setNewLeadForm({ ...newLeadForm, notes: e.target.value })}

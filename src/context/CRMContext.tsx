@@ -314,12 +314,20 @@ export interface MockLead {
   leadScore?: LeadScoreBreakdown;
   firstCallAttemptAt?: string;
   slaStatus?: SlaStatus;
+  pincode?: string;
+  lastCallDate?: string;
+  customerRequirement?: string;
   financingType?: 'Bank Loan (JanSamarth)' | 'Self-Funded (Direct Payment)';
   commercialClearanceStatus?: 'Cleared' | 'Pending';
   handoffAcceptedAt?: string;
   availabilityStatus?: AvailabilityStatus;
   qualificationData?: CustomerQualificationData;
   callLogs?: TelecallerCallLog[];
+  town?: string;
+  district?: string;
+  capacityKw?: string;
+  monthlyBill?: number;
+  date?: string;
 }
 
 export interface LeadReassignmentRequest {
@@ -519,6 +527,7 @@ export interface Quotation {
 
 export interface User {
   id: string;
+  uid?: string;
   name: string;
   initials: string;
   phone: string;
@@ -2792,7 +2801,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
-    const callerId = logData.telecallerId || currentUser?.id || 'emp_user';
+    const callerId = logData.telecallerId || currentUser?.id || (currentUser as any)?.uid || 'emp_user';
     const callerName = logData.telecallerName || currentUser?.name || 'Telecaller';
     const callerEmail = currentUser?.email || '';
 
@@ -2818,7 +2827,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await setDoc(doc(db, 'call_leads', newLog.id), sanitizeForFirestore(newLog));
     } catch (err) {
-      console.warn("Error persisting call log to Firestore /call_leads:", err);
+      console.error("Error persisting call log to Firestore /call_leads:", err);
+      throw err;
     }
 
     // 3. Associate with Lead and Timeline
@@ -2829,22 +2839,36 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       addActivity({
         type: 'Call Logged',
-        message: logData.callDirection + ' call (' + logData.outcome + ') logged: ' + (logData.notes ? logData.notes.slice(0, 60) : ''),
+        message: `${logData.callDirection || 'Outgoing'} call (${logData.outcome}) logged: ${logData.notes ? logData.notes.slice(0, 60) : ''}`,
         user: callerName,
         leadId: logData.leadId
       });
 
+      const todayIso = new Date().toISOString().split('T')[0];
       const leadUpdates: Partial<MockLead> = {
-        callLogs: updatedLeadCallLogs as any
+        callLogs: updatedLeadCallLogs as any,
+        lastCallDate: newLog.timestamp,
+        updatedAt: newLog.timestamp
       };
+
+      if (logData.customerRequirement) {
+        leadUpdates.customerRequirement = logData.customerRequirement;
+      }
+
+      if (logData.updatedLeadStatus) {
+        leadUpdates.salesStage = logData.updatedLeadStatus as any;
+      } else if (!targetLead?.firstCallAttemptAt || targetLead?.salesStage === 'New Lead') {
+        leadUpdates.firstCallAttemptAt = newLog.timestamp;
+        leadUpdates.salesStage = (logData.outcome.startsWith('Connected') || logData.outcome === 'Interested') ? 'Contacted' : 'Contact Attempted';
+      }
 
       if (logData.nextFollowUpDate) {
         leadUpdates.followUp = {
           date: logData.nextFollowUpDate,
           time: logData.nextFollowUpTime || '11:00 AM',
           type: 'Call',
-          status: 'Upcoming',
-          notes: logData.notes
+          status: logData.nextFollowUpDate === todayIso ? 'Due Today' : logData.nextFollowUpDate < todayIso ? 'Overdue' : 'Upcoming',
+          notes: logData.notes || logData.customerRequirement || 'Customer callback scheduled'
         };
       }
 
@@ -2866,21 +2890,44 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         financingRequirement: qualificationData.budgetPreference
       });
 
-      await updateDoc(doc(db, 'leads', leadId), {
-        qualificationData,
+      const nowIso = new Date().toISOString();
+      const updates: any = {
+        qualificationData: sanitizeForFirestore(qualificationData),
         leadScore: score,
-        salesStage: target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted' ? 'Qualified' : (target?.salesStage || 'Qualified'),
-        updatedAt: new Date().toISOString()
-      });
+        updatedAt: nowIso
+      };
+
+      if (qualificationData.pincode) {
+        updates.pincode = qualificationData.pincode;
+      }
+      if (qualificationData.location) {
+        updates.location = qualificationData.location;
+      }
+
+      if (qualificationData.qualificationResult === 'Qualified') {
+        updates.salesStage = 'Qualified';
+      } else if (qualificationData.qualificationResult === 'Not Qualified') {
+        updates.salesStage = 'Lost';
+      } else if (qualificationData.qualificationResult === 'Needs Follow-up') {
+        updates.salesStage = 'Contacted';
+      } else if (target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted') {
+        updates.salesStage = 'Qualified';
+      }
+
+      await updateDoc(doc(db, 'leads', leadId), updates);
+
+      // Local optimistic update
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l));
 
       addActivity({
         type: 'Customer Qualified',
-        message: 'Customer qualified: Score ' + score.total + '/100 (' + score.category + ') - ' + (qualificationData.preferredCapacityKw || 3) + ' kW solar preference',
+        message: `Customer qualified: Score ${score.total}/100 (${score.category}) - ${qualificationData.preferredCapacityKw || 3} kW solar preference`,
         user: currentUser?.name || 'Telecaller',
         leadId
       });
     } catch (err) {
-      console.warn("Error updating lead qualification:", err);
+      console.error("Error updating lead qualification:", err);
+      throw err;
     }
   };
 

@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            let userData = userDoc.data() as CRMUser;
+            let userData = { id: firebaseUser.uid, uid: firebaseUser.uid, ...userDoc.data() } as unknown as CRMUser;
             if (!userData.permissions) {
               if (userData.role === 'Admin') userData.permissions = defaultAdminPermissions;
               else if (userData.role === 'Employee') userData.permissions = defaultEmployeePermissions;
