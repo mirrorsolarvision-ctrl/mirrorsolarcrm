@@ -77,3 +77,4 @@ if (foundStagingProject && !foundProductionProject) {
   console.error('✗ FAIL: Staging project "crm-webapp-staging-msv" was not found in the bundle.');
   process.exit(1);
 }
+
