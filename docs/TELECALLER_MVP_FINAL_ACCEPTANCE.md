@@ -254,7 +254,7 @@ npm run build
 ## 11. GIT EVIDENCE & AUDIT TRAIL
 
 - **Active Branch:** `feature/telecaller-mvp-nov04`
-- **Latest Commit SHA:** `4abc524ae5dda84eda790d2c13c4140f4ec06653`
+- **Latest Commit SHA:** `15d827ffea4e634de3cec9e4f88095b3f4e70e70` (and amended parent `4abc524ae5dda84eda790d2c13c4140f4ec06653`)
 - **GitHub Branch URL:** `https://github.com/mirrorsolarvision-ctrl/mirrorsolarcrm/tree/feature/telecaller-mvp-nov04`
 - **Git Status:** Clean working tree (synced with remote `origin/feature/telecaller-mvp-nov04`).
 - **Production Status:** NOT merged into main; NOT deployed to production.
