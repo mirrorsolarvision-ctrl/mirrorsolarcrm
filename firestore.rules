@@ -9,24 +9,30 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasUserDoc() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getUserDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
       return isAuthenticated() && (
-        getUserDoc().role == 'Admin' || 
-        request.auth.token.role == 'Admin' ||
-        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com']
+        request.auth.token.email in ['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com'] ||
+        (request.auth.token != null && 'role' in request.auth.token && request.auth.token.role == 'Admin') ||
+        (hasUserDoc() && getUserDoc().role == 'Admin')
       );
     }
 
     function isAccounts() {
       return isAuthenticated() && (
-        getUserDoc().role == 'Accounts' ||
-        getUserDoc().employeeCategory == 'Accounts' ||
-        getUserDoc().category == 'Accounts' ||
-        request.auth.token.role == 'Accounts'
+        (request.auth.token != null && 'role' in request.auth.token && request.auth.token.role == 'Accounts') ||
+        (hasUserDoc() && (
+          ('role' in getUserDoc() && getUserDoc().role == 'Accounts') ||
+          ('employeeCategory' in getUserDoc() && getUserDoc().employeeCategory == 'Accounts') ||
+          ('category' in getUserDoc() && getUserDoc().category == 'Accounts')
+        ))
       );
     }
 
@@ -36,37 +42,37 @@ service cloud.firestore {
 
     function isEmployee() {
       return isAuthenticated() && (
-        getUserDoc().role == 'Employee' || 
-        request.auth.token.role == 'Employee'
+        (request.auth.token != null && 'role' in request.auth.token && request.auth.token.role == 'Employee') ||
+        (hasUserDoc() && 'role' in getUserDoc() && getUserDoc().role == 'Employee')
       );
     }
 
     function isSalesManager() {
-      return isEmployee() && (
-        getUserDoc().employeeCategory in ['Sales Manager', 'Sales Manager (Telecaller)'] || 
-        getUserDoc().category in ['Sales Manager', 'Sales Manager (Telecaller)'] ||
-        getUserDoc().responsibilities.primaryResponsibilityId == 'resp_sales_manager'
+      return isEmployee() && hasUserDoc() && (
+        ('employeeCategory' in getUserDoc() && getUserDoc().employeeCategory in ['Sales Manager', 'Sales Manager (Telecaller)']) || 
+        ('category' in getUserDoc() && getUserDoc().category in ['Sales Manager', 'Sales Manager (Telecaller)']) ||
+        ('responsibilities' in getUserDoc() && 'primaryResponsibilityId' in getUserDoc().responsibilities && getUserDoc().responsibilities.primaryResponsibilityId == 'resp_sales_manager')
       );
     }
 
     function isSuryaGharIncharge() {
-      return isEmployee() && (
-        getUserDoc().employeeCategory in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'] ||
-        getUserDoc().category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar']
+      return isEmployee() && hasUserDoc() && (
+        ('employeeCategory' in getUserDoc() && getUserDoc().employeeCategory in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar']) ||
+        ('category' in getUserDoc() && getUserDoc().category in ['PM Surya Ghar Work Incharge', 'PM Surya Ghar'])
       );
     }
 
     function isStockIncharge() {
-      return isEmployee() && (
-        getUserDoc().employeeCategory == 'Stock Incharge' ||
-        getUserDoc().category == 'Stock Incharge'
+      return isEmployee() && hasUserDoc() && (
+        ('employeeCategory' in getUserDoc() && getUserDoc().employeeCategory == 'Stock Incharge') ||
+        ('category' in getUserDoc() && getUserDoc().category == 'Stock Incharge')
       );
     }
 
     function isDealer() {
       return isAuthenticated() && (
-        getUserDoc().role == 'Dealer' || 
-        request.auth.token.role == 'Dealer'
+        (request.auth.token != null && 'role' in request.auth.token && request.auth.token.role == 'Dealer') ||
+        (hasUserDoc() && 'role' in getUserDoc() && getUserDoc().role == 'Dealer')
       );
     }
 
@@ -105,11 +111,11 @@ service cloud.firestore {
           resource.data.dealerId == request.auth.uid
         )) ||
         (isEmployee() && (
-          resource.data.assignedEmployeeId == request.auth.uid || 
-          resource.data.leadOwnerId == request.auth.uid ||
-          resource.data.assignedEmployeeEmail == request.auth.token.email ||
-          resource.data.assignedEmployeeId == getUserDoc().employeeId ||
-          resource.data.assignedEmployee == getUserDoc().name
+          ('assignedEmployeeId' in resource.data && resource.data.assignedEmployeeId == request.auth.uid) || 
+          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid) ||
+          ('assignedEmployeeEmail' in resource.data && resource.data.assignedEmployeeEmail == request.auth.token.email) ||
+          ('assignedEmployeeId' in resource.data && hasUserDoc() && 'employeeId' in getUserDoc() && resource.data.assignedEmployeeId == getUserDoc().employeeId) ||
+          ('assignedEmployee' in resource.data && hasUserDoc() && 'name' in getUserDoc() && resource.data.assignedEmployee == getUserDoc().name)
         ))
       );
 
@@ -178,11 +184,11 @@ service cloud.firestore {
 
         // C. Telecaller: can only edit assigned lead's call, qualification, and sales progress
         (isEmployee() && (
-          resource.data.assignedEmployeeId == request.auth.uid || 
-          resource.data.leadOwnerId == request.auth.uid ||
-          resource.data.assignedEmployeeEmail == request.auth.token.email ||
-          resource.data.assignedEmployeeId == getUserDoc().employeeId ||
-          resource.data.assignedEmployee == getUserDoc().name
+          ('assignedEmployeeId' in resource.data && resource.data.assignedEmployeeId == request.auth.uid) || 
+          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid) ||
+          ('assignedEmployeeEmail' in resource.data && resource.data.assignedEmployeeEmail == request.auth.token.email) ||
+          ('assignedEmployeeId' in resource.data && hasUserDoc() && 'employeeId' in getUserDoc() && resource.data.assignedEmployeeId == getUserDoc().employeeId) ||
+          ('assignedEmployee' in resource.data && hasUserDoc() && 'name' in getUserDoc() && resource.data.assignedEmployee == getUserDoc().name)
         ) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'salesStage', 'stage', 'priority', 'followUp', 'notes', 'customer', 
@@ -191,6 +197,7 @@ service cloud.firestore {
             'monthlyUnits', 'sanctionedLoad', 'monthlyBill', 'roofType', 'roofArea',
             'qualificationScore', 'qualification', 'qualificationData', 'callLogs',
             'firstCallAttemptAt', 'slaStatus', 'lastCallDate', 'customerRequirement',
+            'pincode', 'location', 'district', 'town',
             'reassignmentRequest', 'systemCapacityKw', 'dealerNotes'
           ]) &&
           // Cannot reassign lead ownership, alter dealer allocation, verify payments, or approve installations
@@ -280,33 +287,71 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // DEF-012: Call-Log Identity, Write Protection, and Scoping
+    // DEF-012 & BLOCKER 3: Call-Log Identity, Write Protection, Lead Assignment, and Scoping
     match /call_leads/{callId} {
-      // Sales management oversight + Telecaller own records only. Accounts access removed.
+      // Helper to check if caller is authorized for the target lead
+      function isCallerAuthorizedForLead(targetLeadId) {
+        return targetLeadId == null ||
+               targetLeadId == '' ||
+               isAdmin() ||
+               isSalesManager() ||
+               (
+                 exists(/databases/$(database)/documents/leads/$(targetLeadId)) &&
+                 (
+                   ('assignedEmployeeId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeId == request.auth.uid) ||
+                   ('leadOwnerId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.leadOwnerId == request.auth.uid) ||
+                   ('assignedEmployee' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && hasUserDoc() && 'name' in getUserDoc() && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployee == getUserDoc().name) ||
+                   ('assignedEmployeeId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && hasUserDoc() && 'employeeId' in getUserDoc() && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeId == getUserDoc().employeeId) ||
+                   ('assignedEmployeeEmail' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeEmail == request.auth.token.email)
+                 )
+               );
+      }
+
+      // Sales management oversight + Telecaller own records only
       allow read: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
         (isEmployee() && (
           resource.data.telecallerId == request.auth.uid ||
+          resource.data.callerId == request.auth.uid ||
           resource.data.employeeId == request.auth.uid ||
           resource.data.assignedEmployeeId == request.auth.uid
         ))
       );
-      // Identity Protection: Telecaller can only create call records under their own authenticated UID
+
+      // Identity & Lead Assignment Protection:
+      // 1. Telecaller can only create call records under their own authenticated UID
+      // 2. Referenced lead must exist and be assigned to the telecaller (or Sales Manager/Admin)
       allow create: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
-        (isEmployee() && request.resource.data.telecallerId == request.auth.uid)
-      ) && request.resource.data.keys().hasAll(['id', 'telecallerId', 'timestamp']);
+        (
+          isEmployee() &&
+          (request.resource.data.telecallerId == request.auth.uid || request.resource.data.callerId == request.auth.uid) &&
+          (!('leadId' in request.resource.data) || isCallerAuthorizedForLead(request.resource.data.leadId))
+        )
+      ) && request.resource.data.keys().hasAll(['id', 'timestamp']) &&
+           (request.resource.data.keys().hasAny(['telecallerId', 'callerId']));
 
-      // Immutability Protection: Telecaller cannot alter telecallerId, id, or leadId after creation
+      // Immutability Protection & Field-Level Update Allowlist:
+      // Telecaller cannot alter telecallerId, callerId, employeeId, leadId, id, or creation timestamp
       allow update: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
-        (isEmployee() && 
-          resource.data.telecallerId == request.auth.uid &&
-          request.resource.data.telecallerId == resource.data.telecallerId &&
+        (
+          isEmployee() && 
+          (resource.data.telecallerId == request.auth.uid || resource.data.callerId == request.auth.uid) &&
+          (!('telecallerId' in resource.data) || request.resource.data.telecallerId == resource.data.telecallerId) &&
+          (!('callerId' in resource.data) || request.resource.data.callerId == resource.data.callerId) &&
+          (!('employeeId' in resource.data) || request.resource.data.employeeId == resource.data.employeeId) &&
+          (!('leadId' in resource.data) || request.resource.data.leadId == resource.data.leadId) &&
+          (!('timestamp' in resource.data) || request.resource.data.timestamp == resource.data.timestamp) &&
           request.resource.data.id == resource.data.id &&
-          (!('leadId' in resource.data) || request.resource.data.leadId == resource.data.leadId)
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'notes', 'outcome', 'customerRequirement', 'updatedLeadStatus',
+            'nextFollowUpDate', 'nextFollowUpTime', 'durationSeconds', 'callDirection',
+            'customerName', 'phone', 'callDate', 'callTime'
+          ])
         )
       );
+
       allow delete: if isAdmin();
     }
 

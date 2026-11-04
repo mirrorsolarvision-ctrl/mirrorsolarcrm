@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
@@ -16,6 +16,15 @@ import type {
 } from '../types/sales';
 import { calculateLeadScore } from '../utils/salesCalculations';
 import { evaluateSlaStatus } from '../utils/salesCalculations';
+
+export const getIndiaDateString = (date: Date = new Date()): string => {
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Kolkata', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(date);
+};
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -736,13 +745,13 @@ export const defaultCompanyEmployees: Employee[] = [
     id: 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3',
     name: 'Sunkara Siva',
     initials: 'SS',
-    email: 'msv-siva-001@mirrorsolar.in',
+    email: 'siva.mirrorsolarvision@gmail.com',
     phone: '8985141432',
     role: 'Employee',
     status: 'Active',
     employeeId: 'MSV-SIVA-001',
-    code: 'MSV-SIVA-001',
-    displayId: 'MSV-SIVA-001',
+    code: 'MSV/EMP/SUNKARASIVA',
+    displayId: 'MSV/EMP/SUNKARASIVA',
     employeeCategory: 'Marketing Employee',
     lastActive: 'Just now',
     permissions: { ...defaultEmployeePermissions },
@@ -755,7 +764,8 @@ export const defaultCompanyEmployees: Employee[] = [
       myEmployees: false,
       attendance: true,
       calendar: true,
-      quotations: true
+      quotations: true,
+      forwardCallLeadToDealer: true
     },
     responsibilities: {
       primaryResponsibilityId: 'RESP_MARKETING',
@@ -1332,6 +1342,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [approvedProducts, setApprovedProducts] = useState<ApprovedProduct[]>(defaultApprovedProducts);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const debounceMap = useRef<Map<string, number>>(new Map());
   
   const { currentUser: authUser } = useAuth();
   useEffect(() => {
@@ -1528,11 +1539,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (authUser as any).responsibilities?.primaryResponsibilityId === 'resp_sales_manager';
     const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge;
 
+    const employeeIds = Array.from(new Set([
+      authUser.id,
+      (authUser as any).employeeId,
+      (authUser as any).code,
+      (authUser as any).employeeCode,
+      (eName.includes('siva') || eName.includes('sunkara')) ? 'MSV-SIVA-001' : null,
+      (eName.includes('siva') || eName.includes('sunkara')) ? 'MSV/EMP/SUNKARASIVA' : null,
+      (eName.includes('siva') || eName.includes('sunkara')) ? 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3' : null
+    ].filter(Boolean))) as string[];
+
     const leadsQuery = isPrivilegedLeadViewer
       ? collection(db, 'leads')
       : authUser.role === 'Dealer'
         ? query(collection(db, 'leads'), where('dealerId', '==', authUser.id))
-        : query(collection(db, 'leads'), where('assignedEmployeeId', '==', authUser.id));
+        : employeeIds.length > 1
+          ? query(collection(db, 'leads'), where('assignedEmployeeId', 'in', employeeIds))
+          : query(collection(db, 'leads'), where('assignedEmployeeId', '==', authUser.id));
 
     unsubscribeLeads = onSnapshot(leadsQuery, (snapshot) => {
       const allLeads: MockLead[] = [];
@@ -1560,7 +1583,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const assignedId = (l.assignedEmployeeId || '').toLowerCase();
 
           if (eName.includes('siva') || eName.includes('sunkara')) {
-            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
+            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2' || assignedId === 'msv-siva-001' || assignedId === 'bktpwqkgmsxrbjchecwd8uo9nrj3';
           }
           return (
             (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
@@ -2801,6 +2824,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
+    // 0. Debounce duplicate submissions within 1500ms
+    const debounceKey = `call_${logData.leadId || ''}_${logData.phone || ''}_${logData.outcome || ''}`;
+    const now = Date.now();
+    const lastSubmission = debounceMap.current.get(debounceKey);
+    if (lastSubmission && now - lastSubmission < 1500) {
+      console.warn("Duplicate call log submission ignored:", debounceKey);
+      return;
+    }
+    debounceMap.current.set(debounceKey, now);
+
     const callerId = logData.telecallerId || currentUser?.id || (currentUser as any)?.uid || 'emp_user';
     const callerName = logData.telecallerName || currentUser?.name || 'Telecaller';
     const callerEmail = currentUser?.email || '';
@@ -2816,36 +2849,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assignedEmployeeId: callerId
     };
 
-    // 1. Optimistic local state update
-    setCallLogs(prev => {
-      const updated = [newLog, ...prev.filter(c => c.id !== newLog.id)];
-      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
-      return updated;
-    });
-
-    // 2. Reliable Firestore Persistence to /call_leads
-    try {
-      await setDoc(doc(db, 'call_leads', newLog.id), sanitizeForFirestore(newLog));
-    } catch (err) {
-      console.error("Error persisting call log to Firestore /call_leads:", err);
-      throw err;
-    }
-
-    // 3. Associate with Lead and Timeline
+    // Prepare lead updates if leadId is provided
+    let leadUpdates: Partial<MockLead> | null = null;
     if (logData.leadId) {
       const targetLead = leads.find(l => l.id === logData.leadId);
       const existingCallLogs = targetLead?.callLogs || [];
       const updatedLeadCallLogs = [newLog, ...existingCallLogs.filter(c => c.id !== newLog.id)];
 
-      addActivity({
-        type: 'Call Logged',
-        message: `${logData.callDirection || 'Outgoing'} call (${logData.outcome}) logged: ${logData.notes ? logData.notes.slice(0, 60) : ''}`,
-        user: callerName,
-        leadId: logData.leadId
-      });
-
-      const todayIso = new Date().toISOString().split('T')[0];
-      const leadUpdates: Partial<MockLead> = {
+      const todayIst = getIndiaDateString();
+      leadUpdates = {
         callLogs: updatedLeadCallLogs as any,
         lastCallDate: newLog.timestamp,
         updatedAt: newLog.timestamp
@@ -2867,16 +2879,58 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           date: logData.nextFollowUpDate,
           time: logData.nextFollowUpTime || '11:00 AM',
           type: 'Call',
-          status: logData.nextFollowUpDate === todayIso ? 'Due Today' : logData.nextFollowUpDate < todayIso ? 'Overdue' : 'Upcoming',
+          status: logData.nextFollowUpDate === todayIst ? 'Due Today' : logData.nextFollowUpDate < todayIst ? 'Overdue' : 'Upcoming',
           notes: logData.notes || logData.customerRequirement || 'Customer callback scheduled'
         };
       }
+    }
 
-      await updateLead(logData.leadId, leadUpdates);
+    // 1. Atomic Firestore writeBatch commit (eliminates partial-success states)
+    try {
+      const batch = writeBatch(db);
+      const callDocRef = doc(db, 'call_leads', newLog.id);
+      batch.set(callDocRef, sanitizeForFirestore(newLog));
+
+      if (logData.leadId && leadUpdates) {
+        const leadDocRef = doc(db, 'leads', logData.leadId);
+        batch.update(leadDocRef, sanitizeForFirestore(leadUpdates));
+      }
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Error committing atomic call log batch to Firestore:", err);
+      throw err;
+    }
+
+    // 2. Update local optimistic state and log activity upon successful commit
+    setCallLogs(prev => {
+      const updated = [newLog, ...prev.filter(c => c.id !== newLog.id)];
+      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    if (logData.leadId && leadUpdates) {
+      setLeads(prev => prev.map(l => l.id === logData.leadId ? { ...l, ...leadUpdates! } : l));
+      addActivity({
+        type: 'Call Logged',
+        message: `${logData.callDirection || 'Outgoing'} call (${logData.outcome}) logged: ${logData.notes ? logData.notes.slice(0, 60) : ''}`,
+        user: callerName,
+        leadId: logData.leadId
+      });
     }
   };
 
   const updateLeadQualification = async (leadId: string, qualificationData: CustomerQualificationData) => {
+    // 0. Debounce duplicate qualification submissions within 1500ms
+    const qualDebounceKey = `qual_${leadId}`;
+    const now = Date.now();
+    const lastSubmission = debounceMap.current.get(qualDebounceKey);
+    if (lastSubmission && now - lastSubmission < 1500) {
+      console.warn("Duplicate qualification submission ignored:", qualDebounceKey);
+      return;
+    }
+    debounceMap.current.set(qualDebounceKey, now);
+
     try {
       const target = leads.find(l => l.id === leadId);
       const score = calculateLeadScore({
