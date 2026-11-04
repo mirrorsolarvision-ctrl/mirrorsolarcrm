@@ -1,11 +1,35 @@
+/**
+ * MIRROR SOLAR VISION CRM — LEAD ASSIGNMENT SCRIPT (ADMIN UTILITY)
+ * 
+ * SAFETY NOTICE:
+ * - This script is disabled by default to prevent accidental data modification.
+ * - Requires explicit execution authorization via environment variables.
+ * - Never execute against production without owner approval and prior database snapshot.
+ * - Requires verified Firebase Auth UID, NOT employee codes.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, collection, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+
+if (process.env.ALLOW_DATA_MODIFICATION !== 'true') {
+  console.error('[ABORTED] Script execution is disabled. Set ALLOW_DATA_MODIFICATION=true to run.');
+  process.exit(1);
+}
+
+const adminEmail = process.env.ADMIN_EMAIL;
+const adminPassword = process.env.ADMIN_PASSWORD;
+const targetAuthUid = process.env.TARGET_AUTH_UID;
+
+if (!adminEmail || !adminPassword || !targetAuthUid) {
+  console.error('[ABORTED] Missing required environment variables: ADMIN_EMAIL, ADMIN_PASSWORD, TARGET_AUTH_UID.');
+  process.exit(1);
+}
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBZE0Zwwvyc963ddo_I8LTc8emlhayZ_NY",
+  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBZE0Zwwvyc963ddo_I8LTc8emlhayZ_NY",
   authDomain: "crm-webapp-d32bc.firebaseapp.com",
-  projectId: "crm-webapp-d32bc",
+  projectId: process.env.FIREBASE_PROJECT_ID || "crm-webapp-d32bc",
   storageBucket: "crm-webapp-d32bc.firebasestorage.app",
   messagingSenderId: "940267952934",
   appId: "1:940267952934:web:18ba7928b92968bcdcbfe7"
@@ -16,91 +40,29 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 async function assignLeadsToSiva() {
-  await signInWithEmailAndPassword(auth, 'admin@mirrorsolar.in', 'Password123!');
-  console.log('Logged in as admin.');
+  await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+  console.log('Authenticated admin session established.');
 
-  // Find unassigned leads or specific leads to assign to Sunkara Siva
   const leadsSnap = await getDocs(collection(db, 'leads'));
   let updatedCount = 0;
 
   for (const docSnap of leadsSnap.docs) {
     const data = docSnap.data();
-    // If lead has no assigned employee or was unassigned, assign to Sunkara Siva
-    if (!data.assignedEmployee || data.assignedEmployee === 'Unassigned' || data.assignedEmployee === '' || docSnap.id === '34fPlKEpby9EBUOAW5gY' || docSnap.id === 'LSW9jGj43Pxx41SFEJUc') {
+    if (data.assignedEmployee === 'Sunkara Siva' && data.assignedEmployeeId !== targetAuthUid) {
       await updateDoc(doc(db, 'leads', docSnap.id), {
-        assignedEmployee: 'Sunkara Siva',
-        assignedEmployeeId: 'MSV-SIVA-001',
-        updatedAt: 'Just now'
+        assignedEmployeeId: targetAuthUid,
+        updatedAt: new Date().toISOString()
       });
-      console.log(`Assigned lead ${docSnap.id} (${data.customer}) to Sunkara Siva`);
+      console.log(`Updated lead ${docSnap.id} with verified Auth UID.`);
       updatedCount++;
     }
   }
 
-  // Create 2 new active demo leads for Sunkara Siva to test lead creation
-  const demoLead1 = {
-    customer: 'K. Venkateswara Rao',
-    phone: '+91 94401 23456',
-    email: 'venkat.rao@example.com',
-    location: 'Eluru, Andhra Pradesh',
-    dealer: 'VIJAY KUMAR',
-    assignedEmployee: 'Sunkara Siva',
-    assignedEmployeeId: 'MSV-SIVA-001',
-    createdBy: 'MSV-SIVA-001',
-    createdByName: 'Sunkara Siva',
-    createdByRole: 'Employee',
-    notes: 'Inquired for 5kW Rooftop Solar On-Grid System under PM Surya Ghar.',
-    stage: 'Lead',
-    priority: 'High',
-    leadType: 'tracking',
-    followUp: {
-      date: new Date().toISOString().split('T')[0],
-      time: '11:30 AM',
-      type: 'Call',
-      status: 'Due Today'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: 'Just now',
-    archived: false
-  };
-
-  const demoLead2 = {
-    customer: 'Sri Lakshmi Enterprises (Eluru Commercial)',
-    phone: '+91 98480 87654',
-    email: 'srilakshmi.solar@example.com',
-    location: 'Powerpet, Eluru',
-    dealer: 'VIJAY KUMAR',
-    assignedEmployee: 'Sunkara Siva',
-    assignedEmployeeId: 'MSV-SIVA-001',
-    createdBy: 'MSV-SIVA-001',
-    createdByName: 'Sunkara Siva',
-    createdByRole: 'Employee',
-    notes: '10kW Commercial Plant proposal requested with battery backup feasibility.',
-    stage: 'Converted',
-    priority: 'High',
-    leadType: 'project',
-    followUp: {
-      date: new Date().toISOString().split('T')[0],
-      time: '03:00 PM',
-      type: 'Site Visit',
-      status: 'Due Today'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: 'Just now',
-    archived: false
-  };
-
-  const ref1 = await addDoc(collection(db, 'leads'), demoLead1);
-  console.log(`Created sample lead 1 for Siva with ID: ${ref1.id}`);
-
-  const ref2 = await addDoc(collection(db, 'leads'), demoLead2);
-  console.log(`Created sample lead 2 for Siva with ID: ${ref2.id}`);
-
-  console.log('All leads successfully assigned and synced for Siva!');
+  console.log(`Lead assignment normalization complete. Updated: ${updatedCount} records.`);
   process.exit(0);
 }
 
 assignLeadsToSiva().catch(err => {
-  console.error(err);
+  console.error('Lead assignment error:', err);
   process.exit(1);
 });

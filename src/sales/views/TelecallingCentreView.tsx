@@ -35,22 +35,21 @@ export default function TelecallingCentreView({
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Active Scoped Leads (Telecaller sees assigned leads only)
+  // Active Scoped Leads (Telecaller sees assigned leads strictly by authenticated UID)
   const scopedLeads = useMemo(() => {
     if (isManager) return leads.filter(l => !l.archived);
     return leads.filter(l => 
       !l.archived && 
-      ((l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
-       (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+      ((l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
        (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId))
     );
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, currentUserId]);
 
-  // Scoped Call Logs
+  // Scoped Call Logs (Telecaller sees call logs strictly by authenticated UID)
   const scopedCallLogs = useMemo(() => {
     let list = callLogs;
     if (!isManager) {
-      list = list.filter(c => c.telecallerId === currentUserId || c.telecallerName === currentUserName);
+      list = list.filter(c => c.telecallerId === currentUserId);
     } else if (filterTelecaller !== 'all') {
       list = list.filter(c => c.telecallerName === filterTelecaller);
     }

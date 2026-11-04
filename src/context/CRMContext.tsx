@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
@@ -1539,23 +1539,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (authUser as any).responsibilities?.primaryResponsibilityId === 'resp_sales_manager';
     const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge;
 
-    const employeeIds = Array.from(new Set([
-      authUser.id,
-      (authUser as any).employeeId,
-      (authUser as any).code,
-      (authUser as any).employeeCode,
-      (eName.includes('siva') || eName.includes('sunkara')) ? 'MSV-SIVA-001' : null,
-      (eName.includes('siva') || eName.includes('sunkara')) ? 'MSV/EMP/SUNKARASIVA' : null,
-      (eName.includes('siva') || eName.includes('sunkara')) ? 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3' : null
-    ].filter(Boolean))) as string[];
-
+    const userUid = auth.currentUser?.uid || authUser.id;
     const leadsQuery = isPrivilegedLeadViewer
       ? collection(db, 'leads')
       : authUser.role === 'Dealer'
-        ? query(collection(db, 'leads'), where('dealerId', '==', authUser.id))
-        : employeeIds.length > 1
-          ? query(collection(db, 'leads'), where('assignedEmployeeId', 'in', employeeIds))
-          : query(collection(db, 'leads'), where('assignedEmployeeId', '==', authUser.id));
+        ? query(collection(db, 'leads'), where('dealerId', '==', userUid))
+        : query(collection(db, 'leads'), where('assignedEmployeeId', '==', userUid));
 
     unsubscribeLeads = onSnapshot(leadsQuery, (snapshot) => {
       const allLeads: MockLead[] = [];
@@ -1567,29 +1556,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isPrivilegedLeadViewer) {
         setLeads(allLeads);
       } else if (authUser.role === 'Dealer') {
-        const dName = (authUser.name || '').toLowerCase().trim();
-        setLeads(allLeads.filter(l => 
-          (l.dealer && l.dealer.toLowerCase().includes(dName)) ||
-          (l.sourceDealer && l.sourceDealer.toLowerCase().includes(dName)) ||
-          (l.dealerId && l.dealerId === authUser.id)
-        ));
+        setLeads(allLeads.filter(l => l.dealerId === userUid));
       } else if (authUser.role === 'Employee') {
-        const eId = (authUser.id || '').toLowerCase().trim();
-        setLeads(allLeads.filter(l => {
-          const assigned = (l.assignedEmployee || '').toLowerCase();
-          const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
-          const created = (l.createdByName || '').toLowerCase();
-          const creatorId = (l.createdBy || '').toLowerCase();
-          const assignedId = (l.assignedEmployeeId || '').toLowerCase();
-
-          if (eName.includes('siva') || eName.includes('sunkara')) {
-            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2' || assignedId === 'msv-siva-001' || assignedId === 'bktpwqkgmsxrbjchecwd8uo9nrj3';
-          }
-          return (
-            (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
-            (eId && (creatorId === eId || assignedId === eId))
-          );
-        }));
+        setLeads(allLeads.filter(l => l.assignedEmployeeId === userUid || l.leadOwnerId === userUid));
       } else {
         setLeads(allLeads);
       }
@@ -2834,19 +2803,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     debounceMap.current.set(debounceKey, now);
 
-    const callerId = logData.telecallerId || currentUser?.id || (currentUser as any)?.uid || 'emp_user';
-    const callerName = logData.telecallerName || currentUser?.name || 'Telecaller';
+    const callerUid = auth.currentUser?.uid || (currentUser as any)?.uid || currentUser?.id || 'emp_user';
+    const callerName = currentUser?.name || logData.telecallerName || 'Telecaller';
     const callerEmail = currentUser?.email || '';
 
-    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string } = {
+    if (!logData.leadId) {
+      throw new Error("Lead ID is mandatory for creating a call log.");
+    }
+
+    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string; callerId?: string } = {
       ...logData,
       id: 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
       timestamp: new Date().toISOString(),
-      telecallerId: callerId,
+      telecallerId: callerUid,
+      callerId: callerUid,
+      employeeId: callerUid,
+      assignedEmployeeId: callerUid,
       telecallerName: callerName,
-      telecallerEmail: callerEmail,
-      employeeId: callerId,
-      assignedEmployeeId: callerId
+      telecallerEmail: callerEmail
     };
 
     // Prepare lead updates if leadId is provided

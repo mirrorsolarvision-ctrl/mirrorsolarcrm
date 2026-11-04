@@ -59,18 +59,17 @@ export default function SalesLeadsView({
 
   const dupResult = duplicateCheck.hasDuplicate ? (duplicateCheck as DuplicateCheckResult) : null;
 
-  // Telecallers only see their assigned leads; Sales Managers see all team leads
+  // Telecallers only see their assigned leads strictly by authenticated UID; Sales Managers see all team leads
   const scopedLeads = useMemo(() => {
     let list = leads.filter(l => !l.archived);
     if (!isManager) {
       list = list.filter(l => 
-        (l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
         (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
         (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId)
       );
     }
     return list;
-  }, [leads, isManager, currentUserName, currentUserId]);
+  }, [leads, isManager, currentUserId]);
 
   // Filtered Leads
   const filteredLeads = useMemo(() => {

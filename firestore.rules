@@ -112,10 +112,7 @@ service cloud.firestore {
         )) ||
         (isEmployee() && (
           ('assignedEmployeeId' in resource.data && resource.data.assignedEmployeeId == request.auth.uid) || 
-          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid) ||
-          ('assignedEmployeeEmail' in resource.data && resource.data.assignedEmployeeEmail == request.auth.token.email) ||
-          ('assignedEmployeeId' in resource.data && hasUserDoc() && 'employeeId' in getUserDoc() && resource.data.assignedEmployeeId == getUserDoc().employeeId) ||
-          ('assignedEmployee' in resource.data && hasUserDoc() && 'name' in getUserDoc() && resource.data.assignedEmployee == getUserDoc().name)
+          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid)
         ))
       );
 
@@ -185,10 +182,7 @@ service cloud.firestore {
         // C. Telecaller: can only edit assigned lead's call, qualification, and sales progress
         (isEmployee() && (
           ('assignedEmployeeId' in resource.data && resource.data.assignedEmployeeId == request.auth.uid) || 
-          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid) ||
-          ('assignedEmployeeEmail' in resource.data && resource.data.assignedEmployeeEmail == request.auth.token.email) ||
-          ('assignedEmployeeId' in resource.data && hasUserDoc() && 'employeeId' in getUserDoc() && resource.data.assignedEmployeeId == getUserDoc().employeeId) ||
-          ('assignedEmployee' in resource.data && hasUserDoc() && 'name' in getUserDoc() && resource.data.assignedEmployee == getUserDoc().name)
+          ('leadOwnerId' in resource.data && resource.data.leadOwnerId == request.auth.uid)
         ) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'salesStage', 'stage', 'priority', 'followUp', 'notes', 'customer', 
@@ -287,49 +281,54 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // DEF-012 & BLOCKER 3: Call-Log Identity, Write Protection, Lead Assignment, and Scoping
+    // DEF-012 & BLOCKER 3: Mandatory UID-Based Call-Log Identity, Write Protection, Lead Assignment, and Scoping
     match /call_leads/{callId} {
-      // Helper to check if caller is authorized for the target lead
-      function isCallerAuthorizedForLead(targetLeadId) {
-        return targetLeadId == null ||
-               targetLeadId == '' ||
-               isAdmin() ||
-               isSalesManager() ||
+      // Helper to check if caller is authorized for the target lead strictly via UID
+      function isLeadAssignedToCallerByUid(targetLeadId) {
+        return exists(/databases/$(database)/documents/leads/$(targetLeadId)) &&
                (
-                 exists(/databases/$(database)/documents/leads/$(targetLeadId)) &&
-                 (
-                   ('assignedEmployeeId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeId == request.auth.uid) ||
-                   ('leadOwnerId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.leadOwnerId == request.auth.uid) ||
-                   ('assignedEmployee' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && hasUserDoc() && 'name' in getUserDoc() && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployee == getUserDoc().name) ||
-                   ('assignedEmployeeId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && hasUserDoc() && 'employeeId' in getUserDoc() && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeId == getUserDoc().employeeId) ||
-                   ('assignedEmployeeEmail' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data && get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeEmail == request.auth.token.email)
-                 )
+                 ('assignedEmployeeId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data &&
+                  get(/databases/$(database)/documents/leads/$(targetLeadId)).data.assignedEmployeeId == request.auth.uid) ||
+                 ('leadOwnerId' in get(/databases/$(database)/documents/leads/$(targetLeadId)).data &&
+                  get(/databases/$(database)/documents/leads/$(targetLeadId)).data.leadOwnerId == request.auth.uid)
                );
       }
 
-      // Sales management oversight + Telecaller own records only
+      // Sales management oversight + Telecaller own records only (Strict UID ownership)
       allow read: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
         (isEmployee() && (
           resource.data.telecallerId == request.auth.uid ||
-          resource.data.callerId == request.auth.uid ||
-          resource.data.employeeId == request.auth.uid ||
-          resource.data.assignedEmployeeId == request.auth.uid
+          (resource.data.callerId == request.auth.uid) ||
+          (resource.data.employeeId == request.auth.uid)
         ))
       );
 
-      // Identity & Lead Assignment Protection:
-      // 1. Telecaller can only create call records under their own authenticated UID
-      // 2. Referenced lead must exist and be assigned to the telecaller (or Sales Manager/Admin)
+      // Identity & Mandatory Lead Assignment Protection:
+      // 1. Telecaller must create call records with telecallerId == request.auth.uid
+      // 2. CallerId/EmployeeId, if present, must also match the same authenticated UID (no conflicting identities)
+      // 3. Valid, non-empty leadId is mandatory for telecallers (standalone bypass prohibited)
+      // 4. Referenced lead must exist and be assigned to telecaller strictly by UID
+      // 5. Strict create allowlist of permitted fields (no arbitrary or privileged fields)
       allow create: if isAuthenticated() && (
         isAdmin() || isSalesManager() ||
         (
           isEmployee() &&
-          (request.resource.data.telecallerId == request.auth.uid || request.resource.data.callerId == request.auth.uid) &&
-          (!('leadId' in request.resource.data) || isCallerAuthorizedForLead(request.resource.data.leadId))
+          request.resource.data.telecallerId == request.auth.uid &&
+          (!('callerId' in request.resource.data) || request.resource.data.callerId == request.auth.uid) &&
+          (!('employeeId' in request.resource.data) || request.resource.data.employeeId == request.auth.uid) &&
+          (!('assignedEmployeeId' in request.resource.data) || request.resource.data.assignedEmployeeId == request.auth.uid) &&
+          ('leadId' in request.resource.data && request.resource.data.leadId is string && request.resource.data.leadId.size() > 0) &&
+          isLeadAssignedToCallerByUid(request.resource.data.leadId) &&
+          request.resource.data.keys().hasAll(['id', 'timestamp', 'telecallerId', 'leadId']) &&
+          request.resource.data.keys().hasOnly([
+            'id', 'timestamp', 'telecallerId', 'callerId', 'employeeId', 'assignedEmployeeId',
+            'leadId', 'customerName', 'phone', 'outcome', 'callDirection', 'callDate', 'callTime',
+            'customerRequirement', 'notes', 'nextFollowUpDate', 'nextFollowUpTime',
+            'durationSeconds', 'updatedLeadStatus', 'telecallerName', 'telecallerEmail'
+          ])
         )
-      ) && request.resource.data.keys().hasAll(['id', 'timestamp']) &&
-           (request.resource.data.keys().hasAny(['telecallerId', 'callerId']));
+      );
 
       // Immutability Protection & Field-Level Update Allowlist:
       // Telecaller cannot alter telecallerId, callerId, employeeId, leadId, id, or creation timestamp
@@ -337,13 +336,14 @@ service cloud.firestore {
         isAdmin() || isSalesManager() ||
         (
           isEmployee() && 
-          (resource.data.telecallerId == request.auth.uid || resource.data.callerId == request.auth.uid) &&
-          (!('telecallerId' in resource.data) || request.resource.data.telecallerId == resource.data.telecallerId) &&
+          resource.data.telecallerId == request.auth.uid &&
+          request.resource.data.telecallerId == resource.data.telecallerId &&
           (!('callerId' in resource.data) || request.resource.data.callerId == resource.data.callerId) &&
           (!('employeeId' in resource.data) || request.resource.data.employeeId == resource.data.employeeId) &&
-          (!('leadId' in resource.data) || request.resource.data.leadId == resource.data.leadId) &&
-          (!('timestamp' in resource.data) || request.resource.data.timestamp == resource.data.timestamp) &&
+          (!('assignedEmployeeId' in resource.data) || request.resource.data.assignedEmployeeId == resource.data.assignedEmployeeId) &&
+          request.resource.data.leadId == resource.data.leadId &&
           request.resource.data.id == resource.data.id &&
+          request.resource.data.timestamp == resource.data.timestamp &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'notes', 'outcome', 'customerRequirement', 'updatedLeadStatus',
             'nextFollowUpDate', 'nextFollowUpTime', 'durationSeconds', 'callDirection',
