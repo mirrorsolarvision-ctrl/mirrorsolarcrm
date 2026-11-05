@@ -1295,23 +1295,7 @@ export const INITIAL_MOCK_CALL_LOGS: TelecallerCallLog[] = [
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [leads, setLeads] = useState<MockLead[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    try {
-      const cached = localStorage.getItem('crm_employees_cache');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const empMap = new Map<string, Employee>();
-          defaultCompanyEmployees.forEach(e => empMap.set((e.id || e.code || e.name).toLowerCase(), e));
-          parsed.forEach((e: any) => empMap.set((e.id || e.code || e.name).toLowerCase(), { ...empMap.get((e.id || e.code || e.name).toLowerCase()), ...e }));
-          return Array.from(empMap.values());
-        }
-      }
-      return defaultCompanyEmployees;
-    } catch {
-      return defaultCompanyEmployees;
-    }
-  });
+  const [employees, setEmployees] = useState<Employee[]>(defaultCompanyEmployees);
   const [dealers, setDealers] = useState<Dealer[]>(() => {
     try {
       const cached = localStorage.getItem('crm_dealers_cache');
@@ -1347,16 +1331,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(authUser);
   }, [authUser]);
 
-  useEffect(() => {
-    if (employees.length > 0) {
-      try {
-        const safeEmployees = employees.map(({ password: _, ...emp }: any) => emp);
-        localStorage.setItem('crm_employees_cache', JSON.stringify(safeEmployees));
-      } catch (e) {
-        console.warn("Could not cache employees:", e);
-      }
-    }
-  }, [employees]);
 
   useEffect(() => {
     if (dealers.length > 0) {

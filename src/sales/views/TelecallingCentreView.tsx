@@ -6,6 +6,7 @@ import {
   AlertTriangle, Check, Phone
 } from 'lucide-react';
 import { useCRM, type MockLead, getIndiaDateString } from '../../context/CRMContext';
+import { generateSecureId } from '../../utils/idUtils';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import type { CallOutcome } from '../../types/sales';
 
@@ -171,7 +172,7 @@ export default function TelecallingCentreView({
     setSubmitError(null);
 
     try {
-      const stableOpId = 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      const stableOpId = generateSecureId('CALL_');
       await addCallLog({
         id: stableOpId,
         operationId: stableOpId,

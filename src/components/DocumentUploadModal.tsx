@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, X, Check, FileText, Zap } from 'lucide-react';
+import { Upload, X, Check, FileText, ImageIcon, Zap } from 'lucide-react';
 import { compressImageToTargetPreset, formatBytes, type CompressionPreset } from '../utils/cloudStorageUtils';
 import UploadProgressBar from './UploadProgressBar';
 import './DocumentUploadModal.css';
@@ -25,31 +25,17 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<CompressionPreset>('ultra_50kb');
   const [notes, setNotes] = useState('');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [compressedFile, setCompressedFile] = useState<File | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Generate preview thumbnail and run initial compression calculation whenever file or preset changes
   useEffect(() => {
     if (!file) {
-      setPreviewUrl(null);
       setCompressedFile(null);
       return;
     }
 
-    let url: string | null = null;
-    const isSafeImage = file.type.startsWith('image/') && !file.type.toLowerCase().includes('svg');
-    if (isSafeImage) {
-      const created = URL.createObjectURL(file);
-      if (created.startsWith('blob:')) {
-        url = created;
-        setPreviewUrl(url);
-      } else {
-        setPreviewUrl(null);
-      }
-    } else {
-      setPreviewUrl(null);
-    }
+
 
     const calculateCompression = async () => {
       if (!file.type.startsWith('image/') || selectedPreset === 'original') {
@@ -70,11 +56,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 
     calculateCompression();
 
-    return () => {
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-    };
   }, [file, selectedPreset]);
 
   if (!isOpen || !file) return null;
@@ -119,13 +100,9 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         <div className="doc-upload-body">
           {/* File summary preview card */}
           <div className="doc-file-card">
-            {previewUrl && previewUrl.startsWith('blob:') ? (
-              <img src={previewUrl} alt="Document Preview" className="doc-file-thumb" />
-            ) : (
-              <div className="doc-file-icon-placeholder">
-                <FileText size={26} />
-              </div>
-            )}
+            <div className="doc-file-icon-placeholder">
+              {isImage ? <ImageIcon size={26} color="#0284c7" /> : <FileText size={26} />}
+            </div>
             <div className="doc-file-meta">
               <div className="doc-file-name" title={file.name}>
                 {file.name}
