@@ -14,6 +14,7 @@ import type {
   CustomerQualificationData,
   TelecallerCallLog
 } from '../types/sales';
+import { generateSecureId } from '../utils/idUtils';
 import { calculateLeadScore } from '../utils/salesCalculations';
 import { evaluateSlaStatus } from '../utils/salesCalculations';
 
@@ -547,7 +548,6 @@ export interface User {
   lastActive: string;
   address?: string; // specific to dealers
   features?: DealerFeatures;
-  password?: string; // Stored securely for Admin credential management
   employeeCategory?: 'Surya Ghar Incharge' | 'Commercial Project Incharge' | 'Stock Incharge' | string;
   employeeId?: string;
   employeeCode?: string;
@@ -566,7 +566,6 @@ export interface Employee extends User {
   authId?: string;
   responsibilities?: EmployeeResponsibilities;
   features?: DealerFeatures;
-  password?: string;
 }
 
 export type DealerStatus = 'Active' | 'Inactive';
@@ -587,7 +586,6 @@ export interface Dealer extends User {
   role: 'Dealer';
   address: string;
   features?: DealerFeatures;
-  password?: string;
   commissionRatePerKw?: number; // e.g. 1500 (₹/kW)
   commissionType?: 'PER_KW' | 'PERCENTAGE';
   commissionPercent?: number; // e.g. 5 (%)
@@ -1352,7 +1350,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (employees.length > 0) {
       try {
-        localStorage.setItem('crm_employees_cache', JSON.stringify(employees));
+        const safeEmployees = employees.map(({ password: _, ...emp }: any) => emp);
+        localStorage.setItem('crm_employees_cache', JSON.stringify(safeEmployees));
       } catch (e) {
         console.warn("Could not cache employees:", e);
       }
@@ -1368,7 +1367,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           !((d.name || '').toLowerCase().includes('balaji peruri')) &&
           (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
         );
-        localStorage.setItem('crm_dealers_cache', JSON.stringify(sanitized));
+        const safeDealers = sanitized.map(({ password: _, ...d }: any) => d);
+        localStorage.setItem('crm_dealers_cache', JSON.stringify(safeDealers));
       } catch (e) {
         console.warn("Could not cache dealers:", e);
       }
@@ -1679,9 +1679,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: 'Employee', 
       permissions: { ...defaultEmployeePermissions },
       status: emp.status || 'Active',
-      features: (emp as any).features || { ...defaultEmployeeFeatures },
-      password: (emp as any).password || ''
+      features: (emp as any).features || { ...defaultEmployeeFeatures }
     };
+    delete (newEmployee as any).password;
     
     // Optimistic local state update
     setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
@@ -1715,9 +1715,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: 'Dealer', 
       permissions: { ...defaultDealerPermissions },
       status: dealer.status || 'Active',
-      features: dealer.features || { ...defaultDealerFeatures },
-      password: (dealer as any).password || ''
+      features: dealer.features || { ...defaultDealerFeatures }
     };
+    delete (newDealer as any).password;
 
     // 1. Optimistic local state update
     setDealers(prev => [newDealer, ...prev.filter(d => d.id !== newId)]);
@@ -2154,7 +2154,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const existingList = currentPayments.customerPayments || [];
 
       const newRecord: CustomerPaymentRecord = {
-        id: `CP_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateSecureId('CP_'),
         leadId: lead.id,
         customerName: lead.customer,
         amount: data.amount,
@@ -2391,17 +2391,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateUserPassword = async (userId: string, role: 'Employee' | 'Dealer', newPassword: string) => {
-    if (role === 'Dealer') {
-      setDealers(prev => prev.map(d => d.id === userId ? { ...d, password: newPassword } : d));
-    } else {
-      setEmployees(prev => prev.map(e => e.id === userId ? { ...e, password: newPassword } : e));
-    }
-
+  const updateUserPassword = async (userId: string, _role: 'Employee' | 'Dealer', _newPassword: string) => {
     try {
-      await updateDoc(doc(db, 'users', userId), { password: newPassword, lastPasswordReset: new Date().toISOString() });
+      await updateDoc(doc(db, 'users', userId), { lastPasswordReset: new Date().toISOString() });
     } catch (err) {
-      console.warn("Error updating password in Firestore:", err);
+      console.warn("Could not save password reset timestamp in Firestore:", err);
     }
   };
 
@@ -2423,8 +2417,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? updates.name.split(' ').map(n => n[0]).filter(Boolean).join('').substring(0, 2).toUpperCase()
       : undefined;
 
+    const { password: _pw, ...cleanUpdates } = updates as any;
     const fullUpdates = {
-      ...updates,
+      ...cleanUpdates,
       ...(initials ? { initials } : {})
     };
 
@@ -2468,9 +2463,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dealerId,
       role: 'Employee',
       permissions: { ...defaultEmployeePermissions },
-      status: emp.status || 'Active',
-      password: (emp as any).password || ''
+      status: emp.status || 'Active'
     };
+    delete (newEmployee as any).password;
 
     setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
 
@@ -2811,7 +2806,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error("Lead ID is mandatory for creating a call log.");
     }
 
-    const operationId = (logData as any).operationId || (logData as any).id || ('CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    const operationId = (logData as any).operationId || (logData as any).id || generateSecureId('CALL_');
     const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string; callerId?: string; operationId?: string } = {
       ...logData,
       id: operationId,
