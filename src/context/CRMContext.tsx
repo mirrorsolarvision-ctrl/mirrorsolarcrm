@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
@@ -14,8 +14,18 @@ import type {
   CustomerQualificationData,
   TelecallerCallLog
 } from '../types/sales';
+import { generateSecureId } from '../utils/idUtils';
 import { calculateLeadScore } from '../utils/salesCalculations';
 import { evaluateSlaStatus } from '../utils/salesCalculations';
+
+export const getIndiaDateString = (date: Date = new Date()): string => {
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Kolkata', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(date);
+};
 
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
@@ -314,12 +324,20 @@ export interface MockLead {
   leadScore?: LeadScoreBreakdown;
   firstCallAttemptAt?: string;
   slaStatus?: SlaStatus;
+  pincode?: string;
+  lastCallDate?: string;
+  customerRequirement?: string;
   financingType?: 'Bank Loan (JanSamarth)' | 'Self-Funded (Direct Payment)';
   commercialClearanceStatus?: 'Cleared' | 'Pending';
   handoffAcceptedAt?: string;
   availabilityStatus?: AvailabilityStatus;
   qualificationData?: CustomerQualificationData;
   callLogs?: TelecallerCallLog[];
+  town?: string;
+  district?: string;
+  capacityKw?: string;
+  monthlyBill?: number;
+  date?: string;
 }
 
 export interface LeadReassignmentRequest {
@@ -519,6 +537,7 @@ export interface Quotation {
 
 export interface User {
   id: string;
+  uid?: string;
   name: string;
   initials: string;
   phone: string;
@@ -529,7 +548,6 @@ export interface User {
   lastActive: string;
   address?: string; // specific to dealers
   features?: DealerFeatures;
-  password?: string; // Stored securely for Admin credential management
   employeeCategory?: 'Surya Ghar Incharge' | 'Commercial Project Incharge' | 'Stock Incharge' | string;
   employeeId?: string;
   employeeCode?: string;
@@ -548,7 +566,6 @@ export interface Employee extends User {
   authId?: string;
   responsibilities?: EmployeeResponsibilities;
   features?: DealerFeatures;
-  password?: string;
 }
 
 export type DealerStatus = 'Active' | 'Inactive';
@@ -569,7 +586,6 @@ export interface Dealer extends User {
   role: 'Dealer';
   address: string;
   features?: DealerFeatures;
-  password?: string;
   commissionRatePerKw?: number; // e.g. 1500 (₹/kW)
   commissionType?: 'PER_KW' | 'PERCENTAGE';
   commissionPercent?: number; // e.g. 5 (%)
@@ -727,13 +743,13 @@ export const defaultCompanyEmployees: Employee[] = [
     id: 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3',
     name: 'Sunkara Siva',
     initials: 'SS',
-    email: 'msv-siva-001@mirrorsolar.in',
+    email: 'siva.mirrorsolarvision@gmail.com',
     phone: '8985141432',
     role: 'Employee',
     status: 'Active',
     employeeId: 'MSV-SIVA-001',
-    code: 'MSV-SIVA-001',
-    displayId: 'MSV-SIVA-001',
+    code: 'MSV/EMP/SUNKARASIVA',
+    displayId: 'MSV/EMP/SUNKARASIVA',
     employeeCategory: 'Marketing Employee',
     lastActive: 'Just now',
     permissions: { ...defaultEmployeePermissions },
@@ -746,7 +762,8 @@ export const defaultCompanyEmployees: Employee[] = [
       myEmployees: false,
       attendance: true,
       calendar: true,
-      quotations: true
+      quotations: true,
+      forwardCallLeadToDealer: true
     },
     responsibilities: {
       primaryResponsibilityId: 'RESP_MARKETING',
@@ -1323,6 +1340,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [approvedProducts, setApprovedProducts] = useState<ApprovedProduct[]>(defaultApprovedProducts);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const debounceMap = useRef<Map<string, number>>(new Map());
   
   const { currentUser: authUser } = useAuth();
   useEffect(() => {
@@ -1332,7 +1350,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (employees.length > 0) {
       try {
-        localStorage.setItem('crm_employees_cache', JSON.stringify(employees));
+        const safeEmployees = employees.map(({ password: _, ...emp }: any) => emp);
+        localStorage.setItem('crm_employees_cache', JSON.stringify(safeEmployees));
       } catch (e) {
         console.warn("Could not cache employees:", e);
       }
@@ -1348,7 +1367,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           !((d.name || '').toLowerCase().includes('balaji peruri')) &&
           (d.email || '').toLowerCase() !== 'balajiperuri09@gmail.com'
         );
-        localStorage.setItem('crm_dealers_cache', JSON.stringify(sanitized));
+        const safeDealers = sanitized.map(({ password: _, ...d }: any) => d);
+        localStorage.setItem('crm_dealers_cache', JSON.stringify(safeDealers));
       } catch (e) {
         console.warn("Could not cache dealers:", e);
       }
@@ -1519,11 +1539,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (authUser as any).responsibilities?.primaryResponsibilityId === 'resp_sales_manager';
     const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge;
 
+    const userUid = auth.currentUser?.uid || authUser.id;
     const leadsQuery = isPrivilegedLeadViewer
       ? collection(db, 'leads')
       : authUser.role === 'Dealer'
-        ? query(collection(db, 'leads'), where('dealerId', '==', authUser.id))
-        : query(collection(db, 'leads'), where('assignedEmployeeId', '==', authUser.id));
+        ? query(collection(db, 'leads'), where('dealerId', '==', userUid))
+        : query(collection(db, 'leads'), where('assignedEmployeeId', '==', userUid));
 
     unsubscribeLeads = onSnapshot(leadsQuery, (snapshot) => {
       const allLeads: MockLead[] = [];
@@ -1535,29 +1556,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isPrivilegedLeadViewer) {
         setLeads(allLeads);
       } else if (authUser.role === 'Dealer') {
-        const dName = (authUser.name || '').toLowerCase().trim();
-        setLeads(allLeads.filter(l => 
-          (l.dealer && l.dealer.toLowerCase().includes(dName)) ||
-          (l.sourceDealer && l.sourceDealer.toLowerCase().includes(dName)) ||
-          (l.dealerId && l.dealerId === authUser.id)
-        ));
+        setLeads(allLeads.filter(l => l.dealerId === userUid));
       } else if (authUser.role === 'Employee') {
-        const eId = (authUser.id || '').toLowerCase().trim();
-        setLeads(allLeads.filter(l => {
-          const assigned = (l.assignedEmployee || '').toLowerCase();
-          const marketing = ((l as any).marketingEmployee || (l as any).sourceMarketingEmployee || '').toLowerCase();
-          const created = (l.createdByName || '').toLowerCase();
-          const creatorId = (l.createdBy || '').toLowerCase();
-          const assignedId = (l.assignedEmployeeId || '').toLowerCase();
-
-          if (eName.includes('siva') || eName.includes('sunkara')) {
-            return assigned.includes('siva') || marketing.includes('siva') || created.includes('siva') || creatorId.includes('siva') || creatorId === 'dhil07h9rjpblfzc7cg8hrfvawj2';
-          }
-          return (
-            (eName && (assigned.includes(eName) || marketing.includes(eName) || created.includes(eName))) ||
-            (eId && (creatorId === eId || assignedId === eId))
-          );
-        }));
+        setLeads(allLeads.filter(l => l.assignedEmployeeId === userUid || l.leadOwnerId === userUid));
       } else {
         setLeads(allLeads);
       }
@@ -1678,9 +1679,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: 'Employee', 
       permissions: { ...defaultEmployeePermissions },
       status: emp.status || 'Active',
-      features: (emp as any).features || { ...defaultEmployeeFeatures },
-      password: (emp as any).password || ''
+      features: (emp as any).features || { ...defaultEmployeeFeatures }
     };
+    delete (newEmployee as any).password;
     
     // Optimistic local state update
     setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
@@ -1714,9 +1715,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: 'Dealer', 
       permissions: { ...defaultDealerPermissions },
       status: dealer.status || 'Active',
-      features: dealer.features || { ...defaultDealerFeatures },
-      password: (dealer as any).password || ''
+      features: dealer.features || { ...defaultDealerFeatures }
     };
+    delete (newDealer as any).password;
 
     // 1. Optimistic local state update
     setDealers(prev => [newDealer, ...prev.filter(d => d.id !== newId)]);
@@ -2153,7 +2154,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const existingList = currentPayments.customerPayments || [];
 
       const newRecord: CustomerPaymentRecord = {
-        id: `CP_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateSecureId('CP_'),
         leadId: lead.id,
         customerName: lead.customer,
         amount: data.amount,
@@ -2390,17 +2391,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateUserPassword = async (userId: string, role: 'Employee' | 'Dealer', newPassword: string) => {
-    if (role === 'Dealer') {
-      setDealers(prev => prev.map(d => d.id === userId ? { ...d, password: newPassword } : d));
-    } else {
-      setEmployees(prev => prev.map(e => e.id === userId ? { ...e, password: newPassword } : e));
-    }
-
+  const updateUserPassword = async (userId: string, _role: 'Employee' | 'Dealer', _newPassword: string) => {
     try {
-      await updateDoc(doc(db, 'users', userId), { password: newPassword, lastPasswordReset: new Date().toISOString() });
+      await updateDoc(doc(db, 'users', userId), { lastPasswordReset: new Date().toISOString() });
     } catch (err) {
-      console.warn("Error updating password in Firestore:", err);
+      console.warn("Could not save password reset timestamp in Firestore:", err);
     }
   };
 
@@ -2422,8 +2417,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? updates.name.split(' ').map(n => n[0]).filter(Boolean).join('').substring(0, 2).toUpperCase()
       : undefined;
 
+    const { password: _pw, ...cleanUpdates } = updates as any;
     const fullUpdates = {
-      ...updates,
+      ...cleanUpdates,
       ...(initials ? { initials } : {})
     };
 
@@ -2467,9 +2463,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dealerId,
       role: 'Employee',
       permissions: { ...defaultEmployeePermissions },
-      status: emp.status || 'Active',
-      password: (emp as any).password || ''
+      status: emp.status || 'Active'
     };
+    delete (newEmployee as any).password;
 
     setEmployees(prev => [...prev.filter(e => e.id !== newId), newEmployee]);
 
@@ -2792,67 +2788,120 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const addCallLog = async (logData: Omit<TelecallerCallLog, 'id' | 'timestamp'>) => {
-    const callerId = logData.telecallerId || currentUser?.id || 'emp_user';
-    const callerName = logData.telecallerName || currentUser?.name || 'Telecaller';
+    // 0. Debounce duplicate submissions within 1500ms
+    const debounceKey = `call_${logData.leadId || ''}_${logData.phone || ''}_${logData.outcome || ''}`;
+    const now = Date.now();
+    const lastSubmission = debounceMap.current.get(debounceKey);
+    if (lastSubmission && now - lastSubmission < 1500) {
+      console.warn("Duplicate call log submission ignored:", debounceKey);
+      return;
+    }
+    debounceMap.current.set(debounceKey, now);
+
+    const callerUid = auth.currentUser?.uid || (currentUser as any)?.uid || currentUser?.id || 'emp_user';
+    const callerName = currentUser?.name || logData.telecallerName || 'Telecaller';
     const callerEmail = currentUser?.email || '';
 
-    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string } = {
-      ...logData,
-      id: 'CALL_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-      timestamp: new Date().toISOString(),
-      telecallerId: callerId,
-      telecallerName: callerName,
-      telecallerEmail: callerEmail,
-      employeeId: callerId,
-      assignedEmployeeId: callerId
-    };
-
-    // 1. Optimistic local state update
-    setCallLogs(prev => {
-      const updated = [newLog, ...prev.filter(c => c.id !== newLog.id)];
-      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
-      return updated;
-    });
-
-    // 2. Reliable Firestore Persistence to /call_leads
-    try {
-      await setDoc(doc(db, 'call_leads', newLog.id), sanitizeForFirestore(newLog));
-    } catch (err) {
-      console.warn("Error persisting call log to Firestore /call_leads:", err);
+    if (!logData.leadId) {
+      throw new Error("Lead ID is mandatory for creating a call log.");
     }
 
-    // 3. Associate with Lead and Timeline
+    const operationId = (logData as any).operationId || (logData as any).id || generateSecureId('CALL_');
+    const newLog: TelecallerCallLog & { telecallerEmail?: string; employeeId?: string; assignedEmployeeId?: string; callerId?: string; operationId?: string } = {
+      ...logData,
+      id: operationId,
+      operationId: operationId,
+      timestamp: (logData as any).timestamp || new Date().toISOString(),
+      telecallerId: callerUid,
+      callerId: callerUid,
+      employeeId: callerUid,
+      assignedEmployeeId: callerUid,
+      telecallerName: callerName,
+      telecallerEmail: callerEmail
+    };
+
+    // Prepare lead updates if leadId is provided
+    let leadUpdates: Partial<MockLead> | null = null;
     if (logData.leadId) {
       const targetLead = leads.find(l => l.id === logData.leadId);
       const existingCallLogs = targetLead?.callLogs || [];
       const updatedLeadCallLogs = [newLog, ...existingCallLogs.filter(c => c.id !== newLog.id)];
 
-      addActivity({
-        type: 'Call Logged',
-        message: logData.callDirection + ' call (' + logData.outcome + ') logged: ' + (logData.notes ? logData.notes.slice(0, 60) : ''),
-        user: callerName,
-        leadId: logData.leadId
-      });
-
-      const leadUpdates: Partial<MockLead> = {
-        callLogs: updatedLeadCallLogs as any
+      const todayIst = getIndiaDateString();
+      leadUpdates = {
+        callLogs: updatedLeadCallLogs as any,
+        lastCallDate: newLog.timestamp,
+        updatedAt: newLog.timestamp
       };
+
+      if (logData.customerRequirement) {
+        leadUpdates.customerRequirement = logData.customerRequirement;
+      }
+
+      if (logData.updatedLeadStatus) {
+        leadUpdates.salesStage = logData.updatedLeadStatus as any;
+      } else if (!targetLead?.firstCallAttemptAt || targetLead?.salesStage === 'New Lead') {
+        leadUpdates.firstCallAttemptAt = newLog.timestamp;
+        leadUpdates.salesStage = (logData.outcome.startsWith('Connected') || logData.outcome === 'Interested') ? 'Contacted' : 'Contact Attempted';
+      }
 
       if (logData.nextFollowUpDate) {
         leadUpdates.followUp = {
           date: logData.nextFollowUpDate,
           time: logData.nextFollowUpTime || '11:00 AM',
           type: 'Call',
-          status: 'Upcoming',
-          notes: logData.notes
+          status: logData.nextFollowUpDate === todayIst ? 'Due Today' : logData.nextFollowUpDate < todayIst ? 'Overdue' : 'Upcoming',
+          notes: logData.notes || logData.customerRequirement || 'Customer callback scheduled'
         };
       }
+    }
 
-      await updateLead(logData.leadId, leadUpdates);
+    // 1. Atomic Firestore writeBatch commit (eliminates partial-success states)
+    try {
+      const batch = writeBatch(db);
+      const callDocRef = doc(db, 'call_leads', newLog.id);
+      batch.set(callDocRef, sanitizeForFirestore(newLog));
+
+      if (logData.leadId && leadUpdates) {
+        const leadDocRef = doc(db, 'leads', logData.leadId);
+        batch.update(leadDocRef, sanitizeForFirestore(leadUpdates));
+      }
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Error committing atomic call log batch to Firestore:", err);
+      throw err;
+    }
+
+    // 2. Update local optimistic state and log activity upon successful commit
+    setCallLogs(prev => {
+      const updated = [newLog, ...prev.filter(c => c.id !== newLog.id)];
+      try { localStorage.setItem('crm_call_logs_cache', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    if (logData.leadId && leadUpdates) {
+      setLeads(prev => prev.map(l => l.id === logData.leadId ? { ...l, ...leadUpdates! } : l));
+      addActivity({
+        type: 'Call Logged',
+        message: `${logData.callDirection || 'Outgoing'} call (${logData.outcome}) logged: ${logData.notes ? logData.notes.slice(0, 60) : ''}`,
+        user: callerName,
+        leadId: logData.leadId
+      });
     }
   };
 
   const updateLeadQualification = async (leadId: string, qualificationData: CustomerQualificationData) => {
+    // 0. Debounce duplicate qualification submissions within 1500ms
+    const qualDebounceKey = `qual_${leadId}`;
+    const now = Date.now();
+    const lastSubmission = debounceMap.current.get(qualDebounceKey);
+    if (lastSubmission && now - lastSubmission < 1500) {
+      console.warn("Duplicate qualification submission ignored:", qualDebounceKey);
+      return;
+    }
+    debounceMap.current.set(qualDebounceKey, now);
+
     try {
       const target = leads.find(l => l.id === leadId);
       const score = calculateLeadScore({
@@ -2866,21 +2915,44 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         financingRequirement: qualificationData.budgetPreference
       });
 
-      await updateDoc(doc(db, 'leads', leadId), {
-        qualificationData,
+      const nowIso = new Date().toISOString();
+      const updates: any = {
+        qualificationData: sanitizeForFirestore(qualificationData),
         leadScore: score,
-        salesStage: target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted' ? 'Qualified' : (target?.salesStage || 'Qualified'),
-        updatedAt: new Date().toISOString()
-      });
+        updatedAt: nowIso
+      };
+
+      if (qualificationData.pincode) {
+        updates.pincode = qualificationData.pincode;
+      }
+      if (qualificationData.location) {
+        updates.location = qualificationData.location;
+      }
+
+      if (qualificationData.qualificationResult === 'Qualified') {
+        updates.salesStage = 'Qualified';
+      } else if (qualificationData.qualificationResult === 'Not Qualified') {
+        updates.salesStage = 'Lost';
+      } else if (qualificationData.qualificationResult === 'Needs Follow-up') {
+        updates.salesStage = 'Contacted';
+      } else if (target?.salesStage === 'New Lead' || target?.salesStage === 'Contacted') {
+        updates.salesStage = 'Qualified';
+      }
+
+      await updateDoc(doc(db, 'leads', leadId), updates);
+
+      // Local optimistic update
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l));
 
       addActivity({
         type: 'Customer Qualified',
-        message: 'Customer qualified: Score ' + score.total + '/100 (' + score.category + ') - ' + (qualificationData.preferredCapacityKw || 3) + ' kW solar preference',
+        message: `Customer qualified: Score ${score.total}/100 (${score.category}) - ${qualificationData.preferredCapacityKw || 3} kW solar preference`,
         user: currentUser?.name || 'Telecaller',
         leadId
       });
     } catch (err) {
-      console.warn("Error updating lead qualification:", err);
+      console.error("Error updating lead qualification:", err);
+      throw err;
     }
   };
 

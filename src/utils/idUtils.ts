@@ -59,3 +59,22 @@ export function formatEmployeeCode(
   }
   return `MSV/EMP/${String((index || 0) + 1).padStart(2, '0')}`;
 }
+
+/**
+ * Cryptographically secure random ID generator (remediates js/insecure-randomness)
+ */
+export function generateSecureId(prefix: string = ''): string {
+  if (typeof crypto !== 'undefined') {
+    if (typeof crypto.randomUUID === 'function') {
+      return `${prefix}${Date.now()}_${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+    }
+    if (typeof crypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(4);
+      crypto.getRandomValues(bytes);
+      const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      return `${prefix}${Date.now()}_${hex}`;
+    }
+  }
+  return `${prefix}${Date.now()}`;
+}
+

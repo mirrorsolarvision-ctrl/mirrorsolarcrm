@@ -38,9 +38,15 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
     }
 
     let url: string | null = null;
-    if (file.type.startsWith('image/')) {
-      url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+    const isSafeImage = file.type.startsWith('image/') && !file.type.toLowerCase().includes('svg');
+    if (isSafeImage) {
+      const created = URL.createObjectURL(file);
+      if (created.startsWith('blob:')) {
+        url = created;
+        setPreviewUrl(url);
+      } else {
+        setPreviewUrl(null);
+      }
     } else {
       setPreviewUrl(null);
     }
@@ -113,7 +119,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         <div className="doc-upload-body">
           {/* File summary preview card */}
           <div className="doc-file-card">
-            {previewUrl ? (
+            {previewUrl && previewUrl.startsWith('blob:') ? (
               <img src={previewUrl} alt="Document Preview" className="doc-file-thumb" />
             ) : (
               <div className="doc-file-icon-placeholder">
