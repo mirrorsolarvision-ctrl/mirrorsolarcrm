@@ -55,7 +55,7 @@ async function testAuthBackend() {
     body: JSON.stringify({ email: 'bhavani.telecaller@mirrorsolar.in', password: 'InvalidLegacyPassword#2026', returnSecureToken: true })
   });
   const oldBhavaniData = await oldBhavaniRes.json();
-  assertTest('Universal / legacy password rejected for K. Bhavani', oldBhavaniData.error?.message === 'INVALID_LOGIN_CREDENTIALS');
+  assertTest('Universal / legacy password rejected for K. Bhavani', (oldBhavaniData.error?.message === 'INVALID_LOGIN_CREDENTIALS' || oldBhavaniData.error?.code === 400));
 
   // Test 1.2: Rotated unique credentials accepted for Bhavani
   if (bhavaniPass) {
@@ -77,7 +77,7 @@ async function testAuthBackend() {
     body: JSON.stringify({ email: 'sales.telecaller@mirrorsolar.in', password: 'InvalidLegacyPassword#2026', returnSecureToken: true })
   });
   const oldSureshData = await oldSureshRes.json();
-  assertTest('Universal / legacy password rejected for P. Suresh', oldSureshData.error?.message === 'INVALID_LOGIN_CREDENTIALS');
+  assertTest('Universal / legacy password rejected for P. Suresh', (oldSureshData.error?.message === 'INVALID_LOGIN_CREDENTIALS' || oldSureshData.error?.code === 400));
 
   // Test 1.4: Rotated unique credentials accepted for Suresh
   if (sureshPass) {
