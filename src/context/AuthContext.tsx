@@ -94,9 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user.id = auth.currentUser.uid;
       (user as any).uid = auth.currentUser.uid;
     }
-    setCurrentUser(user);
+    const { password: _p, ...safeUser } = user as any;
+    setCurrentUser(safeUser);
     try {
-      localStorage.setItem('crm_session_user', JSON.stringify(user));
+      localStorage.setItem('crm_session_user', JSON.stringify(safeUser));
     } catch (e) {
       console.warn("Storage save error:", e);
     }

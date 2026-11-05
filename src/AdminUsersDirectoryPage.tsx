@@ -249,8 +249,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         status: newUserForm.status,
         lastActive: 'Just now',
         initials: newUserForm.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-        features: { ...defaultDealerFeatures },
-        password: newUserForm.password || 'Password123!'
+        features: { ...defaultDealerFeatures }
       });
       showToast(`✓ Dealer ${newUserForm.name} created with 225 kW 18-month target quota!`, 'success');
     } else {
@@ -266,9 +265,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
         canForwardToDealer: (newUserForm.employeeCategory || '').toLowerCase().includes('sales') || (newUserForm.employeeCategory || '').toLowerCase().includes('telecaller'),
         features: { 
           ...defaultEmployeeFeatures, 
-          forwardCallLeadToDealer: (newUserForm.employeeCategory || '').toLowerCase().includes('sales') || (newUserForm.employeeCategory || '').toLowerCase().includes('telecaller') 
-        },
-        password: newUserForm.password || 'Password123!'
+          forwardCallLeadToDealer: (newUserForm.employeeCategory || '').toLowerCase().includes('sales') || (newUserForm.employeeCategory || '').toLowerCase().includes('telecaller')
+        }
       });
       showToast(`✓ Employee ${newUserForm.name} created successfully (${newUserForm.employeeCategory})!`, 'success');
     }
