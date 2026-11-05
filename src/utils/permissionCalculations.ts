@@ -139,9 +139,10 @@ export const canForwardCallLeadToDealer = (user: User | null): boolean => {
 export const isSalesManager = (user: User | null): boolean => {
   if (!user) return false;
   if (user.role === 'Admin') return true;
+  const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
-  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
-  if (category.includes('manager') || resp.includes('sales_manager')) return true;
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  if (category.includes('manager') || resp.includes('sales_manager') || userRole.includes('manager')) return true;
   if (category === 'sales manager (telecaller)') return true;
   return false;
 };
@@ -149,18 +150,27 @@ export const isSalesManager = (user: User | null): boolean => {
 export const isTelecaller = (user: User | null): boolean => {
   if (!user) return false;
   if (user.role === 'Admin') return false;
+  const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
-  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
-  if (category.includes('manager') || resp.includes('sales_manager')) return false;
-  return category.includes('telecaller') || category.includes('sales executive') || resp.includes('telecaller');
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  if (category.includes('manager') || resp.includes('sales_manager') || userRole.includes('manager')) return false;
+  return category.includes('telecaller') || category.includes('sales executive') || resp.includes('telecaller') || userRole.includes('telecaller');
 };
 
 export const isSalesDepartmentUser = (user: User | null): boolean => {
   if (!user) return false;
   if (user.role === 'Admin') return true;
+  const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
-  const resp = (user as any).responsibilities?.primaryResponsibilityId || '';
-  return category.includes('sales') || category.includes('telecaller') || resp.includes('sales') || resp.includes('telecaller');
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  return (
+    category.includes('sales') || 
+    category.includes('telecaller') || 
+    resp.includes('sales') || 
+    resp.includes('telecaller') || 
+    userRole.includes('telecaller') || 
+    userRole.includes('sales')
+  );
 };
 
 export const isSalesTelecallerEmployee = (user: User | null): boolean => {

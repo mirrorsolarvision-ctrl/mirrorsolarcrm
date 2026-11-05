@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  UserCheck, Zap, Home, DollarSign, Calendar, 
-  CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight, 
-  Flame, Award, Search, Sparkles
+  Zap, Home, DollarSign, CheckCircle2, 
+  AlertTriangle, ArrowRight, Check, MapPin, 
+  HelpCircle, ShieldCheck
 } from 'lucide-react';
-import { useCRM, type MockLead } from '../../context/CRMContext';
+import { useCRM } from '../../context/CRMContext';
 import { isSalesManager } from '../../utils/permissionCalculations';
 import { calculateLeadScore } from '../../utils/salesCalculations';
 import type { CustomerQualificationData } from '../../types/sales';
@@ -21,18 +21,23 @@ export default function CustomerQualificationView({
   const { currentUser, leads, updateLeadQualification } = useCRM();
   const isManager = isSalesManager(currentUser);
   const currentUserName = currentUser?.name || '';
-  const currentUserId = currentUser?.id || '';
+  const currentUserId = currentUser?.id || currentUser?.uid || '';
 
-  // Scope leads
+  // Scope leads: Telecaller sees assigned leads only
   const scopedLeads = useMemo(() => {
     if (isManager) return leads.filter(l => !l.archived);
     return leads.filter(l => 
       !l.archived && 
-      (l.assignedEmployee === currentUserName || l.assignedEmployeeId === currentUserId || l.leadOwnerId === currentUserId)
+      ((l.assignedEmployee && currentUserName && l.assignedEmployee.trim().toLowerCase() === currentUserName.trim().toLowerCase()) || 
+       (l.assignedEmployeeId && currentUserId && l.assignedEmployeeId === currentUserId) || 
+       (l.leadOwnerId && currentUserId && l.leadOwnerId === currentUserId))
     );
   }, [leads, isManager, currentUserName, currentUserId]);
 
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialLeadId || (scopedLeads[0]?.id || ''));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialLeadId) setSelectedLeadId(initialLeadId);
@@ -44,12 +49,14 @@ export default function CustomerQualificationView({
 
   // Form State
   const [qualForm, setQualForm] = useState<CustomerQualificationData>({
+    location: '',
+    pincode: '',
     monthlyUnitsKwh: 350,
     monthlyBill: 2800,
     sanctionedLoadKw: 3,
     phase: 'Single Phase',
     discom: 'APCPDCL',
-    roofOwnership: 'Own',
+    roofOwnership: 'Owned',
     roofType: 'RCC',
     approxRoofAreaSqFt: 450,
     shadingCondition: 'None',
@@ -57,27 +64,50 @@ export default function CustomerQualificationView({
     budgetPreference: 'JanSamarth Bank Loan',
     decisionMaker: 'Self',
     expectedTimeline: 'Immediate',
+    pmSuryaGharSubsidyInterest: 'Yes',
+    siteVisitRequired: 'Yes',
+    qualificationResult: 'Qualified',
     notes: ''
   });
 
   // Sync state when active lead changes
   useEffect(() => {
-    if (activeLead?.qualificationData) {
+    if (activeLead) {
+      setSaveSuccessMsg(null);
+      setSaveErrorMsg(null);
+      const existing = activeLead.qualificationData;
+
+      // Extract existing roof ownership & map
+      let roofOwn = existing?.roofOwnership || 'Owned';
+      if (roofOwn.includes('Own')) roofOwn = 'Owned';
+      else if (roofOwn.includes('Rented')) roofOwn = 'Rented';
+      else if (roofOwn.includes('Apartment') || roofOwn.includes('Shared')) roofOwn = 'Shared';
+
+      // Extract existing timeline & map
+      let timeline = existing?.expectedTimeline || 'Immediate';
+      if (timeline.includes('30')) timeline = 'Within 1 month';
+      else if (timeline.includes('Later')) timeline = '1-3 months';
+
       setQualForm({
-        monthlyUnitsKwh: activeLead.qualificationData.monthlyUnitsKwh || 350,
-        monthlyBill: activeLead.qualificationData.monthlyBill || 2800,
-        sanctionedLoadKw: activeLead.qualificationData.sanctionedLoadKw || 3,
-        phase: activeLead.qualificationData.phase || 'Single Phase',
-        discom: activeLead.qualificationData.discom || 'APCPDCL',
-        roofOwnership: activeLead.qualificationData.roofOwnership || 'Own',
-        roofType: activeLead.qualificationData.roofType || 'RCC',
-        approxRoofAreaSqFt: activeLead.qualificationData.approxRoofAreaSqFt || 450,
-        shadingCondition: activeLead.qualificationData.shadingCondition || 'None',
-        preferredCapacityKw: activeLead.qualificationData.preferredCapacityKw || 3,
-        budgetPreference: activeLead.qualificationData.budgetPreference || 'JanSamarth Bank Loan',
-        decisionMaker: activeLead.qualificationData.decisionMaker || 'Self',
-        expectedTimeline: activeLead.qualificationData.expectedTimeline || 'Immediate',
-        notes: activeLead.qualificationData.notes || ''
+        location: existing?.location || activeLead.location || '',
+        pincode: existing?.pincode || activeLead.pincode || '',
+        monthlyUnitsKwh: existing?.monthlyUnitsKwh || 350,
+        monthlyBill: existing?.monthlyBill || activeLead.monthlyBill || 2800,
+        sanctionedLoadKw: existing?.sanctionedLoadKw || 3,
+        phase: existing?.phase || 'Single Phase',
+        discom: existing?.discom || 'APCPDCL',
+        roofOwnership: roofOwn,
+        roofType: existing?.roofType || 'RCC',
+        approxRoofAreaSqFt: existing?.approxRoofAreaSqFt || 450,
+        shadingCondition: existing?.shadingCondition || 'None',
+        preferredCapacityKw: existing?.preferredCapacityKw || (activeLead.capacityKw ? Number(activeLead.capacityKw) : 3),
+        budgetPreference: existing?.budgetPreference || 'JanSamarth Bank Loan',
+        decisionMaker: existing?.decisionMaker || 'Self',
+        expectedTimeline: timeline,
+        pmSuryaGharSubsidyInterest: existing?.pmSuryaGharSubsidyInterest || 'Yes',
+        siteVisitRequired: existing?.siteVisitRequired || 'Yes',
+        qualificationResult: existing?.qualificationResult || 'Qualified',
+        notes: existing?.notes || activeLead.notes || ''
       });
     }
   }, [activeLead]);
@@ -85,12 +115,12 @@ export default function CustomerQualificationView({
   // Real-Time Qualification Score Preview
   const liveScore = useMemo(() => {
     return calculateLeadScore({
-      monthlyUnitsKwh: Number(qualForm.monthlyUnitsKwh),
-      monthlyBill: Number(qualForm.monthlyBill),
-      roofOwnership: qualForm.roofOwnership,
+      monthlyUnitsKwh: Number(qualForm.monthlyUnitsKwh) || 300,
+      monthlyBill: Number(qualForm.monthlyBill) || 2500,
+      roofOwnership: qualForm.roofOwnership === 'Owned' ? 'Own' : qualForm.roofOwnership,
       roofType: qualForm.roofType,
       shadingStatus: qualForm.shadingCondition === 'None' ? 'No' : 'Yes',
-      purchaseTimeline: qualForm.expectedTimeline,
+      purchaseTimeline: qualForm.expectedTimeline === 'Within 1 month' ? 'Within 30 Days' : qualForm.expectedTimeline,
       decisionMaker: qualForm.decisionMaker !== 'Landlord',
       financingRequirement: qualForm.budgetPreference
     });
@@ -101,13 +131,29 @@ export default function CustomerQualificationView({
     e.preventDefault();
     if (!activeLead) return;
 
-    await updateLeadQualification(activeLead.id, {
-      ...qualForm,
-      qualifiedAt: new Date().toISOString(),
-      qualifiedBy: currentUserName
-    });
+    setIsSaving(true);
+    setSaveSuccessMsg(null);
+    setSaveErrorMsg(null);
 
-    alert(`Customer qualification successfully saved! Lead Score: ${liveScore.total}/100 (${liveScore.category})`);
+    try {
+      await updateLeadQualification(activeLead.id, {
+        ...qualForm,
+        leadScore: liveScore,
+        qualifiedAt: new Date().toISOString(),
+        qualifiedBy: currentUserName || 'Telecaller'
+      });
+
+      const successText = `Customer qualification successfully saved to Firestore! Result: ${qualForm.qualificationResult}. Lead Score: ${liveScore.total}/100 (${liveScore.category}).`;
+      setSaveSuccessMsg(successText);
+      alert(successText);
+    } catch (err: any) {
+      console.error('Qualification save error:', err);
+      const errMsg = err?.message || 'Failed to save qualification to Firestore.';
+      setSaveErrorMsg(errMsg);
+      alert(`Error saving qualification: ${errMsg}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -117,10 +163,10 @@ export default function CustomerQualificationView({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 style={{ margin: '0 0 0.25rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#0b1f3a' }}>
-              Customer Technical & Financial Qualification
+              Solar Feasibility & Technical Qualification Desk
             </h2>
             <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-              Capture the 4 pillars: electricity consumption, roof feasibility, preferred solar capacity, and purchase timeline.
+              Verify customer roof feasibility, monthly bill, sanctioned load, PM Surya Ghar subsidy, and site visit readiness.
             </p>
           </div>
 
@@ -128,7 +174,7 @@ export default function CustomerQualificationView({
             <label style={{ fontSize: '0.825rem', fontWeight: 600, color: '#334155' }}>Select Customer:</label>
             <select 
               className="sales-form-control"
-              style={{ width: 'auto', minWidth: '220px' }}
+              style={{ width: 'auto', minWidth: '240px' }}
               value={selectedLeadId}
               onChange={e => setSelectedLeadId(e.target.value)}
             >
@@ -142,11 +188,57 @@ export default function CustomerQualificationView({
         </div>
       </div>
 
-      {activeLead && (
+      {/* Confirmation / Error Banners */}
+      {saveSuccessMsg && (
+        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.85rem 1.25rem', borderRadius: '8px', marginBottom: '1.25rem', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+          <CheckCircle2 size={18} /> {saveSuccessMsg}
+        </div>
+      )}
+      {saveErrorMsg && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '0.85rem 1.25rem', borderRadius: '8px', marginBottom: '1.25rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertTriangle size={18} /> {saveErrorMsg}
+        </div>
+      )}
+
+      {activeLead ? (
         <form onSubmit={handleSaveQualification}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-            {/* Left: 4 Qualification Pillars */}
+            {/* Left: Qualification Form Pillars */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* Customer Location & Pincode */}
+              <div className="sales-panel" style={{ margin: 0 }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <MapPin size={18} color="#0284c7" /> Customer Location & Postal Details
+                </h3>
+
+                <div className="sales-form-row">
+                  <div className="sales-form-group">
+                    <label>District / Town / Area *</label>
+                    <input 
+                      type="text" 
+                      required
+                      className="sales-form-control"
+                      placeholder="e.g. Tenali, Guntur District"
+                      value={qualForm.location || ''}
+                      onChange={e => setQualForm({ ...qualForm, location: e.target.value })}
+                    />
+                  </div>
+                  <div className="sales-form-group">
+                    <label>Postal Pincode *</label>
+                    <input 
+                      type="text" 
+                      required
+                      maxLength={6}
+                      className="sales-form-control"
+                      placeholder="e.g. 522201"
+                      value={qualForm.pincode || ''}
+                      onChange={e => setQualForm({ ...qualForm, pincode: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Pillar 1: Electricity & Connection */}
               <div className="sales-panel" style={{ margin: 0 }}>
                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -155,33 +247,34 @@ export default function CustomerQualificationView({
 
                 <div className="sales-form-row">
                   <div className="sales-form-group">
-                    <label>Monthly Consumption (Units / kWh) *</label>
-                    <input 
-                      type="number" 
-                      required
-                      className="sales-form-control"
-                      value={qualForm.monthlyUnitsKwh}
-                      onChange={e => setQualForm({ ...qualForm, monthlyUnitsKwh: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="sales-form-group">
                     <label>Average Monthly Bill (₹) *</label>
                     <input 
                       type="number" 
                       required
                       className="sales-form-control"
+                      placeholder="e.g. 3200"
                       value={qualForm.monthlyBill}
                       onChange={e => setQualForm({ ...qualForm, monthlyBill: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="sales-form-group">
+                    <label>Monthly Consumption (Units / kWh)</label>
+                    <input 
+                      type="number" 
+                      className="sales-form-control"
+                      value={qualForm.monthlyUnitsKwh}
+                      onChange={e => setQualForm({ ...qualForm, monthlyUnitsKwh: Number(e.target.value) })}
                     />
                   </div>
                 </div>
 
                 <div className="sales-form-row">
                   <div className="sales-form-group">
-                    <label>Sanctioned Load (kW)</label>
+                    <label>Sanctioned Load (kW) *</label>
                     <input 
                       type="number" 
                       step="0.5"
+                      required
                       className="sales-form-control"
                       value={qualForm.sanctionedLoadKw}
                       onChange={e => setQualForm({ ...qualForm, sanctionedLoadKw: Number(e.target.value) })}
@@ -201,7 +294,7 @@ export default function CustomerQualificationView({
                 </div>
 
                 <div className="sales-form-group">
-                  <label>DISCOM & Service Circle</label>
+                  <label>DISCOM Electricity Provider</label>
                   <select 
                     className="sales-form-control"
                     value={qualForm.discom}
@@ -211,7 +304,7 @@ export default function CustomerQualificationView({
                     <option value="APEPDCL">APEPDCL (Eastern Andhra Pradesh)</option>
                     <option value="APSPDCL">APSPDCL (Southern Andhra Pradesh)</option>
                     <option value="TSSPDCL">TSSPDCL (Telangana)</option>
-                    <option value="Other">Other / Commercial</option>
+                    <option value="Other">Other State DISCOM</option>
                   </select>
                 </div>
               </div>
@@ -224,29 +317,30 @@ export default function CustomerQualificationView({
 
                 <div className="sales-form-row">
                   <div className="sales-form-group">
-                    <label>Roof Ownership *</label>
+                    <label>Roof Ownership / Permission *</label>
                     <select 
+                      required
                       className="sales-form-control"
                       value={qualForm.roofOwnership}
                       onChange={e => setQualForm({ ...qualForm, roofOwnership: e.target.value })}
                     >
-                      <option value="Own">Own Independent House / Villa (Best)</option>
-                      <option value="Apartment Top Floor">Apartment Top Floor (Permission Needed)</option>
-                      <option value="Rented">Rented House (Requires Landlord Consent)</option>
-                      <option value="Commercial">Commercial / Factory Shed</option>
+                      <option value="Owned">Owned (Sole owner of house & roof)</option>
+                      <option value="Rented">Rented (Requires Landlord NOC)</option>
+                      <option value="Shared">Shared / Apartment (Requires Society/RWA NOC)</option>
                     </select>
                   </div>
                   <div className="sales-form-group">
-                    <label>Roof Construction Type</label>
+                    <label>Roof Type *</label>
                     <select 
+                      required
                       className="sales-form-control"
                       value={qualForm.roofType}
                       onChange={e => setQualForm({ ...qualForm, roofType: e.target.value })}
                     >
-                      <option value="RCC">RCC Concrete Flat Roof</option>
-                      <option value="Metal Sheet">Metal GI/Color Coated Sheet</option>
-                      <option value="Asbestos">Asbestos Sheet</option>
-                      <option value="Tile">Clay Tile / Sloped Roof</option>
+                      <option value="RCC">RCC (Concrete Flat Roof)</option>
+                      <option value="Tin Shed">Tin Shed / Metal Sheet</option>
+                      <option value="Slanted">Slanted / Clay Tile Roof</option>
+                      <option value="Ground">Ground Mount / Open Land</option>
                     </select>
                   </div>
                 </div>
@@ -276,78 +370,105 @@ export default function CustomerQualificationView({
                 </div>
               </div>
 
-              {/* Pillar 3 & 4: Capacity, Budget & Timeline */}
+              {/* Pillar 3 & 4: Capacity, Subsidy & Purchase Timeline */}
               <div className="sales-panel" style={{ margin: 0 }}>
                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <DollarSign size={18} color="#d97706" /> 3 & 4. Capacity, Financing & Decision Timeline
+                  <DollarSign size={18} color="#d97706" /> 3 & 4. Capacity, PM Surya Ghar Subsidy & Timeline
                 </h3>
 
                 <div className="sales-form-row">
                   <div className="sales-form-group">
-                    <label>Customer Preferred Capacity *</label>
+                    <label>Required Solar Capacity (kW) *</label>
                     <select 
+                      required
                       className="sales-form-control"
                       value={qualForm.preferredCapacityKw}
                       onChange={e => setQualForm({ ...qualForm, preferredCapacityKw: Number(e.target.value) })}
                     >
                       <option value="1">1 kW (₹30,000 Subsidy)</option>
                       <option value="2">2 kW (₹60,000 Subsidy)</option>
-                      <option value="3">3 kW (₹78,000 Subsidy - Optimal)</option>
+                      <option value="3">3 kW (₹78,000 Subsidy - Most Popular)</option>
                       <option value="4">4 kW (₹78,000 Subsidy)</option>
                       <option value="5">5 kW (₹78,000 Subsidy)</option>
-                      <option value="10">10 kW (Commercial)</option>
+                      <option value="6">6 kW (₹78,000 Subsidy)</option>
+                      <option value="7">7 kW (₹78,000 Subsidy)</option>
+                      <option value="8">8 kW (₹78,000 Subsidy)</option>
+                      <option value="10">10 kW (Commercial / High Usage)</option>
                     </select>
                   </div>
+
                   <div className="sales-form-group">
-                    <label>Financing Preference</label>
+                    <label>PM Surya Ghar Subsidy Interest *</label>
                     <select 
+                      required
                       className="sales-form-control"
-                      value={qualForm.budgetPreference}
-                      onChange={e => setQualForm({ ...qualForm, budgetPreference: e.target.value })}
+                      value={qualForm.pmSuryaGharSubsidyInterest || 'Yes'}
+                      onChange={e => setQualForm({ ...qualForm, pmSuryaGharSubsidyInterest: e.target.value as any })}
                     >
-                      <option value="JanSamarth Bank Loan">JanSamarth Central Bank Loan (Low Interest)</option>
-                      <option value="Self-Funded Direct Payment">Self-Funded (Direct Payment - Fast Track)</option>
+                      <option value="Yes">Yes (Applying for Central Subsidy)</option>
+                      <option value="No">No (Commercial / Non-subsidy install)</option>
+                      <option value="Needs explanation">Needs explanation (Send WhatsApp Explainer)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="sales-form-row">
                   <div className="sales-form-group">
-                    <label>Decision Maker</label>
+                    <label>Purchase Timeline *</label>
                     <select 
-                      className="sales-form-control"
-                      value={qualForm.decisionMaker}
-                      onChange={e => setQualForm({ ...qualForm, decisionMaker: e.target.value })}
-                    >
-                      <option value="Self">Self (Sole decision maker & bill owner)</option>
-                      <option value="Spouse">Spouse / Joint decision</option>
-                      <option value="Parent">Parent / Family Elder</option>
-                      <option value="Landlord">Landlord (Approval required)</option>
-                    </select>
-                  </div>
-                  <div className="sales-form-group">
-                    <label>Expected Installation Timeline *</label>
-                    <select 
+                      required
                       className="sales-form-control"
                       value={qualForm.expectedTimeline}
                       onChange={e => setQualForm({ ...qualForm, expectedTimeline: e.target.value })}
                     >
-                      <option value="Immediate">Immediate / Within 7 Days (Hot Intent)</option>
-                      <option value="Within 30 Days">Within 30 Days (Active Planning)</option>
-                      <option value="Later">Later / Exploring Options (Nurture)</option>
+                      <option value="Immediate">Immediate (Within 7 Days - Hot)</option>
+                      <option value="Within 1 month">Within 1 month (Active Planning)</option>
+                      <option value="1-3 months">1-3 months (Upcoming Season / Budget)</option>
+                      <option value="Exploring">Exploring (Information Gathering)</option>
+                    </select>
+                  </div>
+
+                  <div className="sales-form-group">
+                    <label>Site Visit Requirement *</label>
+                    <select 
+                      required
+                      className="sales-form-control"
+                      value={qualForm.siteVisitRequired || 'Yes'}
+                      onChange={e => setQualForm({ ...qualForm, siteVisitRequired: e.target.value as any })}
+                    >
+                      <option value="Yes">Yes (Assign Dealer for Physical Roof Survey)</option>
+                      <option value="No">No (Customer provided clear photos/measurements)</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="sales-form-group">
-                  <label>Qualification Notes</label>
-                  <textarea 
-                    rows={2} 
-                    className="sales-form-control"
-                    placeholder="Customer owns RCC 2-storey house. Wants 3kW bifacial system to reduce ₹3,000 monthly bill..."
-                    value={qualForm.notes}
-                    onChange={e => setQualForm({ ...qualForm, notes: e.target.value })}
-                  />
+                {/* Final Qualification Outcome */}
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '0.75rem' }}>
+                  <div className="sales-form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontWeight: 700, color: '#0b1f3a' }}>Final Qualification Result *</label>
+                    <select 
+                      required
+                      className="sales-form-control"
+                      style={{ fontWeight: 600, fontSize: '0.95rem' }}
+                      value={qualForm.qualificationResult || 'Qualified'}
+                      onChange={e => setQualForm({ ...qualForm, qualificationResult: e.target.value as any })}
+                    >
+                      <option value="Qualified">✅ Qualified (Ready for Proposal / Site Survey)</option>
+                      <option value="Needs Follow-up">⏳ Needs Follow-up (Pending Document / Bill Verification)</option>
+                      <option value="Not Qualified">❌ Not Qualified (Unsuitable Roof / No Owner Consent / Zero Budget)</option>
+                    </select>
+                  </div>
+
+                  <div className="sales-form-group" style={{ marginBottom: 0 }}>
+                    <label>Technical Qualification Notes</label>
+                    <textarea 
+                      rows={2} 
+                      className="sales-form-control"
+                      placeholder="e.g. Customer has 600 sq ft RCC terrace in Tenali. ₹3,200 bill, wants 3kW system with PM Surya Ghar subsidy..."
+                      value={qualForm.notes}
+                      onChange={e => setQualForm({ ...qualForm, notes: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -412,16 +533,17 @@ export default function CustomerQualificationView({
 
                 <button 
                   type="submit" 
+                  disabled={isSaving}
                   className="sales-btn-primary" 
                   style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center', background: '#38bdf8', color: '#0b1f3a' }}
                 >
-                  <CheckCircle2 size={16} /> Save Lead Qualification
+                  <CheckCircle2 size={16} /> {isSaving ? 'Saving to Firestore...' : 'Save Solar Qualification'}
                 </button>
               </div>
 
               {/* Next Steps Card */}
               <div className="sales-panel">
-                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0b1f3a' }}>Recommended Next Step</h4>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0b1f3a' }}>Recommended Next Steps</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <button 
                     type="button" 
@@ -445,15 +567,19 @@ export default function CustomerQualificationView({
                     style={{ width: '100%', justifyContent: 'flex-start', color: '#16a34a', borderColor: '#bbf7d0' }}
                     onClick={() => onNavigateSubView('whatsapp', { leadId: activeLead.id })}
                   >
-                    <ArrowRight size={14} /> Send Subsidy Details on WhatsApp
+                    <ArrowRight size={14} /> Send PM Surya Ghar Subsidy Guide
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </form>
+      ) : (
+        <div className="sales-panel" style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+          <h4>No assigned leads found for qualification</h4>
+          <p>Please check your assigned leads desk or select a lead to begin qualification.</p>
+        </div>
       )}
     </div>
   );
 }
-

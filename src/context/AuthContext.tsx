@@ -89,6 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       else if (user.role === 'Dealer') user.permissions = defaultDealerPermissions;
       else user.permissions = defaultEmployeePermissions;
     }
+    // Strict UID Precedence: id and uid must always equal the authenticated Firebase user UID
+    if (auth.currentUser) {
+      user.id = auth.currentUser.uid;
+      (user as any).uid = auth.currentUser.uid;
+    }
     setCurrentUser(user);
     try {
       localStorage.setItem('crm_session_user', JSON.stringify(user));
@@ -131,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            let userData = userDoc.data() as CRMUser;
+            let userData = { ...userDoc.data(), id: firebaseUser.uid, uid: firebaseUser.uid } as unknown as CRMUser;
             if (!userData.permissions) {
               if (userData.role === 'Admin') userData.permissions = defaultAdminPermissions;
               else if (userData.role === 'Employee') userData.permissions = defaultEmployeePermissions;

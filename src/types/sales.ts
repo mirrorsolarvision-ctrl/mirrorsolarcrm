@@ -75,16 +75,22 @@ export interface CustomerQualificationData {
   sanctionedLoadKw?: number;
   phase?: 'Single Phase' | 'Three Phase';
   discom?: string;
-  roofOwnership?: 'Own' | 'Rented' | 'Commercial' | string;
-  roofType?: 'RCC' | 'Metal Sheet' | 'Asbestos' | 'Tile' | 'Other' | string;
+  location?: string;
+  pincode?: string;
+  roofOwnership?: 'Own' | 'Owned' | 'Rented' | 'Shared' | 'Commercial' | string;
+  roofType?: 'RCC' | 'Tin Shed' | 'Metal Sheet' | 'Asbestos' | 'Tile' | 'Slanted' | 'Ground' | 'Other' | string;
   approxRoofAreaSqFt?: number;
   shadingCondition?: 'None' | 'Partial' | 'Heavy' | string;
   preferredCapacityKw?: number;
   budgetPreference?: 'JanSamarth Bank Loan' | 'Self-Funded Direct Payment' | string;
   decisionMaker?: string;
-  expectedTimeline?: 'Immediate' | 'Within 7 Days' | 'Within 30 Days' | 'Later' | string;
+  expectedTimeline?: 'Immediate' | 'Within 7 Days' | 'Within 1 month' | 'Within 30 Days' | '1-3 months' | 'Exploring' | 'Later' | string;
+  pmSuryaGharSubsidyInterest?: 'Yes' | 'No' | 'Needs explanation' | string;
+  siteVisitRequired?: 'Yes' | 'No';
+  qualificationResult?: 'Qualified' | 'Not Qualified' | 'Needs Follow-up' | string;
   qualifiedAt?: string;
   qualifiedBy?: string;
+  leadScore?: any;
   notes?: string;
 }
 
@@ -92,16 +98,23 @@ export interface CustomerQualificationData {
  * Telecalling Call Record Data Model
  */
 export type CallOutcome = 
-  | 'Connected - Interested'
-  | 'Connected - Callback'
-  | 'Connected - Not Interested'
-  | 'Busy'
+  | 'Connected'
   | 'No Answer'
+  | 'Busy'
+  | 'Switched Off'
   | 'Switch Off'
-  | 'Wrong Number';
+  | 'Invalid Number'
+  | 'Wrong Number'
+  | 'Interested'
+  | 'Connected - Interested'
+  | 'Not Interested'
+  | 'Connected - Not Interested'
+  | 'Call Back Requested'
+  | 'Connected - Callback';
 
 export interface TelecallerCallLog {
   id: string;
+  operationId?: string;
   leadId?: string;
   customerName: string;
   phone: string;
@@ -109,6 +122,11 @@ export interface TelecallerCallLog {
   durationSeconds?: number;
   outcome: CallOutcome;
   notes: string;
+  customerRequirement?: string;
+  updatedLeadStatus?: string;
+  callDate?: string;
+  callTime?: string;
+  date?: string;
   nextFollowUpDate?: string;
   nextFollowUpTime?: string;
   telecallerId: string;
@@ -123,30 +141,32 @@ export type CustomerDocType =
   | 'Electricity Bill'
   | 'Aadhaar Card'
   | 'Roof Document'
+  | 'Passport Photo'
+  | 'Bank Passbook / Cheque'
+  | 'Property Tax Receipt'
+  | 'PM Surya Ghar Application'
   | 'Site Photo'
   | 'Consent Form'
   | 'Payment Proof'
-  | 'Other';
+  | 'Other'
+  | string;
 
 export interface CustomerDocumentItem {
   id: string;
-  leadId: string;
-  customerName: string;
   docType: CustomerDocType;
-  title: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  status: 'Pending' | 'Uploaded' | 'Verified' | 'Rejected';
-  uploadedAt?: string;
-  uploadedBy?: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  uploadedByRole: string;
+  fileSizeBytes: number;
+  verified: boolean;
   verifiedAt?: string;
   verifiedBy?: string;
-  rejectionReason?: string;
 }
 
 /**
- * Subviews in the Sales Department Module
+ * Subview Navigation Types for Sales Department Workspace
  */
 export type SalesSubView = 
   | 'dashboard'

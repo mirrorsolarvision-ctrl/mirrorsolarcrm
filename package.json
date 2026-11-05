@@ -22,7 +22,10 @@
     "firebase:login": "npx firebase-tools login:use mirrorsolarvision@gmail.com",
     "firebase:status": "npx firebase-tools projects:list",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:staging": "tsc -b && vite build --mode staging",
+    "build:production": "tsc -b && vite build --mode production",
+    "verify:staging": "node scripts/verifyStagingBundle.mjs"
   },
   "dependencies": {
     "firebase": "^12.18.0",
