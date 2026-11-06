@@ -271,9 +271,12 @@ service cloud.firestore {
       allow create: if request.resource.data.failedCount == 1 &&
                        request.resource.data.lockoutUntil == 0;
       // Protected update: can only increment failedCount monotonically; cannot forge arbitrary lockout periods
+      // Authenticated users who successfully log in can clear their failed count and lockout
       allow update: if isAdmin() || (
+        isAuthenticated() && request.resource.data.failedCount == 0 && request.resource.data.lockoutUntil == 0
+      ) || (
         request.resource.data.failedCount == resource.data.failedCount + 1 &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['failedCount', 'lockoutUntil', 'lastAttempt', 'sanitizedId']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['failedCount', 'lockoutUntil', 'lastAttempt', 'lastAttemptAt', 'sanitizedId', 'identifier']) &&
         ((request.resource.data.failedCount >= 5 && request.resource.data.lockoutUntil > resource.data.lockoutUntil) ||
          (request.resource.data.failedCount < 5 && request.resource.data.lockoutUntil == 0))
       );

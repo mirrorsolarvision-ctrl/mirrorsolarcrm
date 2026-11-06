@@ -39,7 +39,7 @@ const defaultUserPermissions: UserPermissions = {
 };
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes lockout (300 seconds)
 
 export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScreenProps) {
   const { loginUser } = useAuth();
@@ -92,9 +92,20 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       const lockoutUntil = parseInt(localStorage.getItem('crm_login_lockout_until') || '0', 10);
       const now = Date.now();
       if (lockoutUntil > now) {
-        setLockoutRemainingSec(Math.ceil((lockoutUntil - now) / 1000));
+        const remaining = Math.ceil((lockoutUntil - now) / 1000);
+        // Enforce 300 seconds ceiling: if user manipulated local clock or stored invalid value, clamp to 300s
+        if (remaining > 300) {
+          const clampedUntil = now + LOCKOUT_DURATION_MS;
+          localStorage.setItem('crm_login_lockout_until', clampedUntil.toString());
+          setLockoutRemainingSec(300);
+        } else {
+          setLockoutRemainingSec(remaining);
+        }
       } else {
         setLockoutRemainingSec(0);
+        if (lockoutUntil > 0) {
+          localStorage.removeItem('crm_login_lockout_until');
+        }
       }
     } catch {
       setLockoutRemainingSec(0);
@@ -122,7 +133,9 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         }
         await setDoc(attemptRef, {
           identifier,
+          sanitizedId,
           failedCount: serverCount,
+          lastAttempt: new Date().toISOString(),
           lastAttemptAt: new Date().toISOString(),
           lockoutUntil
         }, { merge: true });
@@ -137,7 +150,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           action: 'LOGIN_LOCKED_OUT',
           entityType: 'Security',
           entityId: identifier,
-          entityLabel: `Account locked after consecutive failed attempts`,
+          entityLabel: `Account locked after consecutive failed attempts (5-minute security lockout)`,
           reason: 'Excessive consecutive authentication failures across devices'
         }).catch(() => {});
       } else {
@@ -165,8 +178,11 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         try {
           await setDoc(doc(db, 'auth_attempts', sanitizedId), {
             identifier,
+            sanitizedId,
             failedCount: 0,
             lockoutUntil: 0,
+            lastAttempt: new Date().toISOString(),
+            lastAttemptAt: new Date().toISOString(),
             lastSuccessAt: new Date().toISOString()
           }, { merge: true });
         } catch {}
@@ -229,8 +245,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
 
   const processLogin = async (rawInput: string, rawPass: string) => {
     if (lockoutRemainingSec > 0) {
-      const mins = Math.ceil(lockoutRemainingSec / 60);
-      setErrorMsg(`Too many failed login attempts. Account temporarily locked for security. Try again in ${mins} minute${mins > 1 ? 's' : ''} or reset password.`);
+      const mins = Math.floor(lockoutRemainingSec / 60);
+      const secs = lockoutRemainingSec % 60;
+      const timeRemainingStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      setErrorMsg(`Too many failed login attempts. Account temporarily locked for 5 minutes. Try again in ${timeRemainingStr} or reset password.`);
       return;
     }
 
@@ -249,9 +267,12 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         const serverLockoutUntil = attemptData.lockoutUntil || 0;
         if (serverLockoutUntil > Date.now()) {
           const remainingSec = Math.ceil((serverLockoutUntil - Date.now()) / 1000);
-          setLockoutRemainingSec(remainingSec);
-          const mins = Math.ceil(remainingSec / 60);
-          setErrorMsg(`Account temporarily locked across all devices due to repeated authentication failures. Please wait ${mins} minute${mins > 1 ? 's' : ''} or reset password.`);
+          const clampedRemaining = Math.min(remainingSec, 300);
+          setLockoutRemainingSec(clampedRemaining);
+          const mins = Math.floor(clampedRemaining / 60);
+          const secs = clampedRemaining % 60;
+          const timeRemainingStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+          setErrorMsg(`Account temporarily locked across all devices due to repeated authentication failures. Please wait ${timeRemainingStr} or reset password.`);
           setIsSigningIn(false);
           return;
         }
@@ -530,7 +551,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
               <div>
                 <strong>Security Lockout Active</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem' }}>
-                  Device locked due to multiple failed attempts. Please wait {Math.ceil(lockoutRemainingSec / 60)}m {lockoutRemainingSec % 60}s before retrying.
+                  Device locked due to multiple failed attempts. Please wait {Math.floor(lockoutRemainingSec / 60)}m {String(lockoutRemainingSec % 60).padStart(2, '0')}s before retrying.
                 </p>
               </div>
             </div>
