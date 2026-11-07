@@ -1835,16 +1835,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setDealers(prev => prev.filter(d => d.id !== id));
     try {
-      await setDoc(doc(db, 'users', id), {
-        id,
+      await updateDoc(doc(db, "users", id), {
+        status: "Inactive",
         isDeleted: true,
-        status: 'Archived',
-        deletedAt: new Date().toISOString(),
-        ...(target?.email ? { email: target.email } : {}),
-        ...(target?.name ? { name: target.name } : {})
-      }, { merge: true });
+        deletedAt: new Date().toISOString()
+      });
     } catch (err) {
-      console.warn("Error archiving dealer in users:", err);
+      try {
+        await setDoc(doc(db, 'users', id), {
+          id,
+          isDeleted: true,
+          status: 'Inactive',
+          deletedAt: new Date().toISOString(),
+          ...(target?.email ? { email: target.email } : {}),
+          ...(target?.name ? { name: target.name } : {})
+        }, { merge: true });
+      } catch (e2) {
+        console.warn("Error archiving dealer in users:", e2);
+      }
     }
     try {
       await deleteDoc(doc(db, 'dealers', id));
@@ -1877,16 +1885,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setEmployees(prev => prev.filter(e => e.id !== id));
     try {
-      await setDoc(doc(db, 'users', id), {
-        id,
+      await updateDoc(doc(db, "users", id), {
+        status: "Inactive",
         isDeleted: true,
-        status: 'Archived',
-        deletedAt: new Date().toISOString(),
-        ...(target?.email ? { email: target.email } : {}),
-        ...(target?.name ? { name: target.name } : {})
-      }, { merge: true });
+        deletedAt: new Date().toISOString()
+      });
     } catch (err) {
-      console.warn("Error archiving employee in users:", err);
+      try {
+        await setDoc(doc(db, 'users', id), {
+          id,
+          isDeleted: true,
+          status: 'Inactive',
+          deletedAt: new Date().toISOString(),
+          ...(target?.email ? { email: target.email } : {}),
+          ...(target?.name ? { name: target.name } : {})
+        }, { merge: true });
+      } catch (e2) {
+        console.warn("Error archiving employee in users:", e2);
+      }
     }
     try {
       await deleteDoc(doc(db, 'employees', id));

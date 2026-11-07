@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Trash2, Copy, ArrowDown, ArrowUp, Lock, CheckCircle2, 
-  FileText, Calculator, Share2, Download, Printer, AlertCircle, 
+import {
+  Plus, Trash2, Copy, ArrowDown, ArrowUp, Lock, CheckCircle2,
+  FileText, Calculator, Share2, Download, Printer, AlertCircle,
   User, Zap, Sparkles, CreditCard, X, Eye, Check, ClipboardCopy,
   ShieldCheck, Building2, Phone, Mail, FileSpreadsheet
 } from 'lucide-react';
-import type { 
-  Quotation, QuotationItem, QuotationCustomerDetails, 
-  QuotationProjectDetails, CustomerType, PlantType, PhaseType, RoofType, StructureType 
+import type {
+  Quotation, QuotationItem, QuotationCustomerDetails,
+  QuotationProjectDetails, CustomerType, PlantType, PhaseType, RoofType, StructureType
 } from '../types/quotation';
 import { LOCKED_COMPANY_DETAILS } from '../config/companyDetails';
-import { 
-  recalculateLineItem, 
-  calculateQuotationFinancials, 
-  generateRecommendedBOM 
+import {
+  recalculateLineItem,
+  calculateQuotationFinancials,
+  generateRecommendedBOM,
+  calculateStandardPackagePrice
 } from '../utils/quotationCalculations';
 import { useQuotations } from '../context/QuotationContext';
 import { useCRM } from '../context/CRMContext';
@@ -280,7 +281,7 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
 
     if (project.structureType === 'Hot Dip Company Structure') {
       msg += `• Front Leg Height: ${project.frontLegHeight || '4 ft'}\n` +
-             `• Rear Leg Height: ${project.rearLegHeight || '7 ft'}\n`;
+        `• Rear Leg Height: ${project.rearLegHeight || '7 ft'}\n`;
     }
 
     if (project.discomName) {
@@ -349,51 +350,51 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
           </div>
 
           <div className="qe-topbar-actions">
-            <button 
-              type="button" 
-              className="btn-hero-primary qe-finalize-btn" 
-              onClick={() => handleSave(true)} 
+            <button
+              type="button"
+              className="btn-hero-primary qe-finalize-btn"
+              onClick={() => handleSave(true)}
               disabled={isSubmitting}
             >
               <CheckCircle2 size={16} /> Finalize Quotation
             </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary" 
-              onClick={() => handleSave(false)} 
+            <button
+              type="button"
+              className="btn-hero-secondary"
+              onClick={() => handleSave(false)}
               disabled={isSubmitting}
             >
               Save Draft
             </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary" 
+            <button
+              type="button"
+              className="btn-hero-secondary"
               onClick={handlePrint}
               title="Save or print official A4 PDF Bill-Book Proposal"
             >
               <Printer size={15} /> <span>Print A4 PDF</span>
             </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary qe-whatsapp-btn" 
+            <button
+              type="button"
+              className="btn-hero-secondary qe-whatsapp-btn"
               onClick={() => setShowWhatsAppModal(true)}
               title="Share quotation proposal directly on WhatsApp"
             >
               <Share2 size={15} /> <span>Send WhatsApp</span>
             </button>
-            <button 
-              type="button" 
-              className="btn-hero-secondary qe-roi-btn" 
+            <button
+              type="button"
+              className="btn-hero-secondary qe-roi-btn"
               onClick={() => setShowRoiModal(true)}
               title="Calculate solar generation, monthly savings & 25-yr ROI"
             >
               <Zap size={15} color="#f59e0b" /> <span>Solar ROI</span>
             </button>
-            <button 
-              type="button" 
-              className="btn-hero-close" 
-              onClick={onClose} 
-              disabled={isSubmitting} 
+            <button
+              type="button"
+              className="btn-hero-close"
+              onClick={onClose}
+              disabled={isSubmitting}
               title="Close"
             >
               <X size={18} />
@@ -443,452 +444,343 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
             </div>
           </div>
 
-            {/* Section 2: Lead Selection Mode */}
-            <div className="qe-section-card">
-              <div className="qe-section-header">
-                <h3><User size={18} /> Customer & Lead Association</h3>
-                <div className="qe-mode-toggle">
-                  <button 
-                    className={`qe-toggle-btn ${mode === 'existing' ? 'active' : ''}`}
-                    onClick={() => setMode('existing')}
-                  >
-                    Existing Lead
-                  </button>
-                  <button 
-                    className={`qe-toggle-btn ${mode === 'new' ? 'active' : ''}`}
-                    onClick={() => setMode('new')}
-                  >
-                    New Customer / Walk-in
-                  </button>
-                </div>
-              </div>
-
-              {mode === 'existing' && (
-                <div className="qe-lead-picker">
-                  <label>Select From Existing CRM Leads:</label>
-                  <select 
-                    value={selectedLeadId} 
-                    onChange={(e) => setSelectedLeadId(e.target.value)}
-                    className="qe-select"
-                  >
-                    <option value="">-- Choose a lead --</option>
-                    {leads.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.customer} ({formatCustomerCode(l)}) - {l.dealer} • {l.location}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Customer Inputs */}
-              <div className="qe-form-grid">
-                <div className="qe-input-group">
-                  <label htmlFor="qeCustomerName">Customer Name *</label>
-                  <input 
-                    id="qeCustomerName"
-                    name="customerName"
-                    type="text" 
-                    autoComplete="name"
-                    value={customer.customerName} 
-                    onChange={(e) => setCustomer({ ...customer, customerName: e.target.value })}
-                    placeholder="Customer Name"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeMobileNumber">Mobile Number *</label>
-                  <input 
-                    id="qeMobileNumber"
-                    name="mobileNumber"
-                    type="tel" 
-                    autoComplete="tel"
-                    value={customer.mobileNumber} 
-                    onChange={(e) => setCustomer({ ...customer, mobileNumber: e.target.value })}
-                    placeholder="10-digit mobile"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeEmail">Email Address</label>
-                  <input 
-                    id="qeEmail"
-                    name="email"
-                    type="email" 
-                    autoComplete="email"
-                    value={customer.email || ''} 
-                    onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                    placeholder="customer@email.com"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeCity">City / Town *</label>
-                  <input 
-                    id="qeCity"
-                    name="city"
-                    type="text" 
-                    autoComplete="address-level2"
-                    value={customer.city} 
-                    onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
-                    placeholder="e.g. Vijayawada / Hyderabad"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qePinCode">PIN Code</label>
-                  <input 
-                    id="qePinCode"
-                    name="pinCode"
-                    type="text" 
-                    autoComplete="postal-code"
-                    value={customer.pinCode} 
-                    onChange={(e) => setCustomer({ ...customer, pinCode: e.target.value })}
-                    placeholder="500081"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeCustomerType">Customer Type</label>
-                  <select 
-                    id="qeCustomerType"
-                    name="customerType"
-                    value={customer.customerType} 
-                    onChange={(e) => setCustomer({ ...customer, customerType: e.target.value as CustomerType })}
-                  >
-                    <option value="Residential">Residential (PM Surya Ghar Eligible)</option>
-                    <option value="Commercial">Commercial</option>
-                    <option value="Industrial">Industrial</option>
-                    <option value="Agricultural">Agricultural</option>
-                    <option value="Institutional">Institutional</option>
-                  </select>
-                </div>
-                <div className="qe-input-group qe-col-span-3">
-                  <label htmlFor="qeAddress">Site / Installation Address</label>
-                  <input 
-                    id="qeAddress"
-                    name="address"
-                    type="text" 
-                    autoComplete="street-address"
-                    value={customer.address} 
-                    onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
-                    placeholder="House/Plot No, Street, Landmark"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: Solar Project Specifications & 3 Structure Types */}
-            <div className="qe-section-card">
-              <div className="qe-section-header">
-                <h3><Zap size={18} /> Solar Plant Specifications</h3>
-                <button className="qe-estimate-btn" onClick={handleAutoEstimate}>
-                  <Calculator size={14} /> Auto-Generate Standard Equipment
+          {/* Section 2: Lead Selection Mode */}
+          <div className="qe-section-card">
+            <div className="qe-section-header">
+              <h3><User size={18} /> Customer & Lead Association</h3>
+              <div className="qe-mode-toggle">
+                <button
+                  className={`qe-toggle-btn ${mode === 'existing' ? 'active' : ''}`}
+                  onClick={() => setMode('existing')}
+                >
+                  Existing Lead
+                </button>
+                <button
+                  className={`qe-toggle-btn ${mode === 'new' ? 'active' : ''}`}
+                  onClick={() => setMode('new')}
+                >
+                  New Customer / Walk-in
                 </button>
               </div>
+            </div>
 
-              <div className="qe-form-grid">
-                <div className="qe-input-group">
-                  <label htmlFor="qeSystemCapacity">System Capacity (kW) *</label>
-                  <input 
-                    id="qeSystemCapacity"
-                    name="systemCapacityKw"
-                    type="number" 
-                    step="0.5" 
-                    min="1" 
-                    value={project.systemCapacityKw} 
-                    onChange={(e) => setProject({ ...project, systemCapacityKw: Number(e.target.value) || 1 })}
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qePlantType">Plant Technology Type</label>
-                  <select 
-                    id="qePlantType"
-                    name="plantType"
-                    value={project.plantType} 
-                    onChange={(e) => setProject({ ...project, plantType: e.target.value as PlantType })}
-                  >
-                    <option value="On-Grid">On-Grid (Grid-Tied with Net Meter)</option>
-                    <option value="Hybrid">Hybrid (Solar + Battery Storage + Grid)</option>
-                    <option value="Off-Grid">Off-Grid (Solar + Battery Standalone)</option>
-                  </select>
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qePhaseType">Grid Phase Type</label>
-                  <select 
-                    id="qePhaseType"
-                    name="phaseType"
-                    value={project.phaseType} 
-                    onChange={(e) => setProject({ ...project, phaseType: e.target.value as PhaseType })}
-                  >
-                    <option value="Single Phase">Single Phase (1P - Up to 5kW)</option>
-                    <option value="Three Phase">Three Phase (3P - Above 3kW)</option>
-                  </select>
-                </div>
+            {mode === 'existing' && (
+              <div className="qe-lead-picker">
+                <label>Select From Existing CRM Leads:</label>
+                <select
+                  value={selectedLeadId}
+                  onChange={(e) => setSelectedLeadId(e.target.value)}
+                  className="qe-select"
+                >
+                  <option value="">-- Choose a lead --</option>
+                  {leads.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.customer} ({formatCustomerCode(l)}) - {l.dealer} • {l.location}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-                {/* Structure Type: EXACTLY 3 TYPES */}
-                <div className="qe-input-group">
-                  <label htmlFor="qeStructureType">Structure Type *</label>
-                  <select 
-                    id="qeStructureType"
-                    name="structureType"
-                    value={project.structureType || 'Hot Dip Company Structure'} 
-                    onChange={(e) => setProject({ ...project, structureType: e.target.value as StructureType })}
-                    className="qe-structure-select"
-                  >
-                    <option value="Hot Dip Company Structure">Hot Dip Company Structure</option>
-                    <option value="Mono Rail">Mono Rail</option>
-                    <option value="Welding Structure">Welding Structure</option>
-                  </select>
-                </div>
+            {/* Customer Inputs */}
+            <div className="qe-form-grid">
+              <div className="qe-input-group">
+                <label htmlFor="qeCustomerName">Customer Name *</label>
+                <input
+                  id="qeCustomerName"
+                  name="customerName"
+                  type="text"
+                  autoComplete="name"
+                  value={customer.customerName}
+                  onChange={(e) => setCustomer({ ...customer, customerName: e.target.value })}
+                  placeholder="Customer Name"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qeMobileNumber">Mobile Number *</label>
+                <input
+                  id="qeMobileNumber"
+                  name="mobileNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  value={customer.mobileNumber}
+                  onChange={(e) => setCustomer({ ...customer, mobileNumber: e.target.value })}
+                  placeholder="10-digit mobile"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qeEmail">Email Address</label>
+                <input
+                  id="qeEmail"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={customer.email || ''}
+                  onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                  placeholder="customer@email.com"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qeCity">City / Town *</label>
+                <input
+                  id="qeCity"
+                  name="city"
+                  type="text"
+                  autoComplete="address-level2"
+                  value={customer.city}
+                  onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
+                  placeholder="e.g. Vijayawada / Hyderabad"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qePinCode">PIN Code</label>
+                <input
+                  id="qePinCode"
+                  name="pinCode"
+                  type="text"
+                  autoComplete="postal-code"
+                  value={customer.pinCode}
+                  onChange={(e) => setCustomer({ ...customer, pinCode: e.target.value })}
+                  placeholder="500081"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qeCustomerType">Customer Type</label>
+                <select
+                  id="qeCustomerType"
+                  name="customerType"
+                  value={customer.customerType}
+                  onChange={(e) => setCustomer({ ...customer, customerType: e.target.value as CustomerType })}
+                >
+                  <option value="Residential">Residential (PM Surya Ghar Eligible)</option>
+                  <option value="Commercial">Commercial</option>
+                  <option value="Industrial">Industrial</option>
+                  <option value="Agricultural">Agricultural</option>
+                  <option value="Institutional">Institutional</option>
+                </select>
+              </div>
+              <div className="qe-input-group qe-col-span-3">
+                <label htmlFor="qeAddress">Site / Installation Address</label>
+                <input
+                  id="qeAddress"
+                  name="address"
+                  type="text"
+                  autoComplete="street-address"
+                  value={customer.address}
+                  onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                  placeholder="House/Plot No, Street, Landmark"
+                />
+              </div>
+            </div>
+          </div>
 
-                {/* Front and Rear Legs Height: ONLY SHOWN WHEN Hot Dip Company Structure is selected */}
-                {project.structureType === 'Hot Dip Company Structure' && (
-                  <>
-                    <div className="qe-input-group qe-highlight-field">
-                      <label htmlFor="qeFrontLegHeight">Front Leg Height *</label>
-                      <input 
-                        id="qeFrontLegHeight"
-                        name="frontLegHeight"
-                        type="text" 
-                        value={project.frontLegHeight || ''} 
-                        onChange={(e) => setProject({ ...project, frontLegHeight: e.target.value })}
-                        placeholder="e.g. 4 ft or 1.2 m"
-                      />
-                    </div>
-                    <div className="qe-input-group qe-highlight-field">
-                      <label htmlFor="qeRearLegHeight">Rear Leg Height *</label>
-                      <input 
-                        id="qeRearLegHeight"
-                        name="rearLegHeight"
-                        type="text" 
-                        value={project.rearLegHeight || ''} 
-                        onChange={(e) => setProject({ ...project, rearLegHeight: e.target.value })}
-                        placeholder="e.g. 7 ft or 2.1 m"
-                      />
-                    </div>
-                  </>
-                )}
+          {/* Section 3: Solar Project Specifications & 3 Structure Types */}
+          <div className="qe-section-card">
+            <div className="qe-section-header">
+              <h3><Zap size={18} /> Solar Plant Specifications</h3>
+              <button className="qe-estimate-btn" onClick={handleAutoEstimate}>
+                <Calculator size={14} /> Auto-Generate Standard Equipment
+              </button>
+            </div>
 
-                <div className="qe-input-group">
-                  <label htmlFor="qeDiscomName">DISCOM Electricity Board</label>
-                  <input 
-                    id="qeDiscomName"
-                    name="discomName"
-                    type="text" 
-                    value={project.discomName || ''} 
-                    onChange={(e) => setProject({ ...project, discomName: e.target.value })}
-                    placeholder="e.g. TSSPDCL / TSNPDCL / APSPDCL"
-                  />
-                </div>
-                <div className="qe-input-group">
-                  <label htmlFor="qeConsumerNumber">Electricity Consumer / USC No.</label>
-                  <input 
-                    id="qeConsumerNumber"
-                    name="consumerNumber"
-                    type="text" 
-                    value={project.consumerNumber || ''} 
-                    onChange={(e) => setProject({ ...project, consumerNumber: e.target.value })}
-                    placeholder="Service connection number"
-                  />
-                </div>
+            <div className="qe-form-grid">
+              <div className="qe-input-group">
+                <label htmlFor="qeSystemCapacity">System Capacity (kW) *</label>
+                <input
+                  id="qeSystemCapacity"
+                  name="systemCapacityKw"
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  value={project.systemCapacityKw}
+                  onChange={(e) => {
+                    const newKw = Number(e.target.value) || 1;
+                    const standardPrice = calculateStandardPackagePrice(newKw);
+                    setProject({
+                      ...project,
+                      systemCapacityKw: newKw,
+                      singleTotalPrice: standardPrice
+                    });
+                  }}
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qePlantType">Plant Technology Type</label>
+                <select
+                  id="qePlantType"
+                  name="plantType"
+                  value={project.plantType}
+                  onChange={(e) => setProject({ ...project, plantType: e.target.value as PlantType })}
+                >
+                  <option value="On-Grid">On-Grid (Grid-Tied with Net Meter)</option>
+                  <option value="Hybrid">Hybrid (Solar + Battery Storage + Grid)</option>
+                  <option value="Off-Grid">Off-Grid (Solar + Battery Standalone)</option>
+                </select>
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qePhaseType">Grid Phase Type</label>
+                <select
+                  id="qePhaseType"
+                  name="phaseType"
+                  value={project.phaseType}
+                  onChange={(e) => setProject({ ...project, phaseType: e.target.value as PhaseType })}
+                >
+                  <option value="Single Phase">Single Phase (1P - Up to 5kW)</option>
+                  <option value="Three Phase">Three Phase (3P - Above 3kW)</option>
+                </select>
+              </div>
+
+              {/* Structure Type: EXACTLY 3 TYPES */}
+              <div className="qe-input-group">
+                <label htmlFor="qeStructureType">Structure Type *</label>
+                <select
+                  id="qeStructureType"
+                  name="structureType"
+                  value={project.structureType || 'Hot Dip Company Structure'}
+                  onChange={(e) => setProject({ ...project, structureType: e.target.value as StructureType })}
+                  className="qe-structure-select"
+                >
+                  <option value="Hot Dip Company Structure">Hot Dip Company Structure</option>
+                  <option value="Mono Rail">Mono Rail</option>
+                  <option value="Welding Structure">Welding Structure</option>
+                </select>
+              </div>
+
+              {/* Front and Rear Legs Height: ONLY SHOWN WHEN Hot Dip Company Structure is selected */}
+              {project.structureType === 'Hot Dip Company Structure' && (
+                <>
+                  <div className="qe-input-group qe-highlight-field">
+                    <label htmlFor="qeFrontLegHeight">Front Leg Height *</label>
+                    <input
+                      id="qeFrontLegHeight"
+                      name="frontLegHeight"
+                      type="text"
+                      value={project.frontLegHeight || ''}
+                      onChange={(e) => setProject({ ...project, frontLegHeight: e.target.value })}
+                      placeholder="e.g. 4 ft or 1.2 m"
+                    />
+                  </div>
+                  <div className="qe-input-group qe-highlight-field">
+                    <label htmlFor="qeRearLegHeight">Rear Leg Height *</label>
+                    <input
+                      id="qeRearLegHeight"
+                      name="rearLegHeight"
+                      type="text"
+                      value={project.rearLegHeight || ''}
+                      onChange={(e) => setProject({ ...project, rearLegHeight: e.target.value })}
+                      placeholder="e.g. 7 ft or 2.1 m"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="qe-input-group">
+                <label htmlFor="qeDiscomName">DISCOM Electricity Board</label>
+                <input
+                  id="qeDiscomName"
+                  name="discomName"
+                  type="text"
+                  value={project.discomName || ''}
+                  onChange={(e) => setProject({ ...project, discomName: e.target.value })}
+                  placeholder="e.g. TSSPDCL / TSNPDCL / APSPDCL"
+                />
+              </div>
+              <div className="qe-input-group">
+                <label htmlFor="qeConsumerNumber">Electricity Consumer / USC No.</label>
+                <input
+                  id="qeConsumerNumber"
+                  name="consumerNumber"
+                  type="text"
+                  value={project.consumerNumber || ''}
+                  onChange={(e) => setProject({ ...project, consumerNumber: e.target.value })}
+                  placeholder="Service connection number"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Equipment & Service Line Items (NO INDIVIDUAL PRICES) */}
+          <div className="qe-section-card">
+            <div className="qe-section-header">
+              <div>
+                <h3><FileText size={18} /> Equipment & Specification Bill of Materials</h3>
+                <p className="qe-section-sub">Standard quotation format: No individual line item rates; equipment items are bundled into the total turnkey project package.</p>
+              </div>
+              <div className="qe-item-actions">
+                <button className="btn-outline qe-sm-btn" onClick={() => handleAddItem('Custom Item')}>
+                  <Plus size={14} /> Add Item
+                </button>
               </div>
             </div>
 
-            {/* Section 4: Equipment & Service Line Items (NO INDIVIDUAL PRICES) */}
-            <div className="qe-section-card">
-              <div className="qe-section-header">
-                <div>
-                  <h3><FileText size={18} /> Equipment & Specification Bill of Materials</h3>
-                  <p className="qe-section-sub">Standard quotation format: No individual line item rates; equipment items are bundled into the total turnkey project package.</p>
-                </div>
-                <div className="qe-item-actions">
-                  <button className="btn-outline qe-sm-btn" onClick={() => handleAddItem('Custom Item')}>
-                    <Plus size={14} /> Add Item
-                  </button>
-                </div>
-              </div>
-
-              <div className="qe-table-wrapper">
-                <table className="qe-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '45px' }}>#</th>
-                      <th style={{ minWidth: '260px' }}>Item Description & Category</th>
-                      <th style={{ minWidth: '200px' }}>Brand / Specification</th>
-                      <th style={{ width: '100px' }}>Quantity</th>
-                      <th style={{ width: '100px' }}>Unit</th>
-                      <th style={{ width: '110px', textAlign: 'center' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, idx) => (
-                      <tr key={item.id}>
-                        <td className="qe-td-idx">{idx + 1}</td>
-                        <td>
-                          <input 
-                            type="text" 
-                            className="qe-table-input font-bold" 
-                            value={item.name} 
-                            onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                          />
-                          <div className="qe-item-meta">
-                            <select 
-                              value={item.category} 
-                              onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
-                              className="qe-cat-select"
-                            >
-                              <option value="Solar Panel">Solar Panel</option>
-                              <option value="Inverter">Inverter</option>
-                              <option value="Structure">Structure</option>
-                              <option value="DC Cable">DC Cable</option>
-                              <option value="AC Cable">AC Cable</option>
-                              <option value="Earthing & Lightning">Earthing & LA</option>
-                              <option value="ACDB & DCDB">ACDB / DCDB</option>
-                              <option value="Battery Storage">Battery Storage</option>
-                              <option value="Installation & Commissioning">Installation</option>
-                              <option value="Transportation & Logistics">Transportation</option>
-                              <option value="Civil Works & Foundation">Civil Works</option>
-                              <option value="Accessories">Accessories</option>
-                              <option value="Custom Item">Custom Item</option>
-                            </select>
-                          </div>
-                        </td>
-                        <td>
-                          <input 
-                            type="text" 
-                            className="qe-table-input" 
-                            value={item.brand || ''} 
-                            onChange={(e) => handleItemChange(idx, 'brand', e.target.value)}
-                            placeholder="Brand / Model / Specs"
-                          />
-                        </td>
-                        <td>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            className="qe-table-input text-center font-bold" 
-                            value={item.quantity} 
-                            onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value) || 1)}
-                          />
-                        </td>
-                        <td>
-                          <select 
-                            value={item.unit} 
-                            onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
-                            className="qe-unit-select"
-                          >
-                            <option value="Nos">Nos</option>
-                            <option value="Watts">Watts</option>
-                            <option value="kW">kW</option>
-                            <option value="Sets">Sets</option>
-                            <option value="Meters">Meters</option>
-                            <option value="Lots">Lots</option>
-                            <option value="Unit">Unit</option>
-                          </select>
-                        </td>
-                        <td>
-                          <div className="qe-row-actions">
-                            <button title="Move Up" onClick={() => handleMoveItem(idx, 'up')} disabled={idx === 0}>
-                              <ArrowUp size={13} />
-                            </button>
-                            <button title="Move Down" onClick={() => handleMoveItem(idx, 'down')} disabled={idx === items.length - 1}>
-                              <ArrowDown size={13} />
-                            </button>
-                            <button title="Duplicate" onClick={() => handleDuplicateItem(idx)}>
-                              <Copy size={13} />
-                            </button>
-                            <button title="Delete" className="btn-del" onClick={() => handleDeleteItem(idx)}>
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Touch-Friendly Card View (Zero horizontal scroll lag) */}
-              <div className="qe-bom-cards-list">
-                {items.map((item, idx) => (
-                  <div key={item.id} className="qe-bom-item-card">
-                    <div className="qe-bic-header">
-                      <div className="qe-bic-num-name">
-                        <span className="qe-bic-idx">#{idx + 1}</span>
-                        <input 
-                          type="text" 
-                          className="qe-bic-name-input font-bold" 
-                          value={item.name} 
+            <div className="qe-table-wrapper">
+              <table className="qe-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '45px' }}>#</th>
+                    <th style={{ minWidth: '260px' }}>Item Description & Category</th>
+                    <th style={{ minWidth: '200px' }}>Brand / Specification</th>
+                    <th style={{ width: '100px' }}>Quantity</th>
+                    <th style={{ width: '100px' }}>Unit</th>
+                    <th style={{ width: '110px', textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => (
+                    <tr key={item.id}>
+                      <td className="qe-td-idx">{idx + 1}</td>
+                      <td>
+                        <input
+                          type="text"
+                          className="qe-table-input font-bold"
+                          value={item.name}
                           onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                          placeholder="Item Name"
                         />
-                      </div>
-                      <button 
-                        type="button"
-                        className="qe-bic-del-btn" 
-                        title="Delete Item" 
-                        onClick={() => handleDeleteItem(idx)}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-
-                    <div className="qe-bic-body">
-                      <div className="qe-bic-specs-row">
-                        <select 
-                          value={item.category} 
-                          onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
-                          className="qe-bic-cat-select"
-                        >
-                          <option value="Solar Panel">Solar Panel</option>
-                          <option value="Inverter">Inverter</option>
-                          <option value="Structure">Structure</option>
-                          <option value="DC Cable">DC Cable</option>
-                          <option value="AC Cable">AC Cable</option>
-                          <option value="Earthing & Lightning">Earthing & LA</option>
-                          <option value="ACDB & DCDB">ACDB / DCDB</option>
-                          <option value="Battery Storage">Battery Storage</option>
-                          <option value="Installation & Commissioning">Installation</option>
-                          <option value="Transportation & Logistics">Transportation</option>
-                          <option value="Civil Works & Foundation">Civil Works</option>
-                          <option value="Accessories">Accessories</option>
-                          <option value="Custom Item">Custom Item</option>
-                        </select>
-                        <input 
-                          type="text" 
-                          className="qe-bic-brand-input" 
-                          value={item.brand || ''} 
+                        <div className="qe-item-meta">
+                          <select
+                            value={item.category}
+                            onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
+                            className="qe-cat-select"
+                          >
+                            <option value="Solar Panel">Solar Panel</option>
+                            <option value="Inverter">Inverter</option>
+                            <option value="Structure">Structure</option>
+                            <option value="DC Cable">DC Cable</option>
+                            <option value="AC Cable">AC Cable</option>
+                            <option value="Earthing & Lightning">Earthing & LA</option>
+                            <option value="ACDB & DCDB">ACDB / DCDB</option>
+                            <option value="Battery Storage">Battery Storage</option>
+                            <option value="Installation & Commissioning">Installation</option>
+                            <option value="Transportation & Logistics">Transportation</option>
+                            <option value="Civil Works & Foundation">Civil Works</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Custom Item">Custom Item</option>
+                          </select>
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="qe-table-input"
+                          value={item.brand || ''}
                           onChange={(e) => handleItemChange(idx, 'brand', e.target.value)}
                           placeholder="Brand / Model / Specs"
                         />
-                      </div>
-
-                      <div className="qe-bic-qty-row">
-                        <div className="qe-bic-stepper">
-                          <span className="qe-bic-stepper-lbl">Qty:</span>
-                          <button 
-                            type="button" 
-                            className="qe-bic-step-btn" 
-                            onClick={() => handleItemChange(idx, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
-                          >
-                            -
-                          </button>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            className="qe-bic-qty-input" 
-                            value={item.quantity} 
-                            onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value) || 1)}
-                          />
-                          <button 
-                            type="button" 
-                            className="qe-bic-step-btn" 
-                            onClick={() => handleItemChange(idx, 'quantity', (item.quantity || 1) + 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <select 
-                          value={item.unit} 
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          className="qe-table-input text-center font-bold"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value) || 1)}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          value={item.unit}
                           onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
-                          className="qe-bic-unit-select"
+                          className="qe-unit-select"
                         >
                           <option value="Nos">Nos</option>
                           <option value="Watts">Watts</option>
@@ -898,8 +790,9 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                           <option value="Lots">Lots</option>
                           <option value="Unit">Unit</option>
                         </select>
-
-                        <div className="qe-bic-move-acts">
+                      </td>
+                      <td>
+                        <div className="qe-row-actions">
                           <button title="Move Up" onClick={() => handleMoveItem(idx, 'up')} disabled={idx === 0}>
                             <ArrowUp size={13} />
                           </button>
@@ -909,334 +802,450 @@ export default function QuotationEditor({ initialQuotation, initialLeadId, onClo
                           <button title="Duplicate" onClick={() => handleDuplicateItem(idx)}>
                             <Copy size={13} />
                           </button>
+                          <button title="Delete" className="btn-del" onClick={() => handleDeleteItem(idx)}>
+                            <Trash2 size={13} />
+                          </button>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="qe-add-bar">
-                <span>Quick add items:</span>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('Solar Panel')}>+ Solar Panel</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('Inverter')}>+ Inverter</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('Structure')}>+ Structure</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('DC Cable')}>+ DC Cable</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('AC Cable')}>+ AC Cable</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('Earthing & Lightning')}>+ Earthing & LA</button>
-                <button className="qe-chip-btn" onClick={() => handleAddItem('Custom Item')}>+ Custom Line</button>
-              </div>
-            </div>
-
-            {/* Section 5: Commercial Pricing Summary (Single Total Price with 5% GST Included Every Time) */}
-            <div className="qe-financials-grid">
-              <div className="qe-notes-card">
-                <h4>Terms & Quotation Conditions</h4>
-                <textarea 
-                  id="qeTermsAndConditions"
-                  name="termsAndConditions"
-                  rows={4} 
-                  value={notes} 
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Enter quotation validity, warranty stipulations, installation timeline notes..."
-                />
-                <div className="qe-validity-row">
-                  <label htmlFor="qeValidityDays">Quotation Validity:</label>
-                  <input 
-                    id="qeValidityDays"
-                    name="validityDays"
-                    type="number" 
-                    value={validityDays} 
-                    onChange={(e) => setValidityDays(Number(e.target.value) || 15)} 
-                    style={{ width: '70px' }}
-                  />
-                  <span>Calendar Days</span>
-                </div>
-              </div>
-
-              <div className="qe-summary-table-card">
-                <h4>Commercial Turnkey Proposal</h4>
-
-                {/* Single Total Package Price Input with 5% GST Included */}
-                <div className="qe-single-price-input-box">
-                  <label htmlFor="qeTotalPackagePrice" className="qe-single-price-label">
-                    Total Project Package Price (Inclusive of 5% GST) *
-                  </label>
-                  <div className="qe-total-input-wrapper">
-                    <span className="qe-currency-symbol">₹</span>
-                    <input 
-                      id="qeTotalPackagePrice"
-                      name="totalPackagePrice"
-                      type="number" 
-                      min="1000"
-                      step="500"
-                      className="qe-total-package-input"
-                      value={project.singleTotalPrice || 195000}
-                      onChange={(e) => setProject({ ...project, singleTotalPrice: Number(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <span className="qe-single-price-hint">Includes turnkey engineering, supply, installation, testing, commissioning & 5% GST</span>
-                </div>
-
-                <div className="qe-summary-row qe-sub-divider">
-                  <span>Taxable Project Base:</span>
-                  <span>₹{financials.taxableAmount.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="qe-summary-row">
-                  <span>GST Amount (5% Included):</span>
-                  <span>₹{financials.gstTotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="qe-summary-row text-sm text-muted">
-                  <span>GST Breakdown:</span>
-                  <span>CGST (2.5%): ₹{financials.cgst.toLocaleString('en-IN')} | SGST (2.5%): ₹{financials.sgst.toLocaleString('en-IN')}</span>
-                </div>
-
-                <div className="qe-summary-row qe-total-row">
-                  <span>Total Invoice Amount (Turnkey):</span>
-                  <span>₹{financials.grandTotal.toLocaleString('en-IN')}</span>
-                </div>
-
-                {/* PM Surya Ghar Subsidy Box: Displayed clearly at ₹78,000/- WITHOUT subtracting from amount */}
-                <div className="qe-subsidy-box">
-                  <div className="qe-subsidy-toggle-row">
-                    <label className="qe-switch-label" htmlFor="qeSubsidyEligible">
-                      <input 
-                        id="qeSubsidyEligible"
-                        name="isSubsidyEligible"
-                        type="checkbox" 
-                        checked={isSubsidyEligible} 
-                        onChange={(e) => setIsSubsidyEligible(e.target.checked)}
-                      />
-                      <span>PM Surya Ghar: Muft Bijli Yojana Central Subsidy</span>
-                    </label>
-                    {isSubsidyEligible && (
-                      <span className="qe-subsidy-badge-green">
-                        ₹78,000/- (Govt DBT)
-                      </span>
-                    )}
-                  </div>
-                  {isSubsidyEligible && (
-                    <div className="qe-subsidy-explanation">
-                      <p className="qe-subsidy-notice">
-                        <strong>Important:</strong> Central Govt. subsidy of <strong>₹78,000/-</strong> is credited directly into the customer's bank account via Direct Benefit Transfer (DBT) post-commissioning.
-                      </p>
-                      <p className="qe-subsidy-subnotice">
-                        * As per MNRE guidelines, the customer pays the full contract amount to Mirror Solar Vision, and the subsidy is claimed directly by the customer from Govt. of India.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="qe-payable-banner">
-                  <div className="qe-payable-label">NET PAYABLE TO MIRROR SOLAR VISION:</div>
-                  <div className="qe-payable-value">₹{financials.grandTotal.toLocaleString('en-IN')}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Hidden on screen, active on print: Standard A4 Proposal Sheet for PDF Download & Direct Print */}
-        <div id="printable-a4-quotation" className="a4-quotation-sheet print-only-sheet">
-          {/* Header with Logo & Locked Company Snapshot */}
-          <div className="a4-header">
-            <div className="a4-logo-col">
-              <img src={logoUrl} alt="Mirror Solar Vision" className="a4-logo-img" />
-              <div className="a4-tagline">{LOCKED_COMPANY_DETAILS.tagline}</div>
-            </div>
-            <div className="a4-company-meta">
-              <h3>{LOCKED_COMPANY_DETAILS.name}</h3>
-              <p>{LOCKED_COMPANY_DETAILS.address}, {LOCKED_COMPANY_DETAILS.city}, {LOCKED_COMPANY_DETAILS.state} - {LOCKED_COMPANY_DETAILS.pinCode}</p>
-              <p><strong>Phone:</strong> {LOCKED_COMPANY_DETAILS.phone} | <strong>Email:</strong> {LOCKED_COMPANY_DETAILS.email}</p>
-              <p><strong>GSTIN:</strong> {LOCKED_COMPANY_DETAILS.gstin} | <strong>PAN:</strong> {LOCKED_COMPANY_DETAILS.panNumber}</p>
-            </div>
-          </div>
-
-          <div className="a4-title-bar">
-            <span>COMMERCIAL SOLAR PROPOSAL & TURNKEY QUOTATION</span>
-            <span>Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-          </div>
-
-          {/* Quotation Ref & Customer Info Grid */}
-          <div className="a4-info-grid">
-            <div className="a4-info-box">
-              <div className="a4-box-title">CUSTOMER INFORMATION</div>
-              <div className="a4-info-row"><span>Name:</span> <strong>{customer.customerName}</strong></div>
-              <div className="a4-info-row"><span>Contact:</span> <strong>+91 {customer.mobileNumber}</strong></div>
-              {customer.email && <div className="a4-info-row"><span>Email:</span> {customer.email}</div>}
-              <div className="a4-info-row"><span>Installation Site:</span> {customer.address || customer.city}, {customer.city} - {customer.pinCode}</div>
-              <div className="a4-info-row"><span>Category:</span> {customer.customerType}</div>
-            </div>
-            <div className="a4-info-box">
-              <div className="a4-box-title">PROPOSAL REFERENCE</div>
-              <div className="a4-info-row"><span>Proposal No:</span> <strong>{initialQuotation?.quotationNumber || 'MSV-PROP-TURNKEY'}</strong></div>
-              <div className="a4-info-row"><span>Validity:</span> {validityDays} Calendar Days</div>
-              <div className="a4-info-row"><span>DISCOM Board:</span> {project.discomName || 'TSSPDCL'}</div>
-              {project.consumerNumber && <div className="a4-info-row"><span>Service No:</span> {project.consumerNumber}</div>}
-              <div className="a4-info-row"><span>Billing Model:</span> Turnkey Contract (5% GST Incl.)</div>
-            </div>
-          </div>
-
-          {/* Plant Technical Specifications */}
-          <div className="a4-specs-banner">
-            <div className="a4-spec-cell">
-              <span className="a4-spec-label">SYSTEM CAPACITY</span>
-              <span className="a4-spec-val">{project.systemCapacityKw} kW</span>
-            </div>
-            <div className="a4-spec-cell">
-              <span className="a4-spec-label">PLANT TECHNOLOGY</span>
-              <span className="a4-spec-val">{project.plantType}</span>
-            </div>
-            <div className="a4-spec-cell">
-              <span className="a4-spec-label">GRID PHASE</span>
-              <span className="a4-spec-val">{project.phaseType}</span>
-            </div>
-            <div className="a4-spec-cell">
-              <span className="a4-spec-label">STRUCTURE TYPE</span>
-              <span className="a4-spec-val">{project.structureType || 'Hot Dip Company Structure'}</span>
-            </div>
-            {project.structureType === 'Hot Dip Company Structure' && (
-              <div className="a4-spec-cell">
-                <span className="a4-spec-label">LEG HEIGHT (F / R)</span>
-                <span className="a4-spec-val">{project.frontLegHeight || '4 ft'} / {project.rearLegHeight || '7 ft'}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Equipment Bill of Materials Table (No Individual Prices) */}
-          <div className="a4-section-title">BILL OF MATERIALS & TECHNICAL SPECIFICATIONS</div>
-          <table className="a4-bom-table">
-            <thead>
-              <tr>
-                <th style={{ width: '35px' }}>#</th>
-                <th>Equipment & Service Description</th>
-                <th>Brand / Technical Specification</th>
-                <th style={{ width: '70px', textAlign: 'center' }}>Qty</th>
-                <th style={{ width: '60px', textAlign: 'center' }}>Unit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, idx) => (
-                <tr key={item.id}>
-                  <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                  <td><strong>{item.name}</strong></td>
-                  <td>{item.brand || 'Tier-1 Certified / ISI Standard'}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'center' }}>{item.unit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Commercial Proposal & Subsidy Section */}
-          <div className="a4-commercial-row">
-            <div className="a4-subsidy-callout">
-              <div className="a4-subsidy-header">
-                GOVT. CENTRAL SUBSIDY (PM SURYA GHAR)
-              </div>
-              <div className="a4-subsidy-amount">
-                ₹78,000/-
-              </div>
-              <p className="a4-subsidy-text">
-                * Eligible Central Govt. Subsidy under PM Surya Ghar Muft Bijli Yojana is credited <strong>directly into customer's bank account via DBT</strong> by MNRE post-commissioning. 
-                <br />
-                <em>(Subsidy is claimed by the customer and is not subtracted from company turnkey invoice).</em>
-              </p>
-            </div>
-
-            <div className="a4-pricing-table-wrap">
-              <table className="a4-pricing-table">
-                <tbody>
-                  <tr>
-                    <td>Project Taxable Base:</td>
-                    <td className="text-right">₹{financials.taxableAmount.toLocaleString('en-IN')}</td>
-                  </tr>
-                  <tr>
-                    <td>GST (5% Inclusive):</td>
-                    <td className="text-right">₹{financials.gstTotal.toLocaleString('en-IN')}</td>
-                  </tr>
-                  <tr className="a4-total-row">
-                    <td><strong>TOTAL PACKAGE PRICE:</strong></td>
-                    <td className="text-right"><strong>₹{financials.grandTotal.toLocaleString('en-IN')}</strong></td>
-                  </tr>
-                  <tr className="a4-payable-row">
-                    <td><strong>NET PAYABLE TO COMPANY:</strong></td>
-                    <td className="text-right"><strong>₹{financials.grandTotal.toLocaleString('en-IN')}</strong></td>
-                  </tr>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Touch-Friendly Card View (Zero horizontal scroll lag) */}
+            <div className="qe-bom-cards-list">
+              {items.map((item, idx) => (
+                <div key={item.id} className="qe-bom-item-card">
+                  <div className="qe-bic-header">
+                    <div className="qe-bic-num-name">
+                      <span className="qe-bic-idx">#{idx + 1}</span>
+                      <input
+                        type="text"
+                        className="qe-bic-name-input font-bold"
+                        value={item.name}
+                        onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                        placeholder="Item Name"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="qe-bic-del-btn"
+                      title="Delete Item"
+                      onClick={() => handleDeleteItem(idx)}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+
+                  <div className="qe-bic-body">
+                    <div className="qe-bic-specs-row">
+                      <select
+                        value={item.category}
+                        onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
+                        className="qe-bic-cat-select"
+                      >
+                        <option value="Solar Panel">Solar Panel</option>
+                        <option value="Inverter">Inverter</option>
+                        <option value="Structure">Structure</option>
+                        <option value="DC Cable">DC Cable</option>
+                        <option value="AC Cable">AC Cable</option>
+                        <option value="Earthing & Lightning">Earthing & LA</option>
+                        <option value="ACDB & DCDB">ACDB / DCDB</option>
+                        <option value="Battery Storage">Battery Storage</option>
+                        <option value="Installation & Commissioning">Installation</option>
+                        <option value="Transportation & Logistics">Transportation</option>
+                        <option value="Civil Works & Foundation">Civil Works</option>
+                        <option value="Accessories">Accessories</option>
+                        <option value="Custom Item">Custom Item</option>
+                      </select>
+                      <input
+                        type="text"
+                        className="qe-bic-brand-input"
+                        value={item.brand || ''}
+                        onChange={(e) => handleItemChange(idx, 'brand', e.target.value)}
+                        placeholder="Brand / Model / Specs"
+                      />
+                    </div>
+
+                    <div className="qe-bic-qty-row">
+                      <div className="qe-bic-stepper">
+                        <span className="qe-bic-stepper-lbl">Qty:</span>
+                        <button
+                          type="button"
+                          className="qe-bic-step-btn"
+                          onClick={() => handleItemChange(idx, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          className="qe-bic-qty-input"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value) || 1)}
+                        />
+                        <button
+                          type="button"
+                          className="qe-bic-step-btn"
+                          onClick={() => handleItemChange(idx, 'quantity', (item.quantity || 1) + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <select
+                        value={item.unit}
+                        onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
+                        className="qe-bic-unit-select"
+                      >
+                        <option value="Nos">Nos</option>
+                        <option value="Watts">Watts</option>
+                        <option value="kW">kW</option>
+                        <option value="Sets">Sets</option>
+                        <option value="Meters">Meters</option>
+                        <option value="Lots">Lots</option>
+                        <option value="Unit">Unit</option>
+                      </select>
+
+                      <div className="qe-bic-move-acts">
+                        <button title="Move Up" onClick={() => handleMoveItem(idx, 'up')} disabled={idx === 0}>
+                          <ArrowUp size={13} />
+                        </button>
+                        <button title="Move Down" onClick={() => handleMoveItem(idx, 'down')} disabled={idx === items.length - 1}>
+                          <ArrowDown size={13} />
+                        </button>
+                        <button title="Duplicate" onClick={() => handleDuplicateItem(idx)}>
+                          <Copy size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="qe-add-bar">
+              <span>Quick add items:</span>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('Solar Panel')}>+ Solar Panel</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('Inverter')}>+ Inverter</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('Structure')}>+ Structure</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('DC Cable')}>+ DC Cable</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('AC Cable')}>+ AC Cable</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('Earthing & Lightning')}>+ Earthing & LA</button>
+              <button className="qe-chip-btn" onClick={() => handleAddItem('Custom Item')}>+ Custom Line</button>
+            </div>
           </div>
 
-          {/* Official Bank Details Banner */}
-          <div className="a4-bank-banner">
-            <div className="a4-bank-col">
-              <strong>Account Name:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.accountName}
+          {/* Section 5: Commercial Pricing Summary (Single Total Price with 5% GST Included Every Time) */}
+          <div className="qe-financials-grid">
+            <div className="qe-notes-card">
+              <h4>Terms & Quotation Conditions</h4>
+              <textarea
+                id="qeTermsAndConditions"
+                name="termsAndConditions"
+                rows={4}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Enter quotation validity, warranty stipulations, installation timeline notes..."
+              />
+              <div className="qe-validity-row">
+                <label htmlFor="qeValidityDays">Quotation Validity:</label>
+                <input
+                  id="qeValidityDays"
+                  name="validityDays"
+                  type="number"
+                  value={validityDays}
+                  onChange={(e) => setValidityDays(Number(e.target.value) || 15)}
+                  style={{ width: '70px' }}
+                />
+                <span>Calendar Days</span>
+              </div>
             </div>
-            <div className="a4-bank-col">
-              <strong>Bank:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.bankName}
-            </div>
-            <div className="a4-bank-col">
-              <strong>A/c Number:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.accountNumber}
-            </div>
-            <div className="a4-bank-col">
-              <strong>IFSC:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.ifscCode}
-            </div>
-            <div className="a4-bank-col">
-              <strong>Branch:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.branch}
-            </div>
-          </div>
 
-          {/* Terms and Signatures */}
-          <div className="a4-footer-grid">
-            <div className="a4-terms-box">
-              <div className="a4-terms-title">Standard Terms & Conditions:</div>
-              <ol>
-                <li>50% Advance with order confirmation, 40% on material delivery, 10% on grid sync.</li>
-                <li>Solar panels carry a 25-year performance warranty; Inverter carries 5-year warranty.</li>
-                <li>Subsidy processing assistance is provided by Mirror Solar Vision under MNRE portal.</li>
-                <li>Quotation valid for {validityDays} calendar days from issue date.</li>
-              </ol>
-            </div>
-            <div className="a4-sign-box">
-              <div className="a4-sign-space"></div>
-              <div className="a4-sign-line">Authorized Signatory</div>
-              <div className="a4-sign-comp">Mirror Solar Vision</div>
+            <div className="qe-summary-table-card">
+              <h4>Commercial Turnkey Proposal</h4>
+
+              {/* Single Total Package Price Input with 5% GST Included */}
+              <div className="qe-single-price-input-box">
+                <label htmlFor="qeTotalPackagePrice" className="qe-single-price-label">
+                  Total Project Package Price (Inclusive of 5% GST) *
+                </label>
+                <div className="qe-total-input-wrapper">
+                  <span className="qe-currency-symbol">₹</span>
+                  <input
+                    id="qeTotalPackagePrice"
+                    name="totalPackagePrice"
+                    type="number"
+                    min="1000"
+                    step="500"
+                    className="qe-total-package-input"
+                    value={project.singleTotalPrice || 195000}
+                    onChange={(e) => setProject({ ...project, singleTotalPrice: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <span className="qe-single-price-hint">Includes turnkey engineering, supply, installation, testing, commissioning & 5% GST</span>
+              </div>
+
+              <div className="qe-summary-row qe-sub-divider">
+                <span>Taxable Project Base:</span>
+                <span>₹{financials.taxableAmount.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="qe-summary-row">
+                <span>GST Amount (5% Included):</span>
+                <span>₹{financials.gstTotal.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="qe-summary-row text-sm text-muted">
+                <span>GST Breakdown:</span>
+                <span>CGST (2.5%): ₹{financials.cgst.toLocaleString('en-IN')} | SGST (2.5%): ₹{financials.sgst.toLocaleString('en-IN')}</span>
+              </div>
+
+              <div className="qe-summary-row qe-total-row">
+                <span>Total Invoice Amount (Turnkey):</span>
+                <span>₹{financials.grandTotal.toLocaleString('en-IN')}</span>
+              </div>
+
+              {/* PM Surya Ghar Subsidy Box: Displayed clearly at ₹78,000/- WITHOUT subtracting from amount */}
+              <div className="qe-subsidy-box">
+                <div className="qe-subsidy-toggle-row">
+                  <label className="qe-switch-label" htmlFor="qeSubsidyEligible">
+                    <input
+                      id="qeSubsidyEligible"
+                      name="isSubsidyEligible"
+                      type="checkbox"
+                      checked={isSubsidyEligible}
+                      onChange={(e) => setIsSubsidyEligible(e.target.checked)}
+                    />
+                    <span>PM Surya Ghar: Muft Bijli Yojana Central Subsidy</span>
+                  </label>
+                  {isSubsidyEligible && (
+                    <span className="qe-subsidy-badge-green">
+                      ₹78,000/- (Govt DBT)
+                    </span>
+                  )}
+                </div>
+                {isSubsidyEligible && (
+                  <div className="qe-subsidy-explanation">
+                    <p className="qe-subsidy-notice">
+                      <strong>Important:</strong> Central Govt. subsidy of <strong>₹78,000/-</strong> is credited directly into the customer's bank account via Direct Benefit Transfer (DBT) post-commissioning.
+                    </p>
+                    <p className="qe-subsidy-subnotice">
+                      * As per MNRE guidelines, the customer pays the full contract amount to Mirror Solar Vision, and the subsidy is claimed directly by the customer from Govt. of India.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="qe-payable-banner">
+                <div className="qe-payable-label">NET PAYABLE TO MIRROR SOLAR VISION:</div>
+                <div className="qe-payable-value">₹{financials.grandTotal.toLocaleString('en-IN')}</div>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Solar ROI Calculator Modal */}
-        <SolarRoiCalculatorModal
-          isOpen={showRoiModal}
-          onClose={() => setShowRoiModal(false)}
-          initialCapacityKw={project.systemCapacityKw}
-          initialCost={financials.grandTotal}
-          initialSubsidy={financials.subsidyAmount}
-          customerName={customer.customerName || 'Valued Customer'}
-          customerPhone={customer.mobileNumber}
-          onApplyToQuotation={(newKw, calculatedCost) => {
-            setProject(prev => ({ ...prev, systemCapacityKw: newKw, singleTotalPrice: calculatedCost || (newKw * 65000) }));
-            showToast(`Applied ${newKw} kW capacity to quotation!`, 'success');
-          }}
-        />
-
-        {/* WhatsApp Smart Communication Modal */}
-        <WhatsAppDispatchModal
-          isOpen={showWhatsAppModal}
-          onClose={() => setShowWhatsAppModal(false)}
-          defaultTemplate="proposal"
-          customerData={{
-            customerName: customer.customerName || 'Valued Customer',
-            customerPhone: customer.mobileNumber,
-            capacityKw: project.systemCapacityKw,
-            quotationNumber: initialQuotation?.quotationNumber || 'DRAFT',
-            grandTotal: financials.grandTotal,
-            subsidyAmount: financials.subsidyAmount,
-            netPayable: financials.netPayableByCustomer
-          }}
-        />
       </div>
+
+      {/* Hidden on screen, active on print: Standard A4 Proposal Sheet for PDF Download & Direct Print */}
+      <div id="printable-a4-quotation" className="a4-quotation-sheet print-only-sheet">
+        {/* Header with Logo & Locked Company Snapshot */}
+        <div className="a4-header">
+          <div className="a4-logo-col">
+            <img src={logoUrl} alt="Mirror Solar Vision" className="a4-logo-img" />
+            <div className="a4-tagline">{LOCKED_COMPANY_DETAILS.tagline}</div>
+          </div>
+          <div className="a4-company-meta">
+            <h3>{LOCKED_COMPANY_DETAILS.name}</h3>
+            <p>{LOCKED_COMPANY_DETAILS.address}, {LOCKED_COMPANY_DETAILS.city}, {LOCKED_COMPANY_DETAILS.state} - {LOCKED_COMPANY_DETAILS.pinCode}</p>
+            <p><strong>Phone:</strong> {LOCKED_COMPANY_DETAILS.phone} | <strong>Email:</strong> {LOCKED_COMPANY_DETAILS.email}</p>
+            <p><strong>GSTIN:</strong> {LOCKED_COMPANY_DETAILS.gstin} | <strong>PAN:</strong> {LOCKED_COMPANY_DETAILS.panNumber}</p>
+          </div>
+        </div>
+
+        <div className="a4-title-bar">
+          <span>COMMERCIAL SOLAR PROPOSAL & TURNKEY QUOTATION</span>
+          <span>Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+        </div>
+
+        {/* Quotation Ref & Customer Info Grid */}
+        <div className="a4-info-grid">
+          <div className="a4-info-box">
+            <div className="a4-box-title">CUSTOMER INFORMATION</div>
+            <div className="a4-info-row"><span>Name:</span> <strong>{customer.customerName}</strong></div>
+            <div className="a4-info-row"><span>Contact:</span> <strong>+91 {customer.mobileNumber}</strong></div>
+            {customer.email && <div className="a4-info-row"><span>Email:</span> {customer.email}</div>}
+            <div className="a4-info-row"><span>Installation Site:</span> {customer.address || customer.city}, {customer.city} - {customer.pinCode}</div>
+            <div className="a4-info-row"><span>Category:</span> {customer.customerType}</div>
+          </div>
+          <div className="a4-info-box">
+            <div className="a4-box-title">PROPOSAL REFERENCE</div>
+            <div className="a4-info-row"><span>Proposal No:</span> <strong>{initialQuotation?.quotationNumber || 'MSV-PROP-TURNKEY'}</strong></div>
+            <div className="a4-info-row"><span>Validity:</span> {validityDays} Calendar Days</div>
+            <div className="a4-info-row"><span>DISCOM Board:</span> {project.discomName || 'TSSPDCL'}</div>
+            {project.consumerNumber && <div className="a4-info-row"><span>Service No:</span> {project.consumerNumber}</div>}
+            <div className="a4-info-row"><span>Billing Model:</span> Turnkey Contract (5% GST Incl.)</div>
+          </div>
+        </div>
+
+        {/* Plant Technical Specifications */}
+        <div className="a4-specs-banner">
+          <div className="a4-spec-cell">
+            <span className="a4-spec-label">SYSTEM CAPACITY</span>
+            <span className="a4-spec-val">{project.systemCapacityKw} kW</span>
+          </div>
+          <div className="a4-spec-cell">
+            <span className="a4-spec-label">PLANT TECHNOLOGY</span>
+            <span className="a4-spec-val">{project.plantType}</span>
+          </div>
+          <div className="a4-spec-cell">
+            <span className="a4-spec-label">GRID PHASE</span>
+            <span className="a4-spec-val">{project.phaseType}</span>
+          </div>
+          <div className="a4-spec-cell">
+            <span className="a4-spec-label">STRUCTURE TYPE</span>
+            <span className="a4-spec-val">{project.structureType || 'Hot Dip Company Structure'}</span>
+          </div>
+          {project.structureType === 'Hot Dip Company Structure' && (
+            <div className="a4-spec-cell">
+              <span className="a4-spec-label">LEG HEIGHT (F / R)</span>
+              <span className="a4-spec-val">{project.frontLegHeight || '4 ft'} / {project.rearLegHeight || '7 ft'}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Equipment Bill of Materials Table (No Individual Prices) */}
+        <div className="a4-section-title">BILL OF MATERIALS & TECHNICAL SPECIFICATIONS</div>
+        <table className="a4-bom-table">
+          <thead>
+            <tr>
+              <th style={{ width: '35px' }}>#</th>
+              <th>Equipment & Service Description</th>
+              <th>Brand / Technical Specification</th>
+              <th style={{ width: '70px', textAlign: 'center' }}>Qty</th>
+              <th style={{ width: '60px', textAlign: 'center' }}>Unit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, idx) => (
+              <tr key={item.id}>
+                <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                <td><strong>{item.name}</strong></td>
+                <td>{item.brand || 'Tier-1 Certified / ISI Standard'}</td>
+                <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>
+                <td style={{ textAlign: 'center' }}>{item.unit}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Commercial Proposal & Subsidy Section */}
+        <div className="a4-commercial-row">
+          <div className="a4-subsidy-callout">
+            <div className="a4-subsidy-header">
+              GOVT. CENTRAL SUBSIDY (PM SURYA GHAR)
+            </div>
+            <div className="a4-subsidy-amount">
+              ₹78,000/-
+            </div>
+            <p className="a4-subsidy-text">
+              * Eligible Central Govt. Subsidy under PM Surya Ghar Muft Bijli Yojana is credited <strong>directly into customer's bank account via DBT</strong> by MNRE post-commissioning.
+              <br />
+              <em>(Subsidy is claimed by the customer and is not subtracted from company turnkey invoice).</em>
+            </p>
+          </div>
+
+          <div className="a4-pricing-table-wrap">
+            <table className="a4-pricing-table">
+              <tbody>
+                <tr>
+                  <td>Project Taxable Base:</td>
+                  <td className="text-right">₹{financials.taxableAmount.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                  <td>GST (5% Inclusive):</td>
+                  <td className="text-right">₹{financials.gstTotal.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr className="a4-total-row">
+                  <td><strong>TOTAL PACKAGE PRICE:</strong></td>
+                  <td className="text-right"><strong>₹{financials.grandTotal.toLocaleString('en-IN')}</strong></td>
+                </tr>
+                <tr className="a4-payable-row">
+                  <td><strong>NET PAYABLE TO COMPANY:</strong></td>
+                  <td className="text-right"><strong>₹{financials.grandTotal.toLocaleString('en-IN')}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Official Bank Details Banner */}
+        <div className="a4-bank-banner">
+          <div className="a4-bank-col">
+            <strong>Account Name:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.accountName}
+          </div>
+          <div className="a4-bank-col">
+            <strong>Bank:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.bankName}
+          </div>
+          <div className="a4-bank-col">
+            <strong>A/c Number:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.accountNumber}
+          </div>
+          <div className="a4-bank-col">
+            <strong>IFSC:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.ifscCode}
+          </div>
+          <div className="a4-bank-col">
+            <strong>Branch:</strong> {LOCKED_COMPANY_DETAILS.bankDetails.branch}
+          </div>
+        </div>
+
+        {/* Terms and Signatures */}
+        <div className="a4-footer-grid">
+          <div className="a4-terms-box">
+            <div className="a4-terms-title">Standard Terms & Conditions:</div>
+            <ol>
+              <li>50% Advance with order confirmation, 40% on material delivery, 10% on grid sync.</li>
+              <li>Solar panels carry a 25-year performance warranty; Inverter carries 5-year warranty.</li>
+              <li>Subsidy processing assistance is provided by Mirror Solar Vision under MNRE portal.</li>
+              <li>Quotation valid for {validityDays} calendar days from issue date.</li>
+            </ol>
+          </div>
+          <div className="a4-sign-box">
+            <div className="a4-sign-space"></div>
+            <div className="a4-sign-line">Authorized Signatory</div>
+            <div className="a4-sign-comp">Mirror Solar Vision</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Solar ROI Calculator Modal */}
+      <SolarRoiCalculatorModal
+        isOpen={showRoiModal}
+        onClose={() => setShowRoiModal(false)}
+        initialCapacityKw={project.systemCapacityKw}
+        initialCost={financials.grandTotal}
+        initialSubsidy={financials.subsidyAmount}
+        customerName={customer.customerName || 'Valued Customer'}
+        customerPhone={customer.mobileNumber}
+        onApplyToQuotation={(newKw, calculatedCost) => {
+          setProject(prev => ({ ...prev, systemCapacityKw: newKw, singleTotalPrice: calculatedCost || (newKw * 65000) }));
+          showToast(`Applied ${newKw} kW capacity to quotation!`, 'success');
+        }}
+      />
+
+      {/* WhatsApp Smart Communication Modal */}
+      <WhatsAppDispatchModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        defaultTemplate="proposal"
+        customerData={{
+          customerName: customer.customerName || 'Valued Customer',
+          customerPhone: customer.mobileNumber,
+          capacityKw: project.systemCapacityKw,
+          quotationNumber: initialQuotation?.quotationNumber || 'DRAFT',
+          grandTotal: financials.grandTotal,
+          subsidyAmount: financials.subsidyAmount,
+          netPayable: financials.netPayableByCustomer
+        }}
+      />
+    </div>
   );
 }
 

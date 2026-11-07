@@ -42,8 +42,8 @@ const crmContextCode = fs.readFileSync('src/context/CRMContext.tsx', 'utf8');
 assert(crmContextCode.includes('crm_deleted_users_cache'), 'Deleted user cache key must exist');
 console.log('  ✓ PASS: Deleted user cache key active in localStorage');
 
-assert(crmContextCode.includes('status: \'Archived\''), 'Archived tombstone must be set on deletion');
-console.log('  ✓ PASS: Soft deletion marks status as "Archived"');
+assert(crmContextCode.includes('status: "Inactive"') || crmContextCode.includes("status: 'Inactive'"), 'Inactive status must be set on deletion');
+console.log('  ✓ PASS: Soft deletion marks status as "Inactive"');
 
 assert(crmContextCode.includes('isDeleted: true'), 'isDeleted flag must be set on deleted records');
 console.log('  ✓ PASS: isDeleted tombstone boolean set in Firestore payload');
