@@ -9,12 +9,14 @@ import WhatsAppBuddy from './components/WhatsAppBuddy';
 import VersionUpdateBanner from './components/VersionUpdateBanner';
 import EnvironmentIndicator from './components/EnvironmentIndicator';
 
-// Lazy-loaded top-level views for rapid initial startup
-const RoleSelection = lazy(() => import('./RoleSelection'));
-const LoginScreen = lazy(() => import('./LoginScreen'));
-const AdminDashboard = lazy(() => import('./AdminDashboard'));
-const EmployeeApp = lazy(() => import('./employee/EmployeeApp'));
-const DealerApp = lazy(() => import('./dealer/DealerApp'));
+import { lazyRetry } from './utils/lazyRetry';
+
+// Lazy-loaded top-level views for rapid initial startup with auto-retry
+const RoleSelection = lazyRetry(() => import('./RoleSelection'));
+const LoginScreen = lazyRetry(() => import('./LoginScreen'));
+const AdminDashboard = lazyRetry(() => import('./AdminDashboard'));
+const EmployeeApp = lazyRetry(() => import('./employee/EmployeeApp'));
+const DealerApp = lazyRetry(() => import('./dealer/DealerApp'));
 
 import { StockProvider } from './context/StockContext';
 import { CRMProvider } from './context/CRMContext';

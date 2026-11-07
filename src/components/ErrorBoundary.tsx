@@ -37,6 +37,21 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
     console.error('CRM Uncaught Runtime Error:', error, errorInfo);
+
+    // Auto-reload on deployment chunk mismatch
+    const isChunkLoadError = 
+      error?.message?.includes('dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.message?.includes('Failed to fetch');
+
+    if (isChunkLoadError && typeof window !== 'undefined') {
+      const lastReload = sessionStorage.getItem('crm_chunk_reload');
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem('crm_chunk_reload', now.toString());
+        window.location.reload();
+      }
+    }
   }
 
   handleReset = () => {
