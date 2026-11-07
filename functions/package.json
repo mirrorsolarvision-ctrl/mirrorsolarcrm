@@ -9,7 +9,7 @@
     "firebase-functions": "^6.1.1"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   }
 }
 
