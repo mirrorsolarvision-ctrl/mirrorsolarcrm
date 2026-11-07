@@ -758,10 +758,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder={
                     role === 'Dealer' 
-                      ? "e.g. hussain@dealer.in or 9100309431" 
+                      ? "Enter your Dealer Email, Phone or Code" 
                       : role === 'Admin' 
-                        ? "e.g. mirrorsolarvision@gmail.com or 9849810668" 
-                        : "e.g. bhavani.telecaller@mirrorsolar.in or 9848123456"
+                        ? "Enter your Admin Email, Phone or Username" 
+                        : "Enter your Employee Email, Phone or ID"
                   }
                   required
                   autoFocus
