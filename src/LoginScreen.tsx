@@ -396,12 +396,20 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       }
     } catch (authErr: any) {
       console.warn('Firebase authentication failed:', authErr.code || authErr.message);
-      await recordFailedAttempt(targetEmail);
+      
+      // ONLY penalize and record failed attempt for genuine credential mismatches!
+      // Do NOT lock out users when there is a network error, offline connection, or Firebase server hiccup.
+      const isCredentialError = authErr.code === 'auth/invalid-credential' || 
+                                authErr.code === 'auth/wrong-password' || 
+                                authErr.code === 'auth/user-not-found';
 
-      if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/user-not-found') {
+      if (isCredentialError) {
+        await recordFailedAttempt(targetEmail);
         setErrorMsg('Invalid username or password. Please verify credentials and try again.');
       } else if (authErr.code === 'auth/too-many-requests') {
         setErrorMsg('Access temporarily blocked due to unusual traffic. Please reset your password or try again later.');
+      } else if (authErr.code === 'auth/network-request-failed') {
+        setErrorMsg('Network error: Unable to reach Firebase Authentication. Please check your internet connection and try again.');
       } else {
         setErrorMsg(`Authentication failed (${authErr.code || 'Check network connection'}). Please verify credentials.`);
       }
@@ -555,11 +563,34 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           {lockoutRemainingSec > 0 && (
             <div className="login-error-banner" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' }}>
               <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-              <div>
+              <div style={{ flex: 1 }}>
                 <strong>Security Lockout Active</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem' }}>
                   Device locked due to multiple failed attempts. Please wait {Math.floor(lockoutRemainingSec / 60)}m {String(lockoutRemainingSec % 60).padStart(2, '0')}s before retrying.
                 </p>
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('crm_login_lockout_until');
+                      localStorage.removeItem('crm_login_failed_attempts');
+                      setLockoutRemainingSec(0);
+                      setErrorMsg('');
+                    }}
+                    style={{
+                      background: '#b91c1c',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear Local Device Lockout
+                  </button>
+                </div>
               </div>
             </div>
           )}
