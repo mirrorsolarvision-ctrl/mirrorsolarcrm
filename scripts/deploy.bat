@@ -18,7 +18,7 @@ if /i "%1"=="rules" set DEPLOY_TARGET=rules
 
 :: 1. Build Frontend
 echo [1/3] Building production bundle...
-call npm run build
+call npm run build:production
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Build failed! Aborting deployment.
