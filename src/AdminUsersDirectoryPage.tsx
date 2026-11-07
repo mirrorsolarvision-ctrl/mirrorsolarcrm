@@ -75,7 +75,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
     email: '',
     phone: '',
     address: '',
-    password: 'Password123!',
+    password: 'Mirror@1432',
     employeeCategory: 'Marketing Employee',
     status: 'Active' as UserStatus,
     dealerId: ''
@@ -133,7 +133,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
       name: user.name || '',
       email: user.email || '',
       phone: user.phone || '',
-      password: (user as any).password || 'Password123!',
+      password: (user as any).password || 'Mirror@1432',
       employeeCategory: (user as any).employeeCategory || 'Marketing Employee',
       address: (user as any).address || '',
       status: user.status || 'Active'
@@ -273,7 +273,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
 
     setIsAddUserModalOpen(false);
     setNewUserForm({
-      name: '', id: '', email: '', phone: '', address: '', password: 'Password123!', employeeCategory: 'Marketing Employee', status: 'Active', dealerId: ''
+      name: '', id: '', email: '', phone: '', address: '', password: 'Mirror@1432', employeeCategory: 'Marketing Employee', status: 'Active', dealerId: ''
     });
   };
 
@@ -403,7 +403,7 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
             const isDealer = user.role === 'Dealer';
             const userFeatures: DealerFeatures = user.features || (isDealer ? defaultDealerFeatures : defaultEmployeeFeatures);
             const activeFeatureCount = Object.values(userFeatures).filter(Boolean).length;
-            const currentPass = (user as any).password || 'Password123!';
+            const currentPass = (user as any).password || 'Mirror@1432';
             const isRevealed = !!revealedPasswords[user.id];
             const empCat = (user as any).employeeCategory || (isDealer ? 'Authorized Dealer' : 'Staff');
 

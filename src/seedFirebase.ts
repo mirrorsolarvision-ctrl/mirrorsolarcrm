@@ -14,7 +14,7 @@ export const seedSampleLeads = async () => {
 };
 
 export const seedFirebaseUsers = async (employees: Employee[] = [], dealers: Dealer[] = []) => {
-  const defaultPassword = 'Password123!';
+  const defaultPassword = 'Mirror@1432';
   let seededCount = 0;
   let lastError = '';
 
