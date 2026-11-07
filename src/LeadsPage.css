@@ -2009,7 +2009,8 @@
     text-decoration: none;
     cursor: pointer;
     transition: all 0.15s ease;
-    min-height: 38px;
+    min-height: 40px;
+    min-width: 40px;
     box-sizing: border-box;
   }
 
