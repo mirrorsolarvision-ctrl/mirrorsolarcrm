@@ -1202,10 +1202,15 @@
   min-height: 0;
 }
 
-/* Fix modal z-index conflicts with global CSS */
+/* Fix modal z-index conflicts with global CSS & lead-detail-drawer (2200) */
 .leads-page .modal-overlay,
 .modal-overlay {
-  z-index: 1050 !important;
+  z-index: 3000 !important;
+}
+
+.leads-page .modal-content,
+.modal-content {
+  z-index: 3001 !important;
 }
 
 /* ==========================================================================

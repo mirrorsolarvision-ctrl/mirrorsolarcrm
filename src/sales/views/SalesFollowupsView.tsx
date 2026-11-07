@@ -16,7 +16,7 @@ interface SalesFollowupsViewProps {
 export default function SalesFollowupsView({
   onNavigateSubView,
   onOpenCallLogModal,
-  onOpenWhatsApp,
+  onOpenWhatsApp: _onOpenWhatsApp,
   initialFilter = 'today'
 }: SalesFollowupsViewProps) {
   const { currentUser, leads, updateLead, addActivity } = useCRM();
@@ -257,16 +257,6 @@ export default function SalesFollowupsView({
                       onClick={() => onNavigateSubView && onNavigateSubView('qualification', { leadId: lead.id })}
                     >
                       <UserCheck size={13} /> Qualify
-                    </button>
-
-                    {/* Action 3: WhatsApp */}
-                    <button 
-                      className="sales-btn-secondary" 
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', color: '#16a34a', borderColor: '#bbf7d0' }}
-                      title="Send WhatsApp Message"
-                      onClick={() => onOpenWhatsApp ? onOpenWhatsApp(lead) : (onNavigateSubView && onNavigateSubView('whatsapp', { leadId: lead.id }))}
-                    >
-                      <MessageSquare size={13} />
                     </button>
 
                     {/* Action 4: Reschedule */}

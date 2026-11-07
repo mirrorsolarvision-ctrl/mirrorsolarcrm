@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { db, auth } from '../firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { seedSampleLeads } from '../seedFirebase';
 import { sanitizeForFirestore } from '../utils/firestoreUtils';
 import { dispatchToast } from './UIContext';
@@ -213,7 +213,7 @@ export type InstallationApprovalStatus = 'None' | 'Pending' | 'Approved' | 'Reje
 export type PaymentMilestoneType = 'Pre-Installation' | 'Post-Installation';
 export type PaymentMilestoneStatus = 'Pending Settlement' | 'Settled' | 'Received';
 
-export type CustomerPaymentType = 'Booking / Advance' | 'First Milestone' | 'Bank Loan Disbursal' | 'Final Payment' | 'Subsidy Received' | 'Other';
+export type CustomerPaymentType = 'Booking / Advance' | 'Token' | 'First Milestone' | 'Bank Loan Disbursal' | 'Final Payment' | 'Subsidy Received' | 'Other';
 export type CustomerPaymentMode = 'UPI' | 'Bank Transfer / NEFT' | 'Net Banking' | 'Cheque' | 'Cash' | 'Bank Loan' | 'Credit / Debit Card' | 'Other';
 export type CustomerPaymentStatus = 'Pending Verification' | 'Verified' | 'Rejected';
 
@@ -336,6 +336,14 @@ export interface MockLead {
   town?: string;
   district?: string;
   capacityKw?: string;
+  capacity?: string;
+  customerInterest?: 'Interested' | 'Not Interested' | 'Evaluating';
+  budgetReadiness?: 'Budget Ready' | 'Seeking Loan' | 'Price Sensitive';
+  roofSuitability?: 'RCC Flat Roof Suitable' | 'Tin Shed' | 'Tiled Roof' | 'Site Survey Required';
+  siteVisitRequired?: boolean;
+  managerEscalated?: boolean;
+  managerEscalationReason?: string;
+  lastContactDate?: string;
   monthlyBill?: number;
   date?: string;
 }
@@ -1373,10 +1381,28 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 1. Listen for Live Users (Employees & Dealers)
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const archivedUserKeys = new Set<string>();
+      try {
+        const cached = JSON.parse(localStorage.getItem('crm_deleted_users_cache') || '[]');
+        if (Array.isArray(cached)) {
+          cached.forEach(k => archivedUserKeys.add(String(k).toLowerCase().trim()));
+        }
+      } catch (e) {}
+
       const userMap = new Map<string, User>();
       snapshot.forEach(docSnap => {
-        const data = docSnap.data() as User;
+        const data = docSnap.data() as any;
         const key = (data.id || docSnap.id).toLowerCase().trim();
+        if (data.isDeleted === true || (data.status as any) === 'Archived' || (data.status as any) === 'Deleted') {
+          archivedUserKeys.add(key);
+          if (data.email) archivedUserKeys.add(data.email.toLowerCase().trim());
+          if (data.code) archivedUserKeys.add(data.code.toLowerCase().trim());
+          if (data.employeeId) archivedUserKeys.add(data.employeeId.toLowerCase().trim());
+          if (data.dealerCode) archivedUserKeys.add(data.dealerCode.toLowerCase().trim());
+          if (data.name) archivedUserKeys.add(data.name.toLowerCase().trim());
+          if (data.address && data.name) archivedUserKeys.add(`${data.name.toLowerCase().trim()}_${data.address.toLowerCase().trim()}`);
+          return;
+        }
         userMap.set(key, { ...data, id: data.id || docSnap.id });
       });
       const allUsers = Array.from(userMap.values());
@@ -1384,6 +1410,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const uniqueUsers: User[] = [];
       const seenIdentity = new Set<string>();
       allUsers.forEach(u => {
+        if ((u as any).isDeleted || (u.status as any) === 'Archived' || (u.status as any) === 'Deleted') return;
         const rawEmail = (u.email || '').trim().toLowerCase();
         const isValidEmail = rawEmail.includes('@') && rawEmail.length > 5 && rawEmail !== '-';
         const emailKey = isValidEmail ? rawEmail : '';
@@ -1445,14 +1472,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
-      // Merge with default company dealers to ensure all 11 dealers are always available
       const mergedDealersMap = new Map<string, Dealer>();
       defaultCompanyDealers.forEach(d => {
-        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        const normName = (d.name || '').toLowerCase().trim();
+        const normAddr = (d.address || '').toLowerCase().trim();
+        const k = normName + '_' + normAddr;
+        const dId = (d.id || '').toLowerCase().trim();
+        const dCode = (d.code || d.dealerCode || '').toLowerCase().trim();
+        if (archivedUserKeys.has(dId) || archivedUserKeys.has(k) || archivedUserKeys.has(normName) || archivedUserKeys.has(dCode)) return;
         mergedDealersMap.set(k, d);
       });
       finalDealers.forEach(d => {
-        const k = (d.name || '').toLowerCase().trim() + '_' + (d.address || '').toLowerCase().trim();
+        const normName = (d.name || '').toLowerCase().trim();
+        const normAddr = (d.address || '').toLowerCase().trim();
+        const k = normName + '_' + normAddr;
+        const dId = (d.id || '').toLowerCase().trim();
+        const dCode = (d.code || d.dealerCode || '').toLowerCase().trim();
+        if (archivedUserKeys.has(dId) || archivedUserKeys.has(k) || archivedUserKeys.has(normName) || archivedUserKeys.has(dCode)) return;
         mergedDealersMap.set(k, { ...mergedDealersMap.get(k), ...d });
       });
       const resolvedDealers = Array.from(mergedDealersMap.values());
@@ -1460,10 +1496,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const mergedEmpMap = new Map<string, Employee>();
       defaultCompanyEmployees.forEach(emp => {
         const key = (emp.id || emp.code || emp.email || emp.name).toLowerCase().trim();
+        if (archivedUserKeys.has(key) || (emp.email && archivedUserKeys.has(emp.email.toLowerCase().trim())) || (emp.code && archivedUserKeys.has(emp.code.toLowerCase().trim())) || (emp.name && archivedUserKeys.has(emp.name.toLowerCase().trim()))) return;
         mergedEmpMap.set(key, emp);
       });
       empList.forEach(emp => {
         const key = (emp.id || emp.code || emp.email || emp.name).toLowerCase().trim();
+        if (archivedUserKeys.has(key) || (emp.email && archivedUserKeys.has(emp.email.toLowerCase().trim())) || (emp.code && archivedUserKeys.has(emp.code.toLowerCase().trim())) || (emp.name && archivedUserKeys.has(emp.name.toLowerCase().trim()))) return;
         mergedEmpMap.set(key, { ...mergedEmpMap.get(key), ...emp });
       });
       setEmployees(Array.from(mergedEmpMap.values()));
@@ -1669,10 +1707,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateEmployee = async (id: string, updates: Partial<Employee>) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    const target = employees.find(e => e.id === id);
+    const merged = { ...target, ...updates, id, role: 'Employee' };
     try {
-      await updateDoc(doc(db, 'users', id), sanitizeForFirestore(updates));
+      await setDoc(doc(db, 'users', id), sanitizeForFirestore(merged), { merge: true });
     } catch (err) {
-      console.error("Error updating employee:", err);
+      console.warn("Error updating employee in users:", err);
     }
   };
 
@@ -1721,13 +1761,15 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateDealer = async (id: string, updates: Partial<Dealer>) => {
     setDealers(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    const target = dealers.find(d => d.id === id);
+    const merged = { ...target, ...updates, id, role: 'Dealer' };
     try {
-      await updateDoc(doc(db, 'users', id), sanitizeForFirestore(updates));
+      await setDoc(doc(db, 'users', id), sanitizeForFirestore(merged), { merge: true });
     } catch (err) {
       console.warn("Error updating dealer in users:", err);
     }
     try {
-      await setDoc(doc(db, 'dealers', id), sanitizeForFirestore(updates), { merge: true });
+      await setDoc(doc(db, 'dealers', id), sanitizeForFirestore(merged), { merge: true });
     } catch (err) {
       console.warn("Error updating dealer in dealers:", err);
     }
@@ -1777,11 +1819,32 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteDealer = async (id: string) => {
+    const target = dealers.find(d => d.id === id);
+    const tombstoneKeys = [id.toLowerCase().trim()];
+    if (target?.email) tombstoneKeys.push(target.email.toLowerCase().trim());
+    if (target?.code) tombstoneKeys.push(target.code.toLowerCase().trim());
+    if (target?.dealerCode) tombstoneKeys.push(target.dealerCode.toLowerCase().trim());
+    if (target?.name) tombstoneKeys.push(target.name.toLowerCase().trim());
+    if (target?.name && target?.address) tombstoneKeys.push(`${target.name.toLowerCase().trim()}_${target.address.toLowerCase().trim()}`);
+
+    try {
+      const cached = JSON.parse(localStorage.getItem('crm_deleted_users_cache') || '[]');
+      const updated = Array.from(new Set([...cached, ...tombstoneKeys]));
+      localStorage.setItem('crm_deleted_users_cache', JSON.stringify(updated));
+    } catch (e) {}
+
     setDealers(prev => prev.filter(d => d.id !== id));
     try {
-      await deleteDoc(doc(db, 'users', id));
+      await setDoc(doc(db, 'users', id), {
+        id,
+        isDeleted: true,
+        status: 'Archived',
+        deletedAt: new Date().toISOString(),
+        ...(target?.email ? { email: target.email } : {}),
+        ...(target?.name ? { name: target.name } : {})
+      }, { merge: true });
     } catch (err) {
-      console.warn("Error deleting dealer from users:", err);
+      console.warn("Error archiving dealer in users:", err);
     }
     try {
       await deleteDoc(doc(db, 'dealers', id));
@@ -1799,11 +1862,31 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteEmployee = async (id: string) => {
+    const target = employees.find(e => e.id === id);
+    const tombstoneKeys = [id.toLowerCase().trim()];
+    if (target?.email) tombstoneKeys.push(target.email.toLowerCase().trim());
+    if (target?.code) tombstoneKeys.push(target.code.toLowerCase().trim());
+    if (target?.employeeId) tombstoneKeys.push(target.employeeId.toLowerCase().trim());
+    if (target?.name) tombstoneKeys.push(target.name.toLowerCase().trim());
+
+    try {
+      const cached = JSON.parse(localStorage.getItem('crm_deleted_users_cache') || '[]');
+      const updated = Array.from(new Set([...cached, ...tombstoneKeys]));
+      localStorage.setItem('crm_deleted_users_cache', JSON.stringify(updated));
+    } catch (e) {}
+
     setEmployees(prev => prev.filter(e => e.id !== id));
     try {
-      await deleteDoc(doc(db, 'users', id));
+      await setDoc(doc(db, 'users', id), {
+        id,
+        isDeleted: true,
+        status: 'Archived',
+        deletedAt: new Date().toISOString(),
+        ...(target?.email ? { email: target.email } : {}),
+        ...(target?.name ? { name: target.name } : {})
+      }, { merge: true });
     } catch (err) {
-      console.warn("Error deleting employee from users:", err);
+      console.warn("Error archiving employee in users:", err);
     }
     try {
       await deleteDoc(doc(db, 'employees', id));
@@ -2206,6 +2289,30 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         payments: updatedPayments,
         updatedAt: new Date().toISOString()
       });
+
+      // Automatic quotation release upon verified token payment (₹5,000 - ₹15,000 or Token type)
+      if (status === 'Verified') {
+        const verifiedItem = existingList.find(p => p.id === paymentId);
+        if (verifiedItem && (verifiedItem.paymentType === 'Token' || verifiedItem.amount >= 5000)) {
+          try {
+            const quotationsQuery = query(collection(db, 'quotations'), where('leadId', '==', leadId));
+            const qSnap = await getDocs(quotationsQuery);
+            qSnap.forEach(async (qDoc) => {
+              await updateDoc(doc(db, 'quotations', qDoc.id), {
+                isReleased: true,
+                releasedAt: new Date().toISOString(),
+                releasedBy: currentUser?.name || 'Accounts Admin (Auto-Release)',
+                tokenPaymentStatus: 'Verified',
+                tokenPaymentReceived: verifiedItem.amount,
+                tokenPaymentRef: verifiedItem.referenceNumber || '',
+                updatedAt: new Date().toISOString()
+              });
+            });
+          } catch (qErr) {
+            console.warn('Auto quotation release check notice:', qErr);
+          }
+        }
+      }
 
       await addActivity({
         type: status === 'Verified' ? 'Customer Payment Verified' : 'Customer Payment Rejected',

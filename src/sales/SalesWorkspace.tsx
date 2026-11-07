@@ -88,7 +88,6 @@ export default function SalesWorkspace({
     { id: 'qualification', label: 'Customer Qualification', icon: UserCheck },
     { id: 'pipeline', label: 'Sales Pipeline (12 Stages)', icon: GitFork },
     { id: 'followups', label: 'Follow-ups & Tasks', icon: Clock, badge: overdueFollowupsCount },
-    { id: 'whatsapp', label: 'WhatsApp Centre', icon: MessageSquare },
     { id: 'quotations', label: 'Quotations', icon: FileText },
     { id: 'bookings', label: 'Bookings & Payments', icon: CreditCard },
     { id: 'dealers', label: 'Site Survey & Dealers', icon: Building },
@@ -121,13 +120,6 @@ export default function SalesWorkspace({
             onClick={() => handleNavigateSubView('telecalling')}
           >
             <PhoneCall size={15} /> Dial Desk
-          </button>
-          <button 
-            className="sales-btn-primary"
-            style={{ background: '#16a34a' }}
-            onClick={() => handleNavigateSubView('whatsapp')}
-          >
-            <MessageSquare size={15} /> WhatsApp Dispatch
           </button>
         </div>
       </div>

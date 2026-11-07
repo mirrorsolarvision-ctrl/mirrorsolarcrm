@@ -194,6 +194,17 @@ export interface Quotation {
   discountApprovedAt?: string;
   discountRejectionReason?: string;
   
+  // Token Payment & Automatic Release Gate
+  tokenPaymentRequired?: boolean;
+  tokenAmountExpected?: number;
+  tokenPaymentReceived?: number;
+  tokenPaymentStatus?: 'Pending' | 'Verified' | 'Exempt';
+  tokenPaymentRef?: string;
+  tokenPaymentDate?: string;
+  isReleased?: boolean;
+  releasedAt?: string;
+  releasedBy?: string;
+
   // Version Tree
   versionHistory?: QuotationVersionRecord[];
 }

@@ -471,3 +471,67 @@ export function getItemTypeForCategory(category: string): 'INVENTORY_ITEM' | 'SE
   }
 }
 
+/**
+ * Calculates standard residential package price based on capacity:
+ * - 3 kW standard baseline = ₹2,10,000
+ * - For capacity > 3 kW = ₹2,10,000 + (Capacity - 3) * ₹55,000
+ * - Optional 2 kW package = ₹1,55,000 (configurable)
+ * - Floor protection rate = ₹45,000 / kW (minimum acceptable price)
+ */
+export function calculateStandardPackagePrice(
+  capacityKw: number,
+  custom2KwPrice: number = 155000
+): number {
+  const cap = Math.max(0.5, Number(capacityKw) || 3);
+  if (cap <= 2) {
+    if (cap === 2) return custom2KwPrice;
+    return Math.round(custom2KwPrice * (cap / 2));
+  }
+  if (cap === 3) {
+    return 210000;
+  }
+  // For capacity > 3 kW
+  return Math.round(210000 + (cap - 3) * 55000);
+}
+
+/**
+ * Validates floor protection for quotation pricing:
+ * Ensures quoted price does not fall below minimum threshold (₹45,000/kW)
+ * and discounts exceeding 20% require Admin approval.
+ */
+export function evaluateQuotationPricingPolicy(
+  systemCapacityKw: number,
+  finalPrice: number,
+  discountAmount: number = 0
+): {
+  isBelowFloor: boolean;
+  floorPrice: number;
+  requiresAdminApproval: boolean;
+  approvalReason?: string;
+} {
+  const cap = Math.max(0.5, Number(systemCapacityKw) || 3);
+  const floorRatePerKw = 45000;
+  const floorPrice = cap * floorRatePerKw;
+  const standardPrice = calculateStandardPackagePrice(cap);
+
+  const isBelowFloor = finalPrice < floorPrice;
+  const discountPercent = standardPrice > 0 ? (discountAmount / standardPrice) * 100 : 0;
+  const isExceptionalDiscount = discountPercent > 20 || discountAmount > 25000;
+
+  const requiresAdminApproval = isBelowFloor || isExceptionalDiscount;
+  let approvalReason: string | undefined;
+
+  if (isBelowFloor) {
+    approvalReason = `Quoted price ₹${finalPrice.toLocaleString('en-IN')} is below the company floor protection price (₹${floorPrice.toLocaleString('en-IN')} at ₹45,000/kW).`;
+  } else if (isExceptionalDiscount) {
+    approvalReason = `Discount ₹${discountAmount.toLocaleString('en-IN')} (${Math.round(discountPercent)}%) exceeds standard permitted limit (20% or ₹25,000).`;
+  }
+
+  return {
+    isBelowFloor,
+    floorPrice,
+    requiresAdminApproval,
+    approvalReason
+  };
+}
+

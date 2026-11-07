@@ -41,6 +41,9 @@ interface QuotationContextType {
   cancelQuotation: (id: string, reason?: string) => Promise<void>;
   duplicateQuotation: (id: string) => Promise<Quotation>;
   updateQuotationStatus: (id: string, status: QuotationStatus, reason?: string) => Promise<void>;
+  releaseQuotation: (id: string, tokenPaymentAmount: number, utrRef?: string) => Promise<void>;
+  approveQuotationDiscount: (id: string, approverName: string) => Promise<void>;
+  rejectQuotationDiscount: (id: string, rejectionReason: string) => Promise<void>;
   getQuotationById: (id: string) => Quotation | undefined;
   getQuotationsByLeadId: (leadId: string) => Quotation[];
 }
@@ -419,6 +422,99 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
+  /**
+   * Automatically or manually releases quotation upon verified token payment (₹5,000 - ₹15,000)
+   */
+  const releaseQuotation = async (id: string, tokenPaymentAmount: number, utrRef?: string) => {
+    const existing = quotations.find((q) => q.id === id);
+    if (!existing) return;
+
+    const now = new Date().toISOString();
+    const updates: Partial<Quotation> = {
+      isReleased: true,
+      releasedAt: now,
+      releasedBy: crmUser?.name || authUser?.email || 'Accounts Admin',
+      tokenPaymentReceived: tokenPaymentAmount,
+      tokenPaymentStatus: 'Verified',
+      tokenPaymentRef: utrRef || '',
+      tokenPaymentDate: now,
+      updatedAt: now
+    };
+
+    try {
+      await updateDoc(doc(db, 'quotations', id), updates);
+    } catch (err) {
+      setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+    }
+
+    await logAction({
+      action: 'QUOTATION_RELEASED',
+      entityType: 'Quotation',
+      entityId: id,
+      entityLabel: `${existing.quotationNumber} Released (Token: ₹${tokenPaymentAmount.toLocaleString('en-IN')})`,
+      reason: `Quotation released upon verified token payment (Ref: ${utrRef || 'N/A'})`
+    });
+  };
+
+  /**
+   * Approves exceptional quotation discount (Admin only)
+   */
+  const approveQuotationDiscount = async (id: string, approverName: string) => {
+    const existing = quotations.find((q) => q.id === id);
+    if (!existing) return;
+
+    const now = new Date().toISOString();
+    const updates: Partial<Quotation> = {
+      discountApprovalStatus: 'Approved',
+      discountApprovedBy: approverName,
+      discountApprovedAt: now,
+      updatedAt: now
+    };
+
+    try {
+      await updateDoc(doc(db, 'quotations', id), updates);
+    } catch (err) {
+      setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+    }
+
+    await logAction({
+      action: 'QUOTATION_DISCOUNT_APPROVED',
+      entityType: 'Quotation',
+      entityId: id,
+      entityLabel: existing.quotationNumber,
+      reason: `Exceptional discount approved by Admin ${approverName}`
+    });
+  };
+
+  /**
+   * Rejects exceptional quotation discount (Admin only)
+   */
+  const rejectQuotationDiscount = async (id: string, rejectionReason: string) => {
+    const existing = quotations.find((q) => q.id === id);
+    if (!existing) return;
+
+    const now = new Date().toISOString();
+    const updates: Partial<Quotation> = {
+      discountApprovalStatus: 'Rejected',
+      discountRejectionReason: rejectionReason,
+      updatedAt: now
+    };
+
+    try {
+      await updateDoc(doc(db, 'quotations', id), updates);
+    } catch (err) {
+      setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+    }
+
+    await logAction({
+      action: 'QUOTATION_DISCOUNT_REJECTED',
+      entityType: 'Quotation',
+      entityId: id,
+      entityLabel: existing.quotationNumber,
+      reason: `Discount rejected: ${rejectionReason}`
+    });
+  };
+
   const getQuotationById = (id: string) => quotations.find((q) => q.id === id);
   const getQuotationsByLeadId = (leadId: string) => quotations.filter((q) => q.leadId === leadId);
 
@@ -435,6 +531,9 @@ export const QuotationProvider: React.FC<{ children: ReactNode }> = ({ children 
         cancelQuotation,
         duplicateQuotation,
         updateQuotationStatus,
+        releaseQuotation,
+        approveQuotationDiscount,
+        rejectQuotationDiscount,
         getQuotationById,
         getQuotationsByLeadId
       }}

@@ -680,16 +680,78 @@ export default function CallLeadsPage() {
 
                   <div className="cl-form-group">
                     <label>Required Solar Capacity</label>
-                    <select 
-                      value={newForm.capacityKw}
-                      onChange={e => setNewForm({ ...newForm, capacityKw: e.target.value })}
-                    >
-                      <option value="2 kW">2 kW (Residential)</option>
-                      <option value="3 kW">3 kW (PM Surya Ghar Ideal)</option>
-                      <option value="5 kW">5 kW (Large Home / Business)</option>
-                      <option value="10 kW">10 kW (Commercial Rooftop)</option>
-                      <option value="15 kW+">15 kW+ (Commercial / Industrial)</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 3 or 3.5 kW"
+                        value={newForm.capacityKw}
+                        onChange={e => setNewForm({ ...newForm, capacityKw: e.target.value })}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, capacityKw: '3 kW' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newForm.capacityKw.startsWith('3') ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newForm.capacityKw.startsWith('3') ? '#e0f2fe' : '#f8fafc',
+                          color: newForm.capacityKw.startsWith('3') ? '#0369a1' : '#475569',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        3 kW (Recommended)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, capacityKw: '2 kW' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newForm.capacityKw.startsWith('2') ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newForm.capacityKw.startsWith('2') ? '#e0f2fe' : '#f8fafc',
+                          color: newForm.capacityKw.startsWith('2') ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        2 kW (Optional)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, capacityKw: '5 kW' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newForm.capacityKw.startsWith('5') ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newForm.capacityKw.startsWith('5') ? '#e0f2fe' : '#f8fafc',
+                          color: newForm.capacityKw.startsWith('5') ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        5 kW
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, capacityKw: '10 kW' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newForm.capacityKw.startsWith('10') ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newForm.capacityKw.startsWith('10') ? '#e0f2fe' : '#f8fafc',
+                          color: newForm.capacityKw.startsWith('10') ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        10 kW
+                      </button>
+                    </div>
                   </div>
 
                   <div className="cl-form-group">

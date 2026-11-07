@@ -202,7 +202,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
         </div>
       </div>
 
-      {/* 💼 PARTNER COMMISSION & EARNINGS CARD */}
+      {/* 💼 PARTNER EARNINGS CARD */}
       <div style={{
         background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)',
         borderRadius: '16px',
@@ -218,8 +218,8 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
               <Wallet size={22} color="#a7f3d0" />
             </div>
             <div>
-              <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ecfdf5'}}>My Dealership Commission</h3>
-              <p style={{margin: 0, fontSize: '0.8rem', color: '#a7f3d0'}}>Contracted Rate: ₹{commissionSummary.commissionRatePerKw.toLocaleString('en-IN')} / kW installed</p>
+              <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ecfdf5'}}>My Dealership Partner Earnings</h3>
+              <p style={{margin: 0, fontSize: '0.8rem', color: '#a7f3d0'}}>Contracted Earnings Rate: ₹{commissionSummary.commissionRatePerKw.toLocaleString('en-IN')} / kW installed</p>
             </div>
           </div>
           <button 
@@ -233,7 +233,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
 
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem'}}>
           <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
-            <div style={{fontSize: '0.75rem', color: '#a7f3d0', fontWeight: 700, textTransform: 'uppercase'}}>Total Earned</div>
+            <div style={{fontSize: '0.75rem', color: '#a7f3d0', fontWeight: 700, textTransform: 'uppercase'}}>Total Partner Earnings</div>
             <div style={{fontSize: '1.45rem', fontWeight: 800, color: '#ffffff', marginTop: '2px'}}>
               ₹{commissionSummary.totalCommissionEarned.toLocaleString('en-IN')}
             </div>
@@ -241,7 +241,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
           </div>
 
           <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
-            <div style={{fontSize: '0.75rem', color: '#bae6fd', fontWeight: 700, textTransform: 'uppercase'}}>Received from Admin</div>
+            <div style={{fontSize: '0.75rem', color: '#bae6fd', fontWeight: 700, textTransform: 'uppercase'}}>Earnings Disbursed</div>
             <div style={{fontSize: '1.45rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px'}}>
               ₹{commissionSummary.totalCommissionSettled.toLocaleString('en-IN')}
             </div>
@@ -249,7 +249,7 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
           </div>
 
           <div style={{background: 'rgba(255, 255, 255, 0.1)', padding: '0.9rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.12)'}}>
-            <div style={{fontSize: '0.75rem', color: '#fde68a', fontWeight: 700, textTransform: 'uppercase'}}>Pending Payout</div>
+            <div style={{fontSize: '0.75rem', color: '#fde68a', fontWeight: 700, textTransform: 'uppercase'}}>Pending Earnings Payout</div>
             <div style={{fontSize: '1.45rem', fontWeight: 800, color: commissionSummary.pendingCommissionBalance > 0 ? '#facc15' : '#4ade80', marginTop: '2px'}}>
               ₹{commissionSummary.pendingCommissionBalance.toLocaleString('en-IN')}
             </div>

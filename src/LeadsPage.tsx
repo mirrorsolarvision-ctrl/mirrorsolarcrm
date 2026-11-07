@@ -2058,14 +2058,6 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     >
                       <Phone size={14} /> Call
                     </a>
-                    <a 
-                      href={getWhatsAppDirectUrl(lead.phone, `Hello ${lead.customer}, this is from Mirror Solar regarding your solar project.`)} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="btn-slide-contact wa-btn"
-                    >
-                      <MessageSquare size={14} /> WhatsApp
-                    </a>
                     <button 
                       type="button" 
                       className="btn-slide-contact delete-btn"
@@ -2428,18 +2420,6 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     >
                       <Phone size={14} /> <span className="hide-on-mobile">Call</span>
                     </a>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        setWhatsAppLead(selectedLead);
-                        setShowWhatsAppProposalModal(true);
-                      }}
-                      className="btn-outline drawer-quick-btn"
-                      style={{padding: '0.35rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#16a34a', borderColor: '#86efac', background: '#f0fdf4', cursor: 'pointer'}}
-                      title="Send WhatsApp Proposal or Chat"
-                    >
-                      <MessageSquare size={14} /> <span className="hide-on-mobile">WhatsApp</span>
-                    </button>
                   </>
                 )}
                 <button

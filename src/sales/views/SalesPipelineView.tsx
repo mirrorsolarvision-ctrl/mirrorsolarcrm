@@ -43,7 +43,7 @@ const LOSS_REASONS = [
 export default function SalesPipelineView({
   onNavigateSubView,
   onOpenCallLogModal,
-  onOpenWhatsApp
+  onOpenWhatsApp: _onOpenWhatsApp
 }: SalesPipelineViewProps) {
   const { currentUser, leads, updateLeadSalesStage, updateLead } = useCRM();
   const { logAction } = useAudit();
@@ -325,15 +325,7 @@ export default function SalesPipelineView({
                             title="Call Customer"
                             onClick={() => onOpenCallLogModal ? onOpenCallLogModal(lead) : onNavigateSubView('telecalling')}
                           >
-                            <PhoneCall size={12} />
-                          </button>
-                          <button 
-                            className="sales-btn-secondary" 
-                            style={{ flex: 1, padding: '0.25rem', justifyContent: 'center', color: '#16a34a', borderColor: '#bbf7d0' }}
-                            title="Send WhatsApp"
-                            onClick={() => onOpenWhatsApp ? onOpenWhatsApp(lead) : onNavigateSubView('whatsapp')}
-                          >
-                            <MessageSquare size={12} />
+                            <PhoneCall size={12} /> Call
                           </button>
                           <button 
                             className="sales-btn-secondary" 

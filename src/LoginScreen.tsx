@@ -308,13 +308,13 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         if (isAdmin) {
           crmUser = {
             id: uid,
-            name: lowerEmail.includes('balaji') ? 'Balaji Peruri (Admin)' : 'Mirror Solar Vision Admin',
+            name: lowerEmail.includes('balaji') ? 'Balaji Peruri (Admin)' : (lowerEmail.includes('aqua') ? 'Mirror Aqua RO (Admin)' : 'Mirror Solar Vision Admin'),
             email: targetEmail,
             phone: lowerEmail.includes('balaji') ? '9182612420' : '9849810668',
             role: 'Admin',
             status: 'Active',
             lastActive: 'Just now',
-            initials: 'MS',
+            initials: lowerEmail.includes('balaji') ? 'BP' : (lowerEmail.includes('aqua') ? 'MA' : 'MS'),
             permissions: adminPermissions
           };
         } else if (matchedEmp) {
@@ -360,10 +360,17 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       }
 
       if (crmUser) {
+        // Enforce Admin role & permissions for registered admin accounts
+        const userEmailLower = (crmUser.email || targetEmail).toLowerCase();
+        if (['mirrorsolarvision@gmail.com', 'mirroraquaro@gmail.com', 'balajiperuri09@gmail.com'].includes(userEmailLower)) {
+          crmUser.role = 'Admin';
+          crmUser.permissions = adminPermissions;
+        }
+
         // Account Deactivation & Suspension Enforcement Gate
-        if (crmUser.status === 'Inactive') {
+        if (crmUser.status === 'Inactive' || (crmUser.status as any) === 'Disabled' || (crmUser.status as any) === 'Archived' || (crmUser as any).isDeleted) {
           await auth.signOut();
-          setErrorMsg("Access Denied: This account has been deactivated by administration. Please contact HR / Admin.");
+          setErrorMsg("Access Denied: This account has been deactivated or removed by administration. Please contact HR / Admin.");
           setIsSigningIn(false);
           return;
         }
@@ -713,7 +720,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             )}
 
             <form onSubmit={handlePasswordReset}>
-              <div className="input-group">
+              <div className="input-group reveal reset-modal-input-group">
                 <label htmlFor="resetEmailInput">Registered Email Address</label>
                 <div className="input-wrapper">
                   <input 
@@ -721,9 +728,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                     type="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="e.g. employee@mirrorsolar.in"
+                    placeholder={role === 'Admin' ? 'Enter your registered administrator email' : 'Enter your registered email address'}
                     required
                     autoFocus
+                    disabled={isSendingReset}
                   />
                   <div className="input-focus-border"></div>
                 </div>

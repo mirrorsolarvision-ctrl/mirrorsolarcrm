@@ -795,7 +795,7 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
 
         <div style={{ fontSize: '0.8rem', opacity: 0.9, lineHeight: 1.4 }}>
           {isMonthlyMilestoneMet 
-            ? '🎉 Outstanding performance! You have met your minimum 4 sales milestone for this calendar month. Any additional converted sales count toward bonus commissions.'
+            ? '🎉 Outstanding performance! You have met your minimum 4 sales milestone for this calendar month. Any additional converted sales count toward bonus employee incentives.'
             : `📌 Company Milestone Policy: Marketing employees must close a minimum of 4 converted solar sales per month. You currently have ${monthlySalesCount} closed sale${monthlySalesCount === 1 ? '' : 's'}. Convert ${remainingSalesToMilestone} more to reach quota.`}
         </div>
       </div>

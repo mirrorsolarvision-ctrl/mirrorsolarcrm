@@ -592,7 +592,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                     </div>
                   ))}
                   <div className="card-dropdown-footer" onClick={() => handleNavClick('Dealers')}>
-                    View all dealers & commissions →
+                    View all dealers & partner earnings →
                   </div>
                 </div>
               )}

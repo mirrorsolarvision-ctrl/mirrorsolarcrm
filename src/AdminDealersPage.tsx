@@ -421,7 +421,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
         <div className="dealers-summary-card" style={{border: '1.5px solid #a7f3d0', background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'}}>
           <div className="card-header-row">
             <div className="card-icon" style={{background: '#059669', color: '#ffffff'}}><Wallet size={20} /></div>
-            <span className="card-label" style={{color: '#065f46'}}>Dealer Commissions (Earned / Due)</span>
+            <span className="card-label" style={{color: '#065f46'}}>Dealer Partner Earnings (Earned / Due)</span>
           </div>
           <div style={{display: 'flex', alignItems: 'baseline', gap: '0.35rem'}}>
             <span className="card-value" style={{color: '#065f46'}}>₹{totals.totalCommissionEarned.toLocaleString('en-IN')}</span>
@@ -734,10 +734,10 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                   </div>
                 </div>
 
-                {/* Commission Rate & Bank details pills */}
+                {/* Partner Earnings Rate & Bank details pills */}
                 <div style={{background: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #d1fae5', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '4px'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                    <span style={{color: '#64748b'}}>Commission Rate:</span>
+                    <span style={{color: '#64748b'}}>Partner Earnings Rate:</span>
                     <strong style={{color: '#0f172a'}}>₹{selectedDealer.commissionRatePerKw || 1500} / kW</strong>
                   </div>
                   {selectedDealer.bankDetails?.bankName && (
@@ -757,7 +757,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                 {/* Past Payouts History */}
                 {selectedDealer.commissionPayouts && selectedDealer.commissionPayouts.length > 0 && (
                   <div style={{marginTop: '0.75rem'}}>
-                    <div style={{fontSize: '0.72rem', fontWeight: 700, color: '#065f46', marginBottom: '4px'}}>RECENT PAYOUT HISTORY</div>
+                    <div style={{fontSize: '0.72rem', fontWeight: 700, color: '#065f46', marginBottom: '4px'}}>RECENT EARNINGS PAYOUT HISTORY</div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto'}}>
                       {selectedDealer.commissionPayouts.map(p => (
                         <div key={p.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', padding: '5px 8px', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #e2e8f0'}}>
@@ -1054,17 +1054,17 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
         </div>
       )}
 
-      {/* Commission Rate & Bank Settings Modal */}
+      {/* Partner Earnings Rate & Bank Settings Modal */}
       {isCommissionModalOpen && commissionTargetDealer && (
         <div className="modal-overlay" onClick={() => setIsCommissionModalOpen(false)}>
           <div className="dealer-modal" onClick={e => e.stopPropagation()} style={{maxWidth: '520px'}}>
-            <h2>Commission & Bank Settings: {commissionTargetDealer.name}</h2>
+            <h2>Partner Earnings & Bank Settings: {commissionTargetDealer.name}</h2>
             <p className="text-muted text-sm" style={{marginBottom: '1.25rem'}}>
-              Configure dealer commission rates per installed capacity and disbursement bank/UPI coordinates.
+              Configure dealer partner earnings rates per installed capacity and disbursement bank/UPI coordinates.
             </p>
 
             <div className="form-group" style={{marginBottom: '1rem'}}>
-              <label>Commission Rate (₹ per Converted kW)</label>
+              <label>Partner Earnings Rate (₹ per Converted kW)</label>
               <div style={{position: 'relative'}}>
                 <input 
                   type="number" 
@@ -1076,7 +1076,7 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
                 <span style={{position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 700}}>₹</span>
               </div>
               <small className="text-muted" style={{fontSize: '0.72rem'}}>
-                Standard residential partner commission is ₹1,500/kW (e.g. 3 kW system = ₹4,500).
+                Standard residential partner earnings rate is ₹1,500/kW (e.g. 3 kW system = ₹4,500).
               </small>
             </div>
 
@@ -1129,20 +1129,20 @@ export default function AdminDealersPage({ onNavigateToLeads }: AdminDealersPage
             <div className="modal-actions" style={{marginTop: '1.5rem'}}>
               <button className="btn-action" onClick={() => setIsCommissionModalOpen(false)}>Cancel</button>
               <button className="btn-primary" onClick={handleSaveCommissionConfig}>
-                Save Commission & Bank Info
+                Save Partner Earnings & Bank Info
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Record Commission Payout Modal */}
+      {/* Record Partner Earnings Payout Modal */}
       {isPayoutModalOpen && payoutTargetDealer && (
         <div className="modal-overlay" onClick={() => setIsPayoutModalOpen(false)}>
           <div className="dealer-modal" onClick={e => e.stopPropagation()} style={{maxWidth: '480px'}}>
-            <h2>Record Commission Payout</h2>
+            <h2>Record Partner Earnings Payout</h2>
             <p className="text-muted text-sm" style={{marginBottom: '1rem'}}>
-              Record a disbursed commission payment to <strong>{payoutTargetDealer.name}</strong>.
+              Record a disbursed partner earnings payment to <strong>{payoutTargetDealer.name}</strong>.
             </p>
 
             <form onSubmit={handleSubmitPayout}>

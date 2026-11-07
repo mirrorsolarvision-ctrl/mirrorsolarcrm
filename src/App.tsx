@@ -235,9 +235,6 @@ function AppContent() {
       {/* Auto-Update & Cache Refresher Banner */}
       <VersionUpdateBanner />
 
-      {/* Persistent WhatsApp Buddy Floating Copilot */}
-      {authUser && <WhatsAppBuddy />}
-
       {/* Visible Staging Environment Indicator */}
       <EnvironmentIndicator />
     </>

@@ -19,7 +19,7 @@ interface SalesLeadsViewProps {
 export default function SalesLeadsView({
   onNavigateSubView,
   onOpenCallLogModal,
-  onOpenWhatsApp,
+  onOpenWhatsApp: _onOpenWhatsApp,
   initialFilter = 'all'
 }: SalesLeadsViewProps) {
   const { currentUser, leads, employees, addLead, updateLead, addActivity } = useCRM();
@@ -479,14 +479,6 @@ export default function SalesLeadsView({
                           </button>
                           <button
                             className="sales-btn-secondary"
-                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#16a34a', borderColor: '#bbf7d0' }}
-                            title="WhatsApp Chat"
-                            onClick={() => onOpenWhatsApp ? onOpenWhatsApp(lead) : onNavigateSubView('whatsapp')}
-                          >
-                            <MessageSquare size={13} />
-                          </button>
-                          <button
-                            className="sales-btn-secondary"
                             style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
                             title="Solar Feasibility Qualification"
                             onClick={() => onNavigateSubView('qualification', { leadId: lead.id })}
@@ -689,18 +681,83 @@ export default function SalesLeadsView({
                 <div className="sales-form-row">
                   <div className="sales-form-group">
                     <label>Preferred Capacity (kW)</label>
-                    <select 
-                      className="sales-form-control"
-                      value={newLeadForm.capacityKw}
-                      onChange={e => setNewLeadForm({ ...newLeadForm, capacityKw: e.target.value })}
-                    >
-                      <option value="1">1 kW (₹30,000 Subsidy)</option>
-                      <option value="2">2 kW (₹60,000 Subsidy)</option>
-                      <option value="3">3 kW (₹78,000 Subsidy - Popular)</option>
-                      <option value="4">4 kW</option>
-                      <option value="5">5 kW</option>
-                      <option value="10">10 kW (Commercial)</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        min="0.5"
+                        max="500"
+                        className="sales-form-control"
+                        placeholder="e.g. 3.0"
+                        value={newLeadForm.capacityKw}
+                        onChange={e => setNewLeadForm({ ...newLeadForm, capacityKw: e.target.value })}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ fontWeight: 600, color: '#475569', fontSize: '0.9rem' }}>kW</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadForm({ ...newLeadForm, capacityKw: '3' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newLeadForm.capacityKw === '3' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newLeadForm.capacityKw === '3' ? '#e0f2fe' : '#f8fafc',
+                          color: newLeadForm.capacityKw === '3' ? '#0369a1' : '#475569',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        3 kW (Recommended)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadForm({ ...newLeadForm, capacityKw: '2' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newLeadForm.capacityKw === '2' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newLeadForm.capacityKw === '2' ? '#e0f2fe' : '#f8fafc',
+                          color: newLeadForm.capacityKw === '2' ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        2 kW (Optional)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadForm({ ...newLeadForm, capacityKw: '5' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newLeadForm.capacityKw === '5' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newLeadForm.capacityKw === '5' ? '#e0f2fe' : '#f8fafc',
+                          color: newLeadForm.capacityKw === '5' ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        5 kW
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadForm({ ...newLeadForm, capacityKw: '10' })}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          borderRadius: '4px',
+                          border: newLeadForm.capacityKw === '10' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                          background: newLeadForm.capacityKw === '10' ? '#e0f2fe' : '#f8fafc',
+                          color: newLeadForm.capacityKw === '10' ? '#0369a1' : '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        10 kW
+                      </button>
+                    </div>
                   </div>
 
                   <div className="sales-form-group">
