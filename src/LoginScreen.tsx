@@ -201,6 +201,15 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     const lower = clean.toLowerCase();
     const digits = clean.replace(/\D/g, '').slice(-10);
 
+    // Legacy or alternate email mappings
+    if (
+      lower === 'msv-siva-001@mirrorsolar.in' ||
+      lower === 'sunkarasiva@mirrorsolar.in' ||
+      lower === 'siva@mirrorsolar.in'
+    ) {
+      return 'siva.mirrorsolarvision@gmail.com';
+    }
+
     if (clean.includes('@')) {
       return clean;
     }
@@ -224,12 +233,41 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       return 'sales.telecaller@mirrorsolar.in';
     }
 
+    // Employee Aliases - Sunkara Siva
+    if (
+      lower.includes('siva') ||
+      lower.includes('shiva') ||
+      digits === '8985141432' ||
+      lower === 'msv-siva-001' ||
+      lower === 'msv-siva' ||
+      lower.includes('sunkara') ||
+      lower === 'msv/emp/sunkarasiva'
+    ) {
+      return 'siva.mirrorsolarvision@gmail.com';
+    }
+
+    // Employee Aliases - Kumari
+    if (lower.includes('kumari') || digits === '7670920748' || lower === 'msv-kumari-001') {
+      return 'kumari.mirrorsolarvision@gmail.com';
+    }
+
+    // Employee Aliases - Sai Gopal
+    if (lower.includes('gopal') || digits === '9876543210' || lower === 'msv-emp-003') {
+      return 'gopal.mirrorsolarvision@gmail.com';
+    }
+
     // Employees lookup
     for (const emp of defaultCompanyEmployees) {
-      const empCode = (emp.code || emp.employeeId || '').toLowerCase();
+      const empCode = (emp.code || '').toLowerCase();
+      const empId = (emp.employeeId || '').toLowerCase();
       const empPhone = (emp.phone || '').replace(/\D/g, '').slice(-10);
       const empName = (emp.name || '').toLowerCase();
-      if (empCode === lower || (digits.length === 10 && empPhone === digits) || (lower.length > 3 && empName.includes(lower))) {
+      if (
+        empCode === lower ||
+        empId === lower ||
+        (digits.length === 10 && empPhone === digits) ||
+        (lower.length > 3 && empName.includes(lower))
+      ) {
         return emp.email;
       }
     }
@@ -434,30 +472,37 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
             };
           } else if (matchedEmp) {
             devUser = {
-              id: simulatedUid,
+              id: matchedEmp.id || simulatedUid,
               name: matchedEmp.name,
               email: targetEmail,
               phone: matchedEmp.phone || '',
               role: 'Employee',
               employeeCategory: matchedEmp.employeeCategory,
               employeeId: matchedEmp.employeeId || matchedEmp.code,
+              code: matchedEmp.code,
+              displayId: matchedEmp.displayId,
               status: 'Active',
               lastActive: 'Just now',
               initials: matchedEmp.initials || 'EM',
-              permissions: matchedEmp.permissions || defaultUserPermissions
+              permissions: matchedEmp.permissions || defaultUserPermissions,
+              features: matchedEmp.features,
+              responsibilities: matchedEmp.responsibilities
             };
           } else if (matchedDlr) {
             devUser = {
-              id: simulatedUid,
+              id: matchedDlr.id || simulatedUid,
               name: matchedDlr.name,
               email: targetEmail,
               phone: matchedDlr.phone || '',
               role: 'Dealer',
               dealerCode: matchedDlr.dealerCode || matchedDlr.code,
+              code: matchedDlr.code,
+              displayId: matchedDlr.displayId,
               status: 'Active',
               lastActive: 'Just now',
               initials: matchedDlr.initials || 'DL',
-              permissions: matchedDlr.permissions || defaultUserPermissions
+              permissions: matchedDlr.permissions || defaultUserPermissions,
+              features: matchedDlr.features
             };
           } else {
             devUser = {
@@ -627,6 +672,14 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                   title="Fill P. Suresh's email"
                 >
                   <Briefcase size={13} /> P. Suresh (Sales Mgr)
+                </button>
+                <button 
+                  type="button" 
+                  className="quick-chip chip-sales"
+                  onClick={() => setUsernameOrEmail('siva.mirrorsolarvision@gmail.com')}
+                  title="Fill Sunkara Siva's email"
+                >
+                  <User size={13} /> S. Siva (Marketing)
                 </button>
                 <button 
                   type="button" 
