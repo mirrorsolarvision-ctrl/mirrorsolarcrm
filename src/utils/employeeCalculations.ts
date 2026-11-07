@@ -24,7 +24,18 @@ export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead
   const createdById = (lead.createdBy || '').trim().toLowerCase();
   const mktName = ((lead as any).marketingEmployee || (lead as any).sourceMarketingEmployee || '').trim().toLowerCase();
 
+  // Robust reconciliation for Sunkara Siva (handles verified UID, legacy UID, and employee code)
+  const isSiva = empNameLower.includes('siva') || empIdLower === 'bktpwqkgmsxrbjchecwd8uo9nrj3' || empIdLower === 'dhil07h9rjpblfzc7cg8hrfvawj2';
+  const isLeadSiva = isSiva && (
+    assignedId === 'dhil07h9rjpblfzc7cg8hrfvawj2' ||
+    assignedId === 'bktpwqkgmsxrbjchecwd8uo9nrj3' ||
+    assignedId === 'msv-siva-001' ||
+    assignedName.includes('siva') ||
+    createdByName.includes('siva')
+  );
+
   return (
+    isLeadSiva ||
     (Boolean(empNameLower) && (assignedName === empNameLower || assignedName.includes(empNameLower) || empNameLower.includes(assignedName))) ||
     (Boolean(empIdLower) && assignedId === empIdLower) ||
     (Boolean(empNameLower) && (createdByName === empNameLower || mktName === empNameLower)) ||

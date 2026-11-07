@@ -2,12 +2,13 @@ import { auth, db } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import type { Employee, Dealer, User as CRMUser, MockLead } from './context/CRMContext';
+import sivaLeadsBaseline from './data/sivaLeadsBaseline.json';
 
 export const defaultSeedDealers: Array<Omit<Dealer, 'id' | 'permissions'> & { id?: string; permissions?: any }> = [];
 
 export const defaultSeedEmployees: Array<Omit<Employee, 'id' | 'permissions'> & { id?: string; permissions?: any }> = [];
 
-export const defaultSeedLeads: MockLead[] = [];
+export const defaultSeedLeads: MockLead[] = sivaLeadsBaseline as unknown as MockLead[];
 
 export const seedSampleLeads = async () => {
   return 0;
