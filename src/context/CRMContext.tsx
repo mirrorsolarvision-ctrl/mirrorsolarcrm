@@ -1987,6 +1987,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateLead = async (id: string, updates: Partial<MockLead>) => {
+    // 1. Instant optimistic frontend update
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...updates, updatedAt: updates.updatedAt || 'Just now' } : l));
     try {
       const cleanUpdates = sanitizeForFirestore(updates);
       await updateDoc(doc(db, 'leads', id), cleanUpdates);
@@ -1999,6 +2001,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateLeadStage = async (leadId: string, newStage: Stage) => {
+    // 1. Instant optimistic frontend update
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage, updatedAt: 'Just now' } : l));
     try {
       const updates: any = { stage: newStage, updatedAt: 'Just now' };
       if (['Converted', 'Installation', 'Loan', 'Material', 'Completed'].includes(newStage)) {
@@ -2269,6 +2273,9 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...currentPayments,
         customerPayments: updatedCustomerPayments
       };
+
+      // 1. Instant optimistic update
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, payments: updatedPayments, updatedAt: 'Just now' } : l));
 
       await updateDoc(doc(db, 'leads', leadId), {
         payments: updatedPayments,
