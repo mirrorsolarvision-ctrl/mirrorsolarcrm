@@ -90,7 +90,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   const { showToast, showConfirmModal } = useUI();
   const { deductDealerStockForLeadMaterial, stockDispatches } = useStock();
   const pendingDispatchesCount = useMemo(() => stockDispatches?.filter(d => d.status === 'Pending Dealer Confirmation').length || 0, [stockDispatches]);
-  const [selectedStage, setSelectedStage] = useState<Stage>('Installation');
+  const [selectedStage, setSelectedStage] = useState<Stage | 'All'>('All');
   const [selectedLead, setSelectedLead] = useState<MockLead | null>(null);
 
   // Auto-sync open lead details drawer with live real-time Firestore updates
@@ -304,15 +304,65 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
   const filteredLeads = useMemo(() => {
     return leads.filter(l => {
-      const matchEmp = selectedEmployeeFilter ? l.assignedEmployee === selectedEmployeeFilter : true;
-      const matchDlr = selectedDealerFilter ? l.dealer === selectedDealerFilter : true;
+      const matchEmp = selectedEmployeeFilter ? (
+        l.assignedEmployee === selectedEmployeeFilter ||
+        l.createdByName === selectedEmployeeFilter ||
+        (selectedEmployeeFilter.toLowerCase().includes('siva') && (
+          (l.assignedEmployee && l.assignedEmployee.toLowerCase().includes('siva')) ||
+          (l.createdByName && l.createdByName.toLowerCase().includes('siva')) ||
+          ['bkTpWQKgmsXRBjCHEcwD8uO9nrJ3', 'DHIl07h9rJPBlfzc7Cg8hrfVaWj2', 'MSV-SIVA-001'].includes(l.assignedEmployeeId || '') ||
+          ['bkTpWQKgmsXRBjCHEcwD8uO9nrJ3', 'DHIl07h9rJPBlfzc7Cg8hrfVaWj2', 'MSV-SIVA-001'].includes(l.createdBy || '')
+        ))
+      ) : true;
+      const matchDlr = selectedDealerFilter ? (
+        l.dealer === selectedDealerFilter ||
+        (l.dealer && l.dealer.toLowerCase().includes(selectedDealerFilter.toLowerCase())) ||
+        l.dealerId === selectedDealerFilter
+      ) : true;
       return matchEmp && matchDlr;
     });
   }, [leads, selectedEmployeeFilter, selectedDealerFilter]);
 
   const visibleLeads = useMemo(() => {
+    if (selectedStage === 'All') return filteredLeads;
     return filteredLeads.filter(l => l.stage === selectedStage);
   }, [filteredLeads, selectedStage]);
+
+  const realEmployeePerf = useMemo(() => {
+    return employees.map(emp => {
+      const empLeads = leads.filter(l => 
+        l.assignedEmployee === emp.name || 
+        (emp.name === 'Sunkara Siva' && (
+          (l.assignedEmployee && l.assignedEmployee.toLowerCase().includes('siva')) ||
+          (l.createdByName && l.createdByName.toLowerCase().includes('siva')) ||
+          ['bkTpWQKgmsXRBjCHEcwD8uO9nrJ3', 'DHIl07h9rJPBlfzc7Cg8hrfVaWj2', 'MSV-SIVA-001'].includes(l.assignedEmployeeId || '') ||
+          ['bkTpWQKgmsXRBjCHEcwD8uO9nrJ3', 'DHIl07h9rJPBlfzc7Cg8hrfVaWj2', 'MSV-SIVA-001'].includes(l.createdBy || '')
+        ))
+      );
+      const conv = empLeads.filter(l => l.stage === 'Converted' || l.stage === 'Completed').length;
+      return {
+        name: emp.name,
+        leads: empLeads.length,
+        conv: conv
+      };
+    }).sort((a, b) => b.leads - a.leads);
+  }, [employees, leads]);
+
+  const realDealerPerf = useMemo(() => {
+    return dealers.map(dlr => {
+      const dlrLeads = leads.filter(l => 
+        l.dealer === dlr.name || 
+        (l.dealer && l.dealer.toLowerCase().includes(dlr.name.toLowerCase())) || 
+        l.dealerId === dlr.id
+      );
+      const conv = dlrLeads.filter(l => l.stage === 'Converted' || l.stage === 'Completed').length;
+      return {
+        name: dlr.name,
+        leads: dlrLeads.length,
+        conv: conv
+      };
+    }).sort((a, b) => b.leads - a.leads);
+  }, [dealers, leads]);
 
   const pendingInstallationLeads = useMemo(() => {
     return leads.filter(l => l.installationApprovalStatus === 'Pending' && !l.archived);
@@ -836,6 +886,20 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
             </div>
 
             <div className="pipeline-flow-crm">
+              <div 
+                className={`crm-stage-card stage-card-all ${selectedStage === 'All' ? 'active' : ''}`}
+                onClick={() => setSelectedStage('All')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stage-card-header">
+                  <div className="stage-card-icon"><Activity size={18} /></div>
+                  <span className="stage-card-name">All Leads</span>
+                </div>
+                <div className="stage-card-count">{filteredLeads.length}</div>
+              </div>
+              <div className="crm-pipeline-connector">
+                <ArrowRight size={20} />
+              </div>
               {STAGES.map((s, idx, arr) => {
                 const isActive = selectedStage === s;
                 
@@ -852,7 +916,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                   <React.Fragment key={s}>
                     <div 
                       className={`crm-stage-card ${colorClass} ${isActive ? 'active' : ''}`}
-                      onClick={() => setSelectedStage(s)}
+                      onClick={() => setSelectedStage(isActive ? 'All' : s)}
+                      style={{ cursor: 'pointer' }}
                     >
                       <div className="stage-card-header">
                         <div className="stage-card-icon">{icon}</div>
@@ -872,9 +937,20 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
 
             <div className="pipeline-divider"></div>
 
-            <div className="pipeline-leads-header">
-              <h3>Leads in {selectedStage}</h3>
-              <span className="leads-count-badge">{visibleLeads.length} Leads</span>
+            <div className="pipeline-leads-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>{selectedStage === 'All' ? 'All Customer Leads' : `Leads in ${selectedStage}`}</h3>
+                <span className="leads-count-badge" style={{ marginTop: '4px' }}>{visibleLeads.length} Leads</span>
+              </div>
+              {selectedStage !== 'All' && (
+                <button 
+                  className="btn-outline" 
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem', borderRadius: '6px' }}
+                  onClick={() => setSelectedStage('All')}
+                >
+                  Show All ({filteredLeads.length})
+                </button>
+              )}
             </div>
 
             <div className="table-responsive">
@@ -882,24 +958,35 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
                 <thead>
                   <tr>
                     <th>Customer</th>
+                    <th>Stage</th>
+                    <th>Phone</th>
                     <th>Dealer</th>
-                    <th>Assigned</th>
+                    <th>Assigned Staff</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleLeads.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="empty-state">No leads currently in this stage.</td>
+                      <td colSpan={6} className="empty-state">No leads currently in this view.</td>
                     </tr>
                   ) : (
                     visibleLeads.map((l) => (
                       <tr key={l.id} onClick={() => handleOpenLead(l)}>
                         <td>
                           <div className="text-sm font-medium text-navy">{l.customer}</div>
+                          {l.code && <div className="text-xs text-muted font-mono">{l.code}</div>}
                         </td>
-                        <td className="text-dealer">{l.dealer}</td>
-                        <td className="text-employee">{l.assignedEmployee}</td>
+                        <td>
+                          <span className={`stage-badge stage-${(l.stage || 'lead').toLowerCase()}`}>
+                            {l.stage}
+                          </span>
+                        </td>
+                        <td className="text-sm text-neutral">{l.phone || '—'}</td>
+                        <td className="text-dealer">{l.dealer || 'Direct (Company)'}</td>
+                        <td className="text-employee">
+                          <strong>{l.assignedEmployee || l.createdByName || 'Unassigned'}</strong>
+                        </td>
                         <td>
                           <button className="view-btn">View</button>
                         </td>
@@ -922,22 +1009,26 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               <div className="perf-list">
                 <div className="perf-list-header">
                   <span>Employee</span>
-                  <span>Conv.</span>
+                  <span>Conv. / Total</span>
                 </div>
-                {[
-                  { n: 'Aditya', leads: 24, conv: 12 },
-                  { n: 'Ravi', leads: 21, conv: 9 },
-                  { n: 'Suresh', leads: 18, conv: 8 },
-                  { n: 'Ramesh', leads: 15, conv: 7 },
-                ].map(emp => (
-                  <div className="perf-item" key={emp.n}>
-                    <span className="perf-name">{emp.n}</span>
-                    <div className="perf-stats">
-                      <div className="perf-mini-bar"><div style={{width: `${(emp.conv/20)*100}%`}}></div></div>
-                      <span className="perf-val">{emp.conv}</span>
-                    </div>
+                {realEmployeePerf.length === 0 ? (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                    No assigned leads recorded yet.
                   </div>
-                ))}
+                ) : (
+                  realEmployeePerf.map(emp => (
+                    <div className="perf-item" key={emp.name}>
+                      <span className="perf-name">{emp.name}</span>
+                      <div className="perf-stats">
+                        <div className="perf-mini-bar">
+                          <div style={{ width: `${Math.min(100, emp.leads > 0 ? (emp.conv / emp.leads) * 100 : 0)}%` }}></div>
+                        </div>
+                        <span className="perf-val font-semibold text-navy">{emp.conv}</span>
+                        <span className="text-xs text-muted">/ {emp.leads}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -949,21 +1040,23 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
               <div className="perf-list">
                 <div className="perf-list-header">
                   <span>Dealer</span>
-                  <span>Conv.</span>
+                  <span>Conv. / Total</span>
                 </div>
-                {[
-                  { n: 'Sun Power', leads: 32, conv: 18 },
-                  { n: 'Green Energy', leads: 28, conv: 14 },
-                  { n: 'Sri Solar', leads: 24, conv: 12 },
-                ].map(dlr => (
-                  <div className="perf-item" key={dlr.n}>
-                    <span className="perf-name truncate" title={dlr.n}>{dlr.n}</span>
-                    <div className="perf-stats">
-                      <span className="perf-val font-medium text-navy">{dlr.conv}</span>
-                      <span className="text-xs text-muted">/ {dlr.leads}</span>
-                    </div>
+                {realDealerPerf.length === 0 ? (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                    No dealer leads recorded yet.
                   </div>
-                ))}
+                ) : (
+                  realDealerPerf.map(dlr => (
+                    <div className="perf-item" key={dlr.name}>
+                      <span className="perf-name truncate" title={dlr.name}>{dlr.name}</span>
+                      <div className="perf-stats">
+                        <span className="perf-val font-medium text-navy">{dlr.conv}</span>
+                        <span className="text-xs text-muted">/ {dlr.leads}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

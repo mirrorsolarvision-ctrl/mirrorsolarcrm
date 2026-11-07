@@ -1572,7 +1572,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       allLeads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
       if (isPrivilegedLeadViewer) {
-        setLeads(allLeads);
+        if (allLeads.length < defaultSeedLeads.length) {
+          const leadMap = new Map<string, MockLead>();
+          defaultSeedLeads.forEach(l => leadMap.set(l.id, l));
+          allLeads.forEach(l => leadMap.set(l.id, l));
+          setLeads(Array.from(leadMap.values()));
+        } else {
+          setLeads(allLeads);
+        }
       } else if (authUser.role === 'Dealer') {
         setLeads(allLeads.filter(l => l.dealerId === userUid));
       } else if (authUser.role === 'Employee') {
@@ -1591,7 +1598,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }, (err) => {
       console.warn("Leads listener error (scoped query):", err);
-      if (isSiva) {
+      if (isPrivilegedLeadViewer || isSiva) {
         setLeads(defaultSeedLeads);
       }
     });
