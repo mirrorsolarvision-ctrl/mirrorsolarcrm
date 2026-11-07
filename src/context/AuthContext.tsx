@@ -37,19 +37,14 @@ const defaultDealerPermissions: UserPermissions = {
   profile: 'edit'
 };
 
-// Recognized Admin Accounts
+// Recognized Admin Accounts (Sole Main Administrator: Durga Rao)
 export const ADMIN_ACCOUNTS = [
   {
-    email: 'mirroraquaro@gmail.com',
-    phone: '9849810668',
-    name: 'Mirror Aqua Admin',
-    initials: 'MA'
-  },
-  {
-    email: 'balajiperuri09@gmail.com',
+    email: 'mirrorsolarvision@gmail.com',
     phone: '9182612420',
-    name: 'Balaji Peruri (Admin)',
-    initials: 'BP'
+    username: 'DURGARAO@MSV',
+    name: 'Durga Rao (Admin)',
+    initials: 'DR'
   }
 ];
 
@@ -151,10 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (adminMatch || firebaseUser.email === 'admin@mirrorsolar.in' || firebaseUser.email === 'mirrorsolarvision@gmail.com') {
               const adminFallback: CRMUser = {
                 id: firebaseUser.uid,
-                name: adminMatch?.name || 'MSV Admin',
-                email: firebaseUser.email || 'mirroraquaro@gmail.com',
-                initials: adminMatch?.initials || 'MA',
-                phone: adminMatch?.phone || '9849810668',
+                name: adminMatch?.name || 'Durga Rao (Admin)',
+                email: firebaseUser.email || 'mirrorsolarvision@gmail.com',
+                initials: adminMatch?.initials || 'DR',
+                phone: adminMatch?.phone || '9182612420',
                 status: 'Active',
                 lastActive: 'Just now',
                 role: 'Admin',

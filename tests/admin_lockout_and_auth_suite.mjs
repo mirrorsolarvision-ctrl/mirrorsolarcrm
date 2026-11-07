@@ -220,14 +220,18 @@ function resolveCanonicalEmail(rawInput, role = 'Admin') {
   const lower = clean.toLowerCase();
   const digits = clean.replace(/\D/g, '').slice(-10);
 
-  if (clean.includes('@')) return clean;
-
-  if (['admin', 'msvadmin', 'mirrorsolarvision'].includes(lower) || digits === '9849810668') {
+  if (
+    ['admin', 'msvadmin', 'mirrorsolarvision', 'durgarao', 'durgarao@msv', 'msv'].includes(lower) ||
+    lower.includes('durgarao') ||
+    digits === '9182612420' ||
+    digits === '9849810668' ||
+    lower.includes('balaji')
+  ) {
     return 'mirrorsolarvision@gmail.com';
   }
-  if (lower.includes('balaji') || digits === '9182612420') {
-    return 'balajiperuri09@gmail.com';
-  }
+
+  if (clean.includes('@') && clean.includes('.')) return clean;
+
   if (lower.includes('aqua') || lower === 'mirroraquaro@gmail.com') {
     return 'mirroraquaro@gmail.com';
   }
@@ -238,9 +242,10 @@ function resolveCanonicalEmail(rawInput, role = 'Admin') {
 
 assertTest('Username "admin" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('admin') === 'mirrorsolarvision@gmail.com');
 assertTest('Username "msvadmin" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('msvadmin') === 'mirrorsolarvision@gmail.com');
+assertTest('Username "DURGARAO@MSV" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('DURGARAO@MSV') === 'mirrorsolarvision@gmail.com');
+assertTest('Phone number "9182612420" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('9182612420') === 'mirrorsolarvision@gmail.com');
 assertTest('Phone number "9849810668" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('9849810668') === 'mirrorsolarvision@gmail.com');
-assertTest('Phone with country code "+91 9849810668" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('+91 9849810668') === 'mirrorsolarvision@gmail.com');
-assertTest('Username "balaji" resolves to "balajiperuri09@gmail.com"', resolveCanonicalEmail('balaji') === 'balajiperuri09@gmail.com');
+assertTest('Phone with country code "+91 9182612420" resolves to "mirrorsolarvision@gmail.com"', resolveCanonicalEmail('+91 9182612420') === 'mirrorsolarvision@gmail.com');
 assertTest('Direct email "mirrorsolarvision@gmail.com" passes through unchanged', resolveCanonicalEmail('mirrorsolarvision@gmail.com') === 'mirrorsolarvision@gmail.com');
 
 // RBAC Admin Verification

@@ -201,6 +201,17 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
     const lower = clean.toLowerCase();
     const digits = clean.replace(/\D/g, '').slice(-10);
 
+    // Main Admin aliases (Sole Main Administrator: Durga Rao)
+    if (
+      ['admin', 'msvadmin', 'mirrorsolarvision', 'durgarao', 'durgarao@msv', 'msv'].includes(lower) ||
+      lower.includes('durgarao') ||
+      digits === '9182612420' ||
+      digits === '9849810668' ||
+      lower.includes('balaji')
+    ) {
+      return 'mirrorsolarvision@gmail.com';
+    }
+
     // Legacy or alternate email mappings
     if (
       lower === 'msv-siva-001@mirrorsolar.in' ||
@@ -210,19 +221,8 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       return 'siva.mirrorsolarvision@gmail.com';
     }
 
-    if (clean.includes('@')) {
+    if (clean.includes('@') && clean.includes('.')) {
       return clean;
-    }
-
-    // Admin aliases
-    if (['admin', 'msvadmin', 'mirrorsolarvision'].includes(lower) || digits === '9849810668') {
-      return 'mirrorsolarvision@gmail.com';
-    }
-    if (lower.includes('balaji') || digits === '9182612420') {
-      return 'balajiperuri09@gmail.com';
-    }
-    if (lower.includes('aqua') || lower === 'mirroraquaro@gmail.com') {
-      return 'mirroraquaro@gmail.com';
     }
 
     // Telecaller & Sales Aliases
@@ -352,13 +352,13 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
         if (isAdmin) {
           crmUser = {
             id: uid,
-            name: lowerEmail.includes('balaji') ? 'Balaji Peruri (Admin)' : (lowerEmail.includes('aqua') ? 'Mirror Aqua RO (Admin)' : 'Mirror Solar Vision Admin'),
-            email: targetEmail,
-            phone: lowerEmail.includes('balaji') ? '9182612420' : '9849810668',
+            name: 'Durga Rao (Admin)',
+            email: 'mirrorsolarvision@gmail.com',
+            phone: '9182612420',
             role: 'Admin',
             status: 'Active',
             lastActive: 'Just now',
-            initials: lowerEmail.includes('balaji') ? 'BP' : (lowerEmail.includes('aqua') ? 'MA' : 'MS'),
+            initials: 'DR',
             permissions: adminPermissions
           };
         } else if (matchedEmp) {
@@ -446,7 +446,7 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
       // allow instant sign-in with known initial password Mirror@1432 or Password123!
       if (
         (isDevMode || authErr.code === 'auth/network-request-failed') &&
-        (inputPass === 'Mirror@1432' || inputPass === 'Password123!')
+        (inputPass === 'MSV@admin@1432' || inputPass === 'Mirror@1432' || inputPass === 'Password123!')
       ) {
         const lowerEmail = targetEmail.toLowerCase();
         const matchedEmp = defaultCompanyEmployees.find(e => e.email.toLowerCase() === lowerEmail);
@@ -461,13 +461,13 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
           if (isAdmin) {
             devUser = {
               id: simulatedUid,
-              name: lowerEmail.includes('balaji') ? 'Balaji Peruri (Admin)' : (lowerEmail.includes('aqua') ? 'Mirror Aqua RO (Admin)' : 'Mirror Solar Vision Admin'),
-              email: targetEmail,
-              phone: lowerEmail.includes('balaji') ? '9182612420' : '9849810668',
+              name: 'Durga Rao (Admin)',
+              email: 'mirrorsolarvision@gmail.com',
+              phone: '9182612420',
               role: 'Admin',
               status: 'Active',
               lastActive: 'Just now',
-              initials: lowerEmail.includes('balaji') ? 'BP' : (lowerEmail.includes('aqua') ? 'MA' : 'MS'),
+              initials: 'DR',
               permissions: adminPermissions
             };
           } else if (matchedEmp) {
@@ -684,10 +684,10 @@ export default function LoginScreen({ role, onBack, onLoginSuccess }: LoginScree
                 <button 
                   type="button" 
                   className="quick-chip chip-admin"
-                  onClick={() => setUsernameOrEmail('mirrorsolarvision@gmail.com')}
-                  title="Fill Admin's email"
+                  onClick={() => setUsernameOrEmail('DURGARAO@MSV')}
+                  title="Fill Main Admin username"
                 >
-                  <ShieldCheck size={13} /> Admin
+                  <ShieldCheck size={13} /> Durga Rao (Admin)
                 </button>
                 <button 
                   type="button" 
