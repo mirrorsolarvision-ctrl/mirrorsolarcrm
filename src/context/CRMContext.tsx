@@ -328,6 +328,11 @@ export interface MockLead {
   pincode?: string;
   lastCallDate?: string;
   customerRequirement?: string;
+  leadGenerator?: string;
+  leadGeneratorId?: string;
+  leadGeneratorName?: string;
+  projectManagerId?: string;
+  projectManagerName?: string;
   financingType?: 'Bank Loan (JanSamarth)' | 'Self-Funded (Direct Payment)';
   commercialClearanceStatus?: 'Cleared' | 'Pending';
   handoffAcceptedAt?: string;
@@ -664,6 +669,8 @@ export const defaultResponsibilities: Responsibility[] = [
   { id: 'RESP_ACCOUNTS', name: 'Accounts & Billing', description: 'Customer payment verification, dealer milestone settlements, and invoicing', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_SERVICE', name: 'Service & Maintenance', description: 'AMC renewals, inverter troubleshooting, and generation monitoring', active: true, createdAt: '2026-01-01' },
   { id: 'RESP_MARKETING', name: 'Marketing & Outreach', description: 'Solar awareness campaigns, lead generation, and partner promotions', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_PROJECT_MANAGER', name: 'Project Manager', description: 'End-to-end solar project execution: site surveys, material delivery, installation tracking, DISCOM inspection, and plant commissioning', active: true, createdAt: '2026-01-01' },
+  { id: 'RESP_LEAD_GENERATOR', name: 'Lead Generator', description: 'Field prospecting, campaign outreach, customer inquiry capture, and initial solar lead generation', active: true, createdAt: '2026-01-01' },
   { id: 'resp_sales_manager', name: 'Sales Manager', description: 'Team lead assignment, 15-minute response SLA monitoring, commercial quotations, dealer survey coordination, and booking handoff', active: true, createdAt: '2026-01-01' },
   { id: 'resp_telecaller', name: 'Telecaller', description: 'Assigned enquiry outbound calling, 15-minute first call SLA, 4-pillar qualification, callback follow-ups, and WhatsApp communication', active: true, createdAt: '2026-01-01' }
 ];
@@ -1550,7 +1557,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isSalesMgr = authUser.role === 'Admin' || isAccountsRole || 
       empCategory.includes('sales manager') || 
       (authUser as any).responsibilities?.primaryResponsibilityId === 'resp_sales_manager';
-    const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge;
+    const isProjectManager = empCategory.includes('project manager') || empCategory.includes('commercial project') || (authUser as any).responsibilities?.primaryResponsibilityId === 'RESP_PROJECT_MANAGER';
+    const isPrivilegedLeadViewer = authUser.role === 'Admin' || isAccountsRole || isSalesMgr || isSuryaGhar || isStockIncharge || isProjectManager;
 
     const userUid = auth.currentUser?.uid || authUser.id;
     const isSiva = eName.includes('siva') || userUid === 'bkTpWQKgmsXRBjCHEcwD8uO9nrJ3' || userUid === 'DHIl07h9rJPBlfzc7Cg8hrfVaWj2';
@@ -1583,7 +1591,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (authUser.role === 'Dealer') {
         setLeads(allLeads.filter(l => l.dealerId === userUid));
       } else if (authUser.role === 'Employee') {
-        const matchingLeads = allLeads.filter(l => isLeadAssignedToEmployee(authUser, l));
+        const isPM = empCategory.includes('project manager') || empCategory.includes('commercial project');
+        const matchingLeads = isPM
+          ? allLeads.filter(l => ['Converted', 'Loan', 'Material', 'Installation', 'Completed'].includes(l.stage) || isLeadAssignedToEmployee(authUser, l))
+          : allLeads.filter(l => isLeadAssignedToEmployee(authUser, l));
         // If employee is Sunkara Siva and Firestore returns fewer than the verified baseline (e.g. unmigrated docs or offline), merge cleanly
         if (isSiva && matchingLeads.length < defaultSeedLeads.length) {
           const leadMap = new Map<string, MockLead>();

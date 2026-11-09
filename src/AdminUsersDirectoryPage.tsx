@@ -657,6 +657,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     value={editUserForm.employeeCategory}
                     onChange={e => setEditUserForm({ ...editUserForm, employeeCategory: e.target.value })}
                   >
+                    <option value="Project Manager">Project Manager (Execution, Site Surveys, Materials, Installation Tracking)</option>
+                    <option value="Lead Generator">Lead Generator (Customer Outreach, Prospecting, Inbound Inquiries, New Leads)</option>
                     <option value="Sales Manager (Telecaller)">Sales Manager / Telecaller (Call Leads Desk, 15m SLA, Funnel)</option>
                     <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Field Surveys)</option>
                     <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Dispatch, Inventory)</option>
@@ -910,6 +912,8 @@ export default function AdminUsersDirectoryPage({ onNavigateToLeads }: AdminUser
                     value={newUserForm.employeeCategory}
                     onChange={e => setNewUserForm({ ...newUserForm, employeeCategory: e.target.value })}
                   >
+                    <option value="Project Manager">Project Manager (Execution, Site Surveys, Materials, Installation Tracking)</option>
+                    <option value="Lead Generator">Lead Generator (Customer Outreach, Prospecting, Inbound Inquiries, New Leads)</option>
                     <option value="Sales Manager (Telecaller)">Sales Manager / Telecaller (Call Leads Desk, 15m SLA, Funnel)</option>
                     <option value="Marketing Employee">Marketing Employee (Leads, Quotations, Follow-ups)</option>
                     <option value="Stock Incharge">Stock Incharge (Warehouse, Stock Movements, Inventory)</option>

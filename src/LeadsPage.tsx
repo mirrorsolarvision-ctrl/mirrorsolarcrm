@@ -571,10 +571,21 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   // This completely prevents data leaks by restricting the base dataset.
   const baseLeads = useMemo(() => {
     let result = leads;
+    const userCategory = ((currentUser as any)?.employeeCategory || (currentUser as any)?.category || '').toLowerCase();
+    const isProjectManagerUser = userCategory.includes('project manager') || 
+                                userCategory.includes('commercial project') || 
+                                (currentUser as any)?.responsibilities?.primaryResponsibilityId === 'RESP_PROJECT_MANAGER';
+
     if (isEmployee && currentUser) {
       if (isSuryaGhar) {
         // PM Surya Ghar Incharge gets full company-wide visibility to ALL leads across marketing employees and dealers
         result = leads;
+      } else if (isProjectManagerUser) {
+        // Project Manager views all converted, loan, material, installation, and completed project stages + directly assigned leads
+        result = leads.filter(l => 
+          ['Converted', 'Loan', 'Material', 'Installation', 'Completed'].includes(l.stage) || 
+          isLeadAssignedToEmployee(currentUser, l)
+        );
       } else {
         result = result.filter(l => isLeadAssignedToEmployee(currentUser, l));
       }
@@ -4599,6 +4610,9 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                     createdByRole: (currentUser as any)?.role || 'Admin',
                     marketingEmployee: isEmployee ? (currentUser?.name || '') : '',
                     sourceMarketingEmployee: isEmployee ? (currentUser?.name || '') : '',
+                    leadGenerator: isEmployee ? (currentUser?.name || '') : '',
+                    leadGeneratorId: isEmployee ? (currentUser?.id || '') : '',
+                    leadGeneratorName: isEmployee ? (currentUser?.name || '') : '',
                     notes: newLeadForm.notes ? newLeadForm.notes.trim() : '',
                     stage: 'Lead',
                     priority: 'Medium',

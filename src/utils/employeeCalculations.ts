@@ -23,6 +23,10 @@ export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead
   const createdByName = (lead.createdByName || '').trim().toLowerCase();
   const createdById = (lead.createdBy || '').trim().toLowerCase();
   const mktName = ((lead as any).marketingEmployee || (lead as any).sourceMarketingEmployee || '').trim().toLowerCase();
+  const leadGenName = ((lead as any).leadGenerator || (lead as any).leadGeneratorName || '').trim().toLowerCase();
+  const leadGenId = ((lead as any).leadGeneratorId || '').trim().toLowerCase();
+  const pmName = ((lead as any).projectManagerName || '').trim().toLowerCase();
+  const pmId = ((lead as any).projectManagerId || '').trim().toLowerCase();
 
   // Robust reconciliation for Sunkara Siva (handles verified UID, legacy UID, and employee code)
   const isSiva = empNameLower.includes('siva') || empIdLower === 'bktpwqkgmsxrbjchecwd8uo9nrj3' || empIdLower === 'dhil07h9rjpblfzc7cg8hrfvawj2';
@@ -38,9 +42,23 @@ export const isLeadAssignedToEmployee = (employee: User | string, lead: MockLead
     isLeadSiva ||
     (Boolean(empNameLower) && (assignedName === empNameLower || assignedName.includes(empNameLower) || empNameLower.includes(assignedName))) ||
     (Boolean(empIdLower) && assignedId === empIdLower) ||
-    (Boolean(empNameLower) && (createdByName === empNameLower || mktName === empNameLower)) ||
-    (Boolean(empIdLower) && createdById === empIdLower)
+    (Boolean(empNameLower) && (createdByName === empNameLower || mktName === empNameLower || leadGenName === empNameLower || pmName === empNameLower)) ||
+    (Boolean(empIdLower) && (createdById === empIdLower || leadGenId === empIdLower || pmId === empIdLower))
   );
+};
+
+export const isProjectManagerEmployee = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  const cat = (user.employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  return cat.includes('project manager') || cat.includes('commercial project') || resp.includes('project_manager');
+};
+
+export const isLeadGeneratorEmployee = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  const cat = (user.employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  return cat.includes('lead generator') || cat.includes('lead generation') || resp.includes('lead_generator');
 };
 
 export const isSuryaGharEmployee = (user: User | null | undefined): boolean => {

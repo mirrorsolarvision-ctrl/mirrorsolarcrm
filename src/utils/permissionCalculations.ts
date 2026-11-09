@@ -142,7 +142,8 @@ export const isSalesManager = (user: User | null): boolean => {
   const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
   const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
-  if (category.includes('manager') || resp.includes('sales_manager') || userRole.includes('manager')) return true;
+  if (category.includes('project manager')) return false;
+  if (category.includes('sales manager') || resp.includes('sales_manager') || userRole.includes('sales manager')) return true;
   if (category === 'sales manager (telecaller)') return true;
   return false;
 };
@@ -153,6 +154,7 @@ export const isTelecaller = (user: User | null): boolean => {
   const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
   const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  if (category.includes('project manager')) return false;
   if (category.includes('manager') || resp.includes('sales_manager') || userRole.includes('manager')) return false;
   return category.includes('telecaller') || category.includes('sales executive') || resp.includes('telecaller') || userRole.includes('telecaller');
 };
@@ -163,6 +165,7 @@ export const isSalesDepartmentUser = (user: User | null): boolean => {
   const userRole = (user.role || '').toLowerCase();
   const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
   const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  if (category.includes('project manager')) return false;
   return (
     category.includes('sales') || 
     category.includes('telecaller') || 
@@ -170,6 +173,29 @@ export const isSalesDepartmentUser = (user: User | null): boolean => {
     resp.includes('telecaller') || 
     userRole.includes('telecaller') || 
     userRole.includes('sales')
+  );
+};
+
+export const isProjectManager = (user: User | null): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  return (
+    category.includes('project manager') || 
+    category.includes('commercial project') || 
+    resp.includes('project_manager')
+  );
+};
+
+export const isLeadGenerator = (user: User | null): boolean => {
+  if (!user) return false;
+  const category = ((user as any).employeeCategory || (user as any).category || '').toLowerCase();
+  const resp = ((user as any).responsibilities?.primaryResponsibilityId || '').toLowerCase();
+  return (
+    category.includes('lead generator') || 
+    category.includes('lead generation') || 
+    resp.includes('lead_generator')
   );
 };
 

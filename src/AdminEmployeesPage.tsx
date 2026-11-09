@@ -673,6 +673,8 @@ export default function AdminEmployeesPage({ onNavigateToLeads, onNavigateToAcce
                 value={formData.employeeCategory} 
                 onChange={e => setFormData({...formData, employeeCategory: e.target.value})}
               >
+                <option value="Project Manager">Project Manager (Execution & Installations)</option>
+                <option value="Lead Generator">Lead Generator (Lead Prospecting & Intake)</option>
                 <option value="Sales Manager">Sales Manager (Team Leader)</option>
                 <option value="Telecaller">Telecaller (Assigned Enquiries & Calling)</option>
                 <option value="PM Surya Ghar Work Incharge">PM Surya Ghar Work Incharge</option>

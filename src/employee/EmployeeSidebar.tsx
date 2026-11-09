@@ -48,8 +48,11 @@ export default function EmployeeSidebar({
   onSignOut
 }: EmployeeSidebarProps) {
   const { currentUser } = useCRM();
+  const userCat = (currentUser?.employeeCategory || '').toLowerCase();
   const isStockIncharge = currentUser?.employeeCategory === 'Stock Incharge';
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
+  const isPM = userCat.includes('project manager') || userCat.includes('commercial project');
+  const isLeadGen = userCat.includes('lead generator') || userCat.includes('lead generation');
   const isSalesDept = isSalesDepartmentUser(currentUser);
   const isManager = isSalesManager(currentUser);
 
@@ -57,14 +60,14 @@ export default function EmployeeSidebar({
   const standardNavItems = [
     { name: 'Dashboard', path: '/employee/dashboard', icon: LayoutDashboard, routeName: 'Dashboard' },
     { name: 'Attendance', path: '/employee/attendance', icon: UserCheck, routeName: 'Attendance' },
-    { name: isSuryaGhar ? 'All Leads & KYC' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
+    { name: isSuryaGhar ? 'All Leads & KYC' : isPM ? 'Projects & Execution' : isLeadGen ? 'My Generated Leads' : 'My Leads', path: '/employee/leads', icon: Users, routeName: 'Leads' },
     { name: 'Office Call Leads', path: '/employee/call-leads', icon: PhoneCall, routeName: 'Call Leads' },
-    { name: 'Sales Milestones', path: '/employee/milestones', icon: Award, routeName: 'Milestones' },
+    { name: isPM ? 'Milestones & Commissioning' : isLeadGen ? 'Lead Incentives & Targets' : 'Sales Milestones', path: '/employee/milestones', icon: Award, routeName: 'Milestones' },
     { name: 'Quotations', path: '/employee/quotations', icon: FileText, routeName: 'Quotations' },
     { name: 'Finance & Payments', path: '/employee/payments', icon: CreditCard, routeName: 'Payments' },
     { name: 'Tasks', path: '/employee/tasks', icon: CheckSquare, routeName: 'Tasks' },
     { name: 'Calendar', path: '/employee/calendar', icon: Calendar, routeName: 'Calendar' },
-    { name: isStockIncharge ? 'Warehouse Stock' : 'Stock Availability', path: '/employee/stock', icon: Package, routeName: 'Stock' },
+    { name: isStockIncharge ? 'Warehouse Stock' : isPM ? 'Project Materials & Stock' : 'Stock Availability', path: '/employee/stock', icon: Package, routeName: 'Stock' },
     { name: 'Day End Report', path: '/employee/eod-report', icon: FileText, routeName: 'EOD Report' },
     { name: 'Reports', path: '/employee/reports', icon: LayoutDashboard, routeName: 'Reports' },
   ].filter(item => {

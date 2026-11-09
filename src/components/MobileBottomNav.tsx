@@ -105,9 +105,11 @@ export default function MobileBottomNav({
         ]
       };
     } else {
-      const isStockIncharge = employeeCategory === 'Stock Incharge';
-      const isSalesDept = (employeeCategory || '').toLowerCase().includes('sales') || 
-                          (employeeCategory || '').toLowerCase().includes('telecaller');
+      const catLower = (employeeCategory || '').toLowerCase();
+      const isStockIncharge = catLower.includes('stock incharge') || catLower === 'stock incharge';
+      const isPM = catLower.includes('project manager') || catLower.includes('commercial project');
+      const isLeadGen = catLower.includes('lead generator') || catLower.includes('lead generation');
+      const isSalesDept = catLower.includes('sales') || catLower.includes('telecaller');
 
       if (isSalesDept) {
         return {
@@ -117,6 +119,30 @@ export default function MobileBottomNav({
           ],
           rightItems: [
             { id: '/sales/telecalling', label: 'Calls', icon: <PhoneCall size={20} /> },
+          ]
+        };
+      }
+
+      if (isPM) {
+        return {
+          leftItems: [
+            { id: '/employee/dashboard', label: 'Projects', icon: <LayoutDashboard size={20} /> },
+            { id: '/employee/leads', label: 'Exec.', icon: <Activity size={20} />, badge: leadsBadge },
+          ],
+          rightItems: [
+            { id: '/employee/stock', label: 'Materials', icon: <Package size={20} />, badge: stockBadge },
+          ]
+        };
+      }
+
+      if (isLeadGen) {
+        return {
+          leftItems: [
+            { id: '/employee/dashboard', label: 'Home', icon: <LayoutDashboard size={20} /> },
+            { id: '/employee/leads', label: 'My Leads', icon: <Activity size={20} />, badge: leadsBadge },
+          ],
+          rightItems: [
+            { id: '/employee/milestones', label: 'Incentives', icon: <Award size={20} /> },
           ]
         };
       }
@@ -153,6 +179,20 @@ export default function MobileBottomNav({
         { id: '/dealer/dashboard', label: 'Commission Statement', desc: 'View earned ₹/kW & settle dues', icon: <Award size={18} />, color: '#F59E0B' },
         { id: '/dealer/payments', label: 'Customer Payments', desc: 'Check milestone payment clearance', icon: <CreditCard size={18} />, color: '#10B981' },
         { id: '/dealer/stock', label: 'Solar Stock & Spares', desc: 'Request panels, inverters & BOS', icon: <Package size={18} />, color: '#8B5CF6' },
+      ];
+    } else if (employeeCategory && (employeeCategory.includes('Project Manager') || employeeCategory.includes('Commercial Project'))) {
+      return [
+        { id: '/employee/leads', label: 'Projects & Sites', desc: 'Track installation & commissioning', icon: <Activity size={18} />, color: '#0284C7' },
+        { id: '/employee/stock', label: 'Material Dispatch', desc: 'Verify BOS & module delivery', icon: <Package size={18} />, color: '#8B5CF6' },
+        { id: '/employee/milestones', label: 'Plant Milestones', desc: 'DISCOM & sync certificates', icon: <Award size={18} />, color: '#10B981' },
+        { id: '/employee/attendance', label: 'Punch Attendance', desc: 'Daily check-in & check-out', icon: <Clock size={18} />, color: '#F59E0B' },
+      ];
+    } else if (employeeCategory && (employeeCategory.includes('Lead Generator') || employeeCategory.includes('Lead Generation'))) {
+      return [
+        { id: '/employee/leads', label: 'Generate New Lead', desc: 'Quick customer prospecting entry', icon: <Activity size={18} />, color: '#0284C7' },
+        { id: '/employee/leads', label: 'My Prospects', desc: 'View generated leads status', icon: <PhoneCall size={18} />, color: '#10B981' },
+        { id: '/employee/milestones', label: 'Generation Targets', desc: 'Track lead incentives & rank', icon: <Award size={18} />, color: '#F59E0B' },
+        { id: '/employee/attendance', label: 'Punch Attendance', desc: 'Daily check-in & check-out', icon: <Clock size={18} />, color: '#8B5CF6' },
       ];
     } else if (employeeCategory && (employeeCategory.includes('Sales') || employeeCategory.includes('Telecaller'))) {
       return [

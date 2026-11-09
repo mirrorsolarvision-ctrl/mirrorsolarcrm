@@ -43,8 +43,11 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
   const isSuryaGhar = isSuryaGharEmployee(currentUser);
   const isSalesTelecaller = isSalesTelecallerEmployee(currentUser);
   const empCategory = currentUser?.employeeCategory || (isSuryaGhar ? 'PM Surya Ghar Incharge' : isSalesTelecaller ? 'Sales Manager (Telecaller)' : 'Marketing Employee');
-  const isStockIncharge = empCategory === 'Stock Incharge';
-  const isMarketing = !isStockIncharge && !isSuryaGhar && !isSalesTelecaller;
+  const catLower = empCategory.toLowerCase();
+  const isStockIncharge = catLower === 'stock incharge' || catLower.includes('stock incharge');
+  const isPM = catLower.includes('project manager') || catLower.includes('commercial project');
+  const isLeadGen = catLower.includes('lead generator') || catLower.includes('lead generation');
+  const isMarketing = !isStockIncharge && !isSuryaGhar && !isSalesTelecaller && !isPM && !isLeadGen;
 
   // --------------------------------------------------------------------------
   // MARKETING EMPLOYEE DERIVED DATA
@@ -692,15 +695,26 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
           <h1 style={{ margin: 0 }}>Good Morning, {currentUser?.name?.split(' ')[0] || 'Employee'}</h1>
           <span className="badge" style={{ background: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700, padding: '4px 12px', borderRadius: '16px', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
-            💼 Marketing Executive
+            {isPM ? '🏗️ Project Manager' : isLeadGen ? '🎯 Lead Generator' : '💼 Marketing Executive'}
           </span>
         </div>
-        <p style={{ margin: 0, opacity: 0.9 }}>Here is your active sales pipeline, customer follow-ups, and read-only warehouse inventory.</p>
+        <p style={{ margin: 0, opacity: 0.9 }}>
+          {isPM 
+            ? 'Oversee end-to-end solar project execution: site surveys, material delivery, installation tracking, and commissioning.'
+            : isLeadGen 
+              ? 'Prospect new rooftop solar leads, record customer interest, and track your lead generation milestones.'
+              : 'Here is your active sales pipeline, customer follow-ups, and read-only warehouse inventory.'}
+        </p>
         
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
           <button className="btn-primary" onClick={() => onNavigate('/employee/leads', { action: 'add' })} style={{ padding: '7px 14px', fontSize: '0.85rem', background: '#16a34a', borderColor: '#16a34a', color: '#fff', borderRadius: '8px' }}>
-            <Plus size={15} style={{ marginRight: '5px' }} /> New Lead
+            <Plus size={15} style={{ marginRight: '5px' }} /> {isLeadGen ? 'Generate Lead' : 'New Lead'}
           </button>
+          {isPM && (
+            <button className="btn-primary" onClick={() => onNavigate('/employee/stock')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: '#0284c7', borderColor: '#0284c7', color: '#fff', borderRadius: '8px' }}>
+              <Package size={15} style={{ marginRight: '5px' }} /> Project Materials
+            </button>
+          )}
           <button className="btn-outline" onClick={() => onNavigate('/employee/eod-report')} style={{ padding: '7px 14px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)', color: '#ffffff', borderRadius: '8px' }}>
             <FileText size={15} style={{ marginRight: '5px' }} /> Day End Report
           </button>
@@ -749,10 +763,10 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', color: isMonthlyMilestoneMet ? '#6ee7b7' : '#fbbf24' }}>
-                MARKETING MANDATORY TARGET MILESTONE
+                {isLeadGen ? 'LEAD GENERATION INCENTIVE TARGET' : isPM ? 'PROJECT EXECUTION & COMMISSIONING TARGET' : 'MARKETING MANDATORY TARGET MILESTONE'}
               </div>
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>
-                Minimum 4 Sales Per Month Milestone
+                {isLeadGen ? 'Monthly Qualified Lead Target' : isPM ? 'Minimum 4 Plant Commissionings / Month' : 'Minimum 4 Sales Per Month Milestone'}
               </h3>
             </div>
           </div>
@@ -803,23 +817,23 @@ export default function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps
       {/* Summary Cards */}
       <div className="emp-grid-4">
         <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads')}>
-          <div className="emp-summary-title">My Leads</div>
+          <div className="emp-summary-title">{isPM ? 'Active Projects' : isLeadGen ? 'Generated Leads' : 'My Leads'}</div>
           <div className="emp-summary-value">{performance.totalLeads}</div>
         </div>
         <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads', { status: 'Active' })}>
-          <div className="emp-summary-title">Active Deals</div>
+          <div className="emp-summary-title">{isPM ? 'In Installation' : 'Active Deals'}</div>
           <div className="emp-summary-value" style={{color: '#d97706'}}>{performance.activeLeads}</div>
         </div>
         <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads')}>
-          <div className="emp-summary-title">Follow-ups Today</div>
+          <div className="emp-summary-title">{isPM ? 'Site Follow-ups' : 'Follow-ups Today'}</div>
           <div className="emp-summary-value" style={{color: '#ea580c'}}>{todayFollowUps.length}</div>
         </div>
         <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads', { stage: 'Converted' })}>
-          <div className="emp-summary-title">Converted</div>
+          <div className="emp-summary-title">{isPM ? 'Commissioned' : 'Converted'}</div>
           <div className="emp-summary-value" style={{color: '#16a34a'}}>{performance.convertedLeads}</div>
         </div>
         <div className="emp-summary-card" onClick={() => onNavigate('/employee/leads', { filter: 'Project' })}>
-          <div className="emp-summary-title">Assigned Projects</div>
+          <div className="emp-summary-title">{isPM ? 'Total Handled' : isLeadGen ? 'Verified Prospects' : 'Assigned Projects'}</div>
           <div className="emp-summary-value" style={{color: '#4f46e5'}}>{assignedProjects}</div>
         </div>
       </div>
