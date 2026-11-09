@@ -274,7 +274,7 @@
 }
 
 .view-mode-toggle {
-  display: none; /* revealed on tablet/mobile */
+  display: inline-flex; /* Accessible across all devices: desktop, tablet, and mobile */
   background: #F1F5F9;
   border-radius: 8px;
   padding: 3px;
@@ -330,9 +330,10 @@
 
 .payroll-table {
   width: 100%;
-  min-width: 1080px; /* Crucial: Prevents column compression on all screen sizes */
-  border-collapse: collapse;
-  font-size: 0.88rem;
+  min-width: 900px; /* Streamlined to fit laptop and desktop viewports without forced horizontal scrolling */
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
   table-layout: auto;
 }
 
@@ -340,74 +341,90 @@
   background: #F8FAFC;
   color: #475569;
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 13px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid #E2E8F0;
   text-align: left;
   white-space: nowrap;
 }
 
 .payroll-table td {
-  padding: 14px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid #F1F5F9;
   color: #334155;
   vertical-align: middle;
 }
 
-.payroll-table tr:hover {
+.payroll-table tr:hover td {
   background: #F8FAFC;
 }
 
 /* Column Sizing Tokens */
 .payroll-table th.col-emp,
 .payroll-table td.col-emp {
-  min-width: 220px;
+  min-width: 175px;
 }
 
 .payroll-table th.col-base,
 .payroll-table td.col-base {
-  min-width: 120px;
+  min-width: 100px;
   white-space: nowrap;
 }
 
 .payroll-table th.col-att,
 .payroll-table td.col-att {
-  min-width: 200px;
+  min-width: 155px;
 }
 
 .payroll-table th.col-cut,
 .payroll-table td.col-cut {
-  min-width: 120px;
+  min-width: 100px;
   white-space: nowrap;
 }
 
 .payroll-table th.col-adv,
 .payroll-table td.col-adv {
-  min-width: 140px;
+  min-width: 115px;
 }
 
 .payroll-table th.col-net,
 .payroll-table td.col-net {
-  min-width: 130px;
+  min-width: 105px;
   white-space: nowrap;
 }
 
 .payroll-table th.col-status,
 .payroll-table td.col-status {
-  min-width: 105px;
+  min-width: 90px;
   white-space: nowrap;
 }
 
-/* ACTION COLUMN: Guaranteed breathing room, no compression */
+/* ACTION COLUMN: Sticky Right-Pinned Column
+   Guarantees the user NEVER has to scroll sideways to click "Disburse Pay" or "View Payslip" */
 .payroll-table th.col-actions,
 .payroll-table td.col-actions {
-  min-width: 185px;
-  width: 185px;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: #FFFFFF;
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.05);
+  border-left: 1px solid #E2E8F0;
+  min-width: 155px;
+  width: 155px;
   text-align: center;
   white-space: nowrap;
-  padding-right: 20px;
+  padding-right: 14px;
+}
+
+.payroll-table th.col-actions {
+  background: #F8FAFC;
+  z-index: 3;
+}
+
+.payroll-table tr:hover td.col-actions {
+  background: #F8FAFC;
 }
 
 .payroll-action-buttons {
@@ -550,8 +567,22 @@
 }
 
 /* --------------------------------------------------------------------------
-   Mobile Cards View (Visible on Mobile & Small Tablets <= 768px)
+   Cards View & Responsive View Toggles (Desktop, Tablet & Mobile)
    -------------------------------------------------------------------------- */
+.payroll-card.show-cards-view .payroll-mobile-cards {
+  display: flex !important;
+}
+.payroll-card.show-cards-view .payroll-table-wrapper {
+  display: none !important;
+}
+
+.payroll-card.show-table-view .payroll-mobile-cards {
+  display: none !important;
+}
+.payroll-card.show-table-view .payroll-table-wrapper {
+  display: block !important;
+}
+
 .payroll-mobile-cards {
   display: none;
   flex-direction: column;

@@ -429,20 +429,51 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
       const leaveDeduction = Math.round((leaveCount * perDayRate) + (halfDayCount * perDayRate * 0.5));
       const absentDeduction = Math.round(absentCount * perDayRate);
 
-      // 3.5. Calculate Solar Sales Deals Incentives
+      // 3.5. Calculate Project Completion & Net Metering Incentives
+      // USER RULE: Incentive sanctioned only upon verified project completion (up to Net Metering installation with electrical current inspection & final approval)
       let convertedKwInMonth = 0;
       let convertedDealsCount = 0;
-      const incentiveRate = config?.dealIncentiveRatePerKw ?? 500; // e.g. ₹500/kW standard incentive
+      const incentiveRate = config?.dealIncentiveRatePerKw ?? 1000; // Standard ₹1,000 / kW or project
 
       if (leads && leads.length > 0) {
-        const empDeals = leads.filter(l => 
-          (l.assignedEmployeeId === emp.id || l.assignedEmployee === emp.name) &&
-          (l.stage === 'Converted' || l.stage === 'Completed') &&
-          !l.archived &&
-          ((l.convertedAt && l.convertedAt.startsWith(monthStr)) || (l.updatedAt && l.updatedAt.startsWith(monthStr)))
-        );
-        convertedDealsCount = empDeals.length;
-        empDeals.forEach(l => {
+        const empCompletedProjects = leads.filter(l => {
+          if (l.archived) return false;
+          
+          // Match employee assignment (Field officer, assigned employee, PM, or lead generator)
+          const isAssigned = (
+            l.assignedEmployeeId === emp.id || 
+            l.assignedEmployee === emp.name ||
+            (l as any).projectManagerId === emp.id ||
+            (l as any).projectManagerName === emp.name ||
+            (l as any).leadGeneratorId === emp.id ||
+            (l as any).leadGeneratorName === emp.name
+          );
+          if (!isAssigned) return false;
+
+          // Project completion criteria:
+          // 1. Stage is 'Completed'
+          // 2. OR Net Metering milestone / electrical inspection status completed & approved
+          const isCompletedStage = l.stage === 'Completed';
+          const hasNetMeteringApproved = Boolean(
+            (l as any).netMeteringCompleted ||
+            (l as any).netMeteringInstalled ||
+            (l as any).currentInspectionApproved ||
+            (l as any).commissioningApproved ||
+            (l as any).milestones?.some((m: any) => 
+              (m.name?.toLowerCase().includes('net meter') || m.name?.toLowerCase().includes('inspection') || m.name?.toLowerCase().includes('commission')) &&
+              (m.status === 'Completed' || m.completed)
+            )
+          );
+
+          if (!isCompletedStage && !hasNetMeteringApproved) return false;
+
+          // Check if completion / inspection occurred during this month
+          const completionDate = (l as any).completedAt || (l as any).commissionedAt || l.updatedAt || l.createdAt || '';
+          return completionDate.startsWith(monthStr);
+        });
+
+        convertedDealsCount = empCompletedProjects.length;
+        empCompletedProjects.forEach(l => {
           const cap = l.dealerSpecifications?.systemCapacityKw 
             ? (parseFloat(String(l.dealerSpecifications.systemCapacityKw).replace(/[^\d.]/g, '')) || 3) 
             : 3;

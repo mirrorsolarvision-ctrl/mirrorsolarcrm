@@ -59,8 +59,13 @@ export default function AdminPayrollPage() {
   // Active Tab: 'register' | 'advances' | 'structures' | 'regularization'
   const [activeTab, setActiveTab] = useState<'register' | 'advances' | 'structures' | 'regularization'>('register');
 
-  // Mobile / Tablet View Mode ('cards' | 'table')
-  const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'table'>('cards');
+  // Responsive View Mode ('cards' | 'table'): defaults to 'cards' on mobile (<=768px), 'table' on desktop
+  const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'table'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      return 'cards';
+    }
+    return 'table';
+  });
 
   // Month Selection (defaults to current Month e.g. "2026-10")
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -420,7 +425,7 @@ export default function AdminPayrollPage() {
           </div>
           <div className="payroll-metric-info">
             <span className="payroll-metric-val">₹{summaryMetrics.totalSolarIncentives.toLocaleString()}</span>
-            <span className="payroll-metric-lbl">Solar Deal Incentives</span>
+            <span className="payroll-metric-lbl">Project Completion Incentives</span>
           </div>
         </div>
 
@@ -439,7 +444,7 @@ export default function AdminPayrollPage() {
       {/* TAB 1: MONTHLY PAYROLL REGISTER */}
       {/* ========================================================================= */}
       {activeTab === 'register' && (
-        <div className={`payroll-card ${mobileViewMode === 'table' ? 'show-table-on-mobile' : ''}`}>
+        <div className={`payroll-card ${mobileViewMode === 'cards' ? 'show-cards-view' : 'show-table-view show-table-on-mobile'}`}>
           <div className="payroll-toolbar">
             <div className="payroll-toolbar-left">
               <div className="month-picker-pill">
@@ -565,7 +570,7 @@ export default function AdminPayrollPage() {
                           +₹{(rec.solarDealIncentives || 0).toLocaleString()}
                         </div>
                         <div className="text-muted text-xs">
-                          {(rec.convertedKwInMonth || 0)} kW ({rec.convertedDealsCount || 0} deals)
+                          {(rec.convertedKwInMonth || 0)} kW ({rec.convertedDealsCount || 0} completed)
                         </div>
                       </td>
 
@@ -736,12 +741,12 @@ export default function AdminPayrollPage() {
 
                     {(rec.solarDealIncentives || 0) > 0 && (
                       <div className="p-m-cell" style={{ gridColumn: 'span 2', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '6px', padding: '6px 8px' }}>
-                        <span className="p-m-lbl" style={{ color: '#059669', fontWeight: 700 }}>Solar Deal Incentives</span>
+                        <span className="p-m-lbl" style={{ color: '#059669', fontWeight: 700 }}>Project Completion Incentives</span>
                         <span className="p-m-val" style={{ color: '#059669' }}>
                           +₹{(rec.solarDealIncentives || 0).toLocaleString()}
                         </span>
                         <span className="p-m-hint" style={{ color: '#047857' }}>
-                          {(rec.convertedKwInMonth || 0)} kW installed across {rec.convertedDealsCount || 0} deal(s)
+                          {(rec.convertedKwInMonth || 0)} kW across {rec.convertedDealsCount || 0} completed project(s)
                         </span>
                       </div>
                     )}
@@ -793,7 +798,7 @@ export default function AdminPayrollPage() {
       {/* TAB 2: ADVANCES LEDGER */}
       {/* ========================================================================= */}
       {activeTab === 'advances' && (
-        <div className={`payroll-card ${mobileViewMode === 'table' ? 'show-table-on-mobile' : ''}`}>
+        <div className={`payroll-card ${mobileViewMode === 'cards' ? 'show-cards-view' : 'show-table-view show-table-on-mobile'}`}>
           <div className="payroll-toolbar">
             <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0F172A', fontWeight: 800 }}>
               Employee Salary Advances Ledger
@@ -1018,7 +1023,7 @@ export default function AdminPayrollPage() {
       {/* TAB 3: SALARY STRUCTURES */}
       {/* ========================================================================= */}
       {activeTab === 'structures' && (
-        <div className={`payroll-card ${mobileViewMode === 'table' ? 'show-table-on-mobile' : ''}`}>
+        <div className={`payroll-card ${mobileViewMode === 'cards' ? 'show-cards-view' : 'show-table-view show-table-on-mobile'}`}>
           <div className="payroll-toolbar">
             <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0F172A', fontWeight: 800 }}>
               Employee Salary Packages & Bank Details
@@ -1099,7 +1104,7 @@ export default function AdminPayrollPage() {
                               employeeId: emp.id,
                               employeeName: emp.name,
                               baseSalary: base,
-                              dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 500,
+                              dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 1000,
                               salaryType: config?.salaryType || 'MONTHLY',
                               bankName: config?.bankName || '',
                               accountNumber: config?.accountNumber || '',
@@ -1176,7 +1181,7 @@ export default function AdminPayrollPage() {
                         employeeId: emp.id,
                         employeeName: emp.name,
                         baseSalary: base,
-                        dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 500,
+                        dealIncentiveRatePerKw: config?.dealIncentiveRatePerKw ?? 1000,
                         salaryType: config?.salaryType || 'MONTHLY',
                         bankName: config?.bankName || '',
                         accountNumber: config?.accountNumber || '',
@@ -1591,17 +1596,17 @@ export default function AdminPayrollPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                  Solar Deal Conversion Incentive (₹ / installed kW)
+                  Project Completion & Net Metering Incentive (₹ / installed kW or project)
                 </label>
                 <input 
                   type="number"
-                  placeholder="e.g. 500"
+                  placeholder="e.g. 1000"
                   value={editSalaryForm.dealIncentiveRatePerKw ?? ''}
                   onChange={(e) => setEditSalaryForm({ ...editSalaryForm, dealIncentiveRatePerKw: parseFloat(e.target.value) || 0 })}
                   style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px' }}
                 />
                 <span className="text-muted text-xs" style={{ display: 'block', marginTop: '4px' }}>
-                  Employee receives this incentive amount per installed kW of deals converted to WON during the month.
+                  Employee receives this incentive upon project completion (up to Net Metering installation with electrical current inspection & final approval), sanctioned into salary at payroll time.
                 </span>
               </div>
 
@@ -1775,7 +1780,7 @@ export default function AdminPayrollPage() {
                     <td style={{ textAlign: 'right', color: '#DC2626' }}>-₹{viewingPayslip.absentDeduction.toLocaleString()}</td>
                   </tr>
                   <tr>
-                    <td>Solar Deal Incentives ({viewingPayslip.convertedKwInMonth || 0} kW)</td>
+                    <td>Project Completion Incentives ({viewingPayslip.convertedKwInMonth || 0} kW)</td>
                     <td style={{ textAlign: 'right', color: '#059669', fontWeight: 700 }}>
                       +₹{(viewingPayslip.solarDealIncentives || 0).toLocaleString()}
                     </td>
