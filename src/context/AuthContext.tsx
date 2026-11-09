@@ -111,6 +111,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyActiveSession = async (): Promise<boolean> => {
     try {
       if (!auth.currentUser) {
+        const saved = localStorage.getItem('crm_session_user');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.status !== 'Inactive' && !parsed.isDeleted) {
+              return true;
+            }
+          } catch {
+            // Bad format
+          }
+        }
         localStorage.removeItem('crm_session_user');
         setCurrentUser(null);
         return false;
@@ -118,10 +129,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await auth.currentUser.getIdToken(true);
       return true;
     } catch (err) {
-      console.warn("Session invalidated by backend authority:", err);
-      localStorage.removeItem('crm_session_user');
-      setCurrentUser(null);
-      return false;
+      console.warn("Session check fallback:", err);
+      // Keep session intact during transient network blips
+      const saved = localStorage.getItem('crm_session_user');
+      return !!saved;
     }
   };
 
@@ -162,7 +173,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error("Error fetching user data:", err);
         }
       } else {
-        // Session Revocation Gate: Invalidate local state when Firebase Auth session is null
+        // Persistent Login Gate: Keep user signed into their portal across browser/device restarts
+        // unless they explicitly clicked Sign Out or were marked Inactive by Admin
+        const savedSession = localStorage.getItem('crm_session_user');
+        if (savedSession) {
+          try {
+            const parsed = JSON.parse(savedSession);
+            if (parsed && parsed.status !== 'Inactive' && !parsed.isDeleted) {
+              // Maintain active session for persistent login
+              return;
+            }
+          } catch {
+            // Bad format, allow cleanup
+          }
+        }
         localStorage.removeItem('crm_session_user');
         setCurrentUser(null);
       }

@@ -65,8 +65,21 @@ function SplashScreen() {
     };
   }, [loading, authUser, navigate]);
 
+  const handleSkipSplash = () => {
+    if (authUser) {
+      navigate(`/${authUser.role.toLowerCase()}/dashboard`, { replace: true });
+    } else {
+      navigate('/role', { replace: true });
+    }
+  };
+
   return (
-    <div className={`splash-container ${stage === 6 ? 'fade-out' : ''}`}>
+    <div 
+      className={`splash-container ${stage === 6 ? 'fade-out' : ''}`}
+      onClick={handleSkipSplash}
+      style={{ cursor: 'pointer' }}
+      title="Tap to continue"
+    >
       <div className="logo-section">
         <svg className="energy-svg" viewBox="0 0 100 100">
           <defs>
