@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { canAccessRoute } from '../utils/permissionCalculations';
@@ -9,19 +9,20 @@ import { useStock } from '../context/StockContext';
 import MobileBottomNav from '../components/MobileBottomNav';
 import RouteLoadingFallback from '../components/RouteLoadingFallback';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { lazyRetry } from '../utils/lazyRetry';
 
 // Lazy-loaded dealer sub-modules
-const DealerEmployeesPage = lazy(() => import('./DealerEmployeesPage'));
-const DealerAttendancePage = lazy(() => import('./DealerAttendancePage'));
-const QuotationsPortalPage = lazy(() => import('../pages/QuotationsPortalPage'));
-const DealerStockPage = lazy(() => import('./DealerStockPage'));
-const ProfilePage = lazy(() => import('../ProfilePage'));
-const LeadsPage = lazy(() => import('../LeadsPage'));
-const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
-const TasksPage = lazy(() => import('../TasksPage'));
-const CalendarPage = lazy(() => import('../CalendarPage'));
-const PaymentsPage = lazy(() => import('../PaymentsPage'));
-const MilestonesPage = lazy(() => import('../MilestonesPage'));
+const DealerEmployeesPage = lazyRetry(() => import('./DealerEmployeesPage'));
+const DealerAttendancePage = lazyRetry(() => import('./DealerAttendancePage'));
+const QuotationsPortalPage = lazyRetry(() => import('../pages/QuotationsPortalPage'));
+const DealerStockPage = lazyRetry(() => import('./DealerStockPage'));
+const ProfilePage = lazyRetry(() => import('../ProfilePage'));
+const LeadsPage = lazyRetry(() => import('../LeadsPage'));
+const AdminReportsPage = lazyRetry(() => import('../AdminReportsPage'));
+const TasksPage = lazyRetry(() => import('../TasksPage'));
+const CalendarPage = lazyRetry(() => import('../CalendarPage'));
+const PaymentsPage = lazyRetry(() => import('../PaymentsPage'));
+const MilestonesPage = lazyRetry(() => import('../MilestonesPage'));
 
 interface DealerAppProps {
   onSignOut: () => void;

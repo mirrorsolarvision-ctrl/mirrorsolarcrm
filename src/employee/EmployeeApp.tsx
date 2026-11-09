@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { canAccessRoute, isSalesDepartmentUser } from '../utils/permissionCalculations';
@@ -8,21 +8,22 @@ import EmployeeDashboard from './EmployeeDashboard';
 import MobileBottomNav from '../components/MobileBottomNav';
 import RouteLoadingFallback from '../components/RouteLoadingFallback';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { lazyRetry } from '../utils/lazyRetry';
 
 // Lazy-loaded portal modules
-const EmployeeAttendancePage = lazy(() => import('../pages/EmployeeAttendancePage'));
-const QuotationsPortalPage = lazy(() => import('../pages/QuotationsPortalPage'));
-const ProfilePage = lazy(() => import('../ProfilePage'));
-const LeadsPage = lazy(() => import('../LeadsPage'));
-const StockPage = lazy(() => import('../StockPage'));
-const PaymentsPage = lazy(() => import('../PaymentsPage'));
-const AdminReportsPage = lazy(() => import('../AdminReportsPage'));
-const TasksPage = lazy(() => import('../TasksPage'));
-const CalendarPage = lazy(() => import('../CalendarPage'));
-const EmployeeEodReportPage = lazy(() => import('../pages/EmployeeEodReportPage'));
-const MilestonesPage = lazy(() => import('../MilestonesPage'));
-const CallLeadsPage = lazy(() => import('../pages/CallLeadsPage'));
-const SalesWorkspace = lazy(() => import('../sales/SalesWorkspace'));
+const EmployeeAttendancePage = lazyRetry(() => import('../pages/EmployeeAttendancePage'));
+const QuotationsPortalPage = lazyRetry(() => import('../pages/QuotationsPortalPage'));
+const ProfilePage = lazyRetry(() => import('../ProfilePage'));
+const LeadsPage = lazyRetry(() => import('../LeadsPage'));
+const StockPage = lazyRetry(() => import('../StockPage'));
+const PaymentsPage = lazyRetry(() => import('../PaymentsPage'));
+const AdminReportsPage = lazyRetry(() => import('../AdminReportsPage'));
+const TasksPage = lazyRetry(() => import('../TasksPage'));
+const CalendarPage = lazyRetry(() => import('../CalendarPage'));
+const EmployeeEodReportPage = lazyRetry(() => import('../pages/EmployeeEodReportPage'));
+const MilestonesPage = lazyRetry(() => import('../MilestonesPage'));
+const CallLeadsPage = lazyRetry(() => import('../pages/CallLeadsPage'));
+const SalesWorkspace = lazyRetry(() => import('../sales/SalesWorkspace'));
 
 interface EmployeeAppProps {
   onSignOut: () => void;

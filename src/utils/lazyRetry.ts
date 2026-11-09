@@ -19,14 +19,16 @@ export function lazyRetry<T extends ComponentType<any>>(
         error?.message?.includes('error loading dynamically imported module');
 
       if (isChunkError && typeof window !== 'undefined') {
-        const key = 'crm_chunk_retry_' + window.location.pathname;
-        const hasRetried = sessionStorage.getItem(key);
-        if (!hasRetried) {
-          sessionStorage.setItem(key, 'true');
+        const key = 'crm_chunk_retry_time';
+        const lastRetryTime = sessionStorage.getItem(key);
+        const now = Date.now();
+        
+        // Only auto-reload if we haven't reloaded in the last 10 seconds (prevents loops)
+        if (!lastRetryTime || now - parseInt(lastRetryTime, 10) > 10000) {
+          sessionStorage.setItem(key, now.toString());
           window.location.reload();
-          return new Promise(() => {}); // Wait for reload
+          return new Promise(() => {}); // Wait for browser reload
         }
-        sessionStorage.removeItem(key);
       }
       throw error;
     }
