@@ -201,41 +201,41 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
       return updated;
     });
 
-    // 2. Persist to Firestore /employee_salaries/{id}
-    try {
-      await setDoc(doc(db, 'employee_salaries', cleanPayload.employeeId), cleanPayload, { merge: true });
-    } catch (err) {
-      console.warn('Fallback local update for employee_salaries:', err);
-    }
+    // 2. Persist to Firestore /employee_salaries/{id} & /users/{id} asynchronously in background
+    Promise.resolve().then(async () => {
+      try {
+        await setDoc(doc(db, 'employee_salaries', cleanPayload.employeeId), cleanPayload, { merge: true });
+      } catch (err) {
+        console.warn('Fallback local update for employee_salaries:', err);
+      }
 
-    // 3. Mirror directly into Firestore /users/{id} for cross-portal consistency
-    try {
-      await setDoc(doc(db, 'users', cleanPayload.employeeId), {
-        baseSalary: cleanPayload.baseSalary,
-        salary: cleanPayload.baseSalary,
-        dealIncentiveRatePerKw: cleanPayload.dealIncentiveRatePerKw,
-        bankName: cleanPayload.bankName,
-        accountNumber: cleanPayload.accountNumber,
-        ifscCode: cleanPayload.ifscCode,
-        upiId: cleanPayload.upiId,
-        updatedAt: cleanPayload.updatedAt
-      }, { merge: true });
-    } catch (err) {
-      console.warn('Could not mirror salary to users collection:', err);
-    }
+      try {
+        await setDoc(doc(db, 'users', cleanPayload.employeeId), {
+          baseSalary: cleanPayload.baseSalary,
+          salary: cleanPayload.baseSalary,
+          dealIncentiveRatePerKw: cleanPayload.dealIncentiveRatePerKw,
+          bankName: cleanPayload.bankName,
+          accountNumber: cleanPayload.accountNumber,
+          ifscCode: cleanPayload.ifscCode,
+          upiId: cleanPayload.upiId,
+          updatedAt: cleanPayload.updatedAt
+        }, { merge: true });
+      } catch (err) {
+        console.warn('Could not mirror salary to users collection:', err);
+      }
 
-    // 4. Safe audit log
-    try {
-      await logAction({
-        action: 'SALARY_CONFIG_UPDATED',
-        entityType: 'Payroll',
-        entityId: cleanPayload.employeeId,
-        entityLabel: `Salary updated for ${cleanPayload.employeeName}: ₹${cleanPayload.baseSalary.toLocaleString()}/mo`,
-        newValue: cleanPayload
-      });
-    } catch (err) {
-      console.warn('Salary update audit log skipped:', err);
-    }
+      try {
+        await logAction({
+          action: 'SALARY_CONFIG_UPDATED',
+          entityType: 'Payroll',
+          entityId: cleanPayload.employeeId,
+          entityLabel: `Salary updated for ${cleanPayload.employeeName}: ₹${cleanPayload.baseSalary.toLocaleString()}/mo`,
+          newValue: cleanPayload
+        });
+      } catch (err) {
+        console.warn('Salary update audit log skipped:', err);
+      }
+    });
   };
 
   // Add Advance

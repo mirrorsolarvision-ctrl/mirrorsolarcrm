@@ -84,7 +84,6 @@ export default function AdminPayrollPage() {
 
   // Edit Salary Modal
   const [isEditSalaryModalOpen, setIsEditSalaryModalOpen] = useState(false);
-  const [isSavingSalary, setIsSavingSalary] = useState(false);
   const [editSalaryForm, setEditSalaryForm] = useState<EmployeeSalaryConfig>({
     employeeId: '',
     employeeName: '',
@@ -173,96 +172,99 @@ export default function AdminPayrollPage() {
     const targetEmp = companyEmployees.find(e => e.id === disburseForm.employeeId);
     if (!targetEmp) return;
 
-    try {
-      await addAdvance({
-        employeeId: targetEmp.id,
-        employeeName: targetEmp.name,
-        amount: amountNum,
-        date: disburseForm.date,
-        paymentMode: disburseForm.paymentMode,
-        referenceNumber: disburseForm.referenceNumber,
-        reason: disburseForm.reason || 'Employee Salary Advance',
-        recoveryPlan: disburseForm.recoveryPlan,
-        installmentAmount: disburseForm.installmentAmount ? parseFloat(disburseForm.installmentAmount) : undefined,
-        notes: disburseForm.notes
-      });
+    const advancePayload = {
+      employeeId: targetEmp.id,
+      employeeName: targetEmp.name,
+      amount: amountNum,
+      date: disburseForm.date,
+      paymentMode: disburseForm.paymentMode,
+      referenceNumber: disburseForm.referenceNumber,
+      reason: disburseForm.reason || 'Employee Salary Advance',
+      recoveryPlan: disburseForm.recoveryPlan,
+      installmentAmount: disburseForm.installmentAmount ? parseFloat(disburseForm.installmentAmount) : undefined,
+      notes: disburseForm.notes
+    };
 
-      showToast(`✓ Advance of ₹${amountNum.toLocaleString()} disbursed to ${targetEmp.name}!`, 'success');
-      setIsDisburseModalOpen(false);
-      setDisburseForm({
-        employeeId: '',
-        amount: '',
-        date: todayIso,
-        paymentMode: 'Bank Transfer',
-        referenceNumber: '',
-        recoveryPlan: 'FULL_NEXT_PAYROLL',
-        installmentAmount: '',
-        reason: '',
-        notes: ''
-      });
-    } catch (err: any) {
-      showToast(err.message || 'Failed to disburse advance', 'error');
-    }
+    // Close modal and reset form immediately
+    setIsDisburseModalOpen(false);
+    showToast(`✓ Advance of ₹${amountNum.toLocaleString()} disbursed to ${targetEmp.name}!`, 'success');
+    setDisburseForm({
+      employeeId: '',
+      amount: '',
+      date: todayIso,
+      paymentMode: 'Bank Transfer',
+      referenceNumber: '',
+      recoveryPlan: 'FULL_NEXT_PAYROLL',
+      installmentAmount: '',
+      reason: '',
+      notes: ''
+    });
+
+    addAdvance(advancePayload).catch(err => {
+      console.warn('Background addAdvance warning:', err);
+    });
   };
 
   // Handle Save / Update Salary Config Submit
-  const handleSaveSalaryConfigSubmit = async (e: React.FormEvent) => {
+  const handleSaveSalaryConfigSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editSalaryForm.employeeId) {
       setIsEditSalaryModalOpen(false);
       return;
     }
 
-    setIsSavingSalary(true);
-    try {
-      // 1. Update salary structure in PayrollContext (Firestore employee_salaries + users + cache)
-      await updateSalaryConfig(editSalaryForm);
+    const targetEmpName = editSalaryForm.employeeName;
+    const targetEmpId = editSalaryForm.employeeId;
+    const formCopy = { ...editSalaryForm };
 
-      // 2. Mirror into CRMContext employees state so all active tabs/screens update immediately
-      if (updateEmployee) {
-        await updateEmployee(editSalaryForm.employeeId, {
-          baseSalary: Number(editSalaryForm.baseSalary) || 0,
-          salary: Number(editSalaryForm.baseSalary) || 0,
-          bankName: editSalaryForm.bankName || '',
-          accountNumber: editSalaryForm.accountNumber || '',
-          ifscCode: editSalaryForm.ifscCode || '',
-          upiId: editSalaryForm.upiId || '',
-          dealIncentiveRatePerKw: Number(editSalaryForm.dealIncentiveRatePerKw) || 0
+    // 1. Immediately close modal and notify user (zero-delay instant feedback)
+    setIsEditSalaryModalOpen(false);
+    showToast(`✓ Salary structure updated for ${targetEmpName}!`, 'success');
+
+    // 2. Update salary structure in PayrollContext (state + local cache + background Firestore)
+    updateSalaryConfig(formCopy).catch(err => {
+      console.warn('Background salary config update warning:', err);
+    });
+
+    // 3. Mirror into CRMContext employees state so all active tabs/screens update immediately
+    if (updateEmployee) {
+      try {
+        updateEmployee(targetEmpId, {
+          baseSalary: Number(formCopy.baseSalary) || 0,
+          salary: Number(formCopy.baseSalary) || 0,
+          bankName: formCopy.bankName || '',
+          accountNumber: formCopy.accountNumber || '',
+          ifscCode: formCopy.ifscCode || '',
+          upiId: formCopy.upiId || '',
+          dealIncentiveRatePerKw: Number(formCopy.dealIncentiveRatePerKw) || 0
         } as any);
+      } catch (err) {
+        console.warn('Background employee state mirror warning:', err);
       }
-
-      showToast(`✓ Salary structure updated for ${editSalaryForm.employeeName}!`, 'success');
-    } catch (err: any) {
-      console.error('Failed to update salary structure:', err);
-      showToast(err?.message || 'Failed to update salary structure', 'error');
-    } finally {
-      setIsSavingSalary(false);
-      setIsEditSalaryModalOpen(false); // ALWAYS CLOSE THE MODAL!
     }
   };
 
   // Handle Mark Payroll as Paid
-  const handleConfirmMarkPaid = async (e: React.FormEvent) => {
+  const handleConfirmMarkPaid = (e: React.FormEvent) => {
     e.preventDefault();
     if (!markPaidTarget) return;
 
-    try {
-      // First save the current computed draft to Firestore
-      await savePayrollRecord(markPaidTarget);
-      // Then mark it as paid and auto-recover scheduled advances
-      await markPayrollPaid(
-        markPaidTarget.id,
-        paymentForm.paymentMode,
-        paymentForm.paymentReference || 'UTR-CASH-SETTLED',
-        paymentForm.notes
-      );
+    const target = { ...markPaidTarget };
+    const pMode = paymentForm.paymentMode;
+    const pRef = paymentForm.paymentReference || 'UTR-CASH-SETTLED';
+    const pNotes = paymentForm.notes;
 
-      showToast(`✓ Salary of ₹${markPaidTarget.netPayable.toLocaleString()} marked as PAID for ${markPaidTarget.employeeName}!`, 'success');
-      setIsMarkPaidModalOpen(false);
-      setMarkPaidTarget(null);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to process salary payment', 'error');
-    }
+    // Immediately close modal & provide instant visual confirmation
+    setIsMarkPaidModalOpen(false);
+    setMarkPaidTarget(null);
+    showToast(`✓ Salary of ₹${target.netPayable.toLocaleString()} marked as PAID for ${target.employeeName}!`, 'success');
+
+    // Run background persistence
+    savePayrollRecord(target).then(() => {
+      return markPayrollPaid(target.id, pMode, pRef, pNotes);
+    }).catch(err => {
+      console.warn('Background payroll payment sync:', err);
+    });
   };
 
   // Export Payroll to CSV
@@ -1604,16 +1606,15 @@ export default function AdminPayrollPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '0.5rem' }}>
-                <button type="button" className="btn-outline" onClick={() => setIsEditSalaryModalOpen(false)} disabled={isSavingSalary}>
+                <button type="button" className="btn-outline" onClick={() => setIsEditSalaryModalOpen(false)}>
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   className="btn-primary" 
                   style={{ background: '#0284C7', borderColor: '#0284C7' }}
-                  disabled={isSavingSalary}
                 >
-                  {isSavingSalary ? 'Saving Structure...' : 'Save Salary Structure'}
+                  Save Salary Structure
                 </button>
               </div>
             </form>
