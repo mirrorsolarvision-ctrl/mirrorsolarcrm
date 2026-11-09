@@ -39,7 +39,7 @@ import type {
 import './AdminPayrollPage.css';
 
 export default function AdminPayrollPage() {
-  const { employees, leads } = useCRM();
+  const { employees, leads, updateEmployee } = useCRM();
   const { records: attendanceRecords, correctionRequests, reviewCorrection } = useAttendance();
   const { 
     salaryConfigs, 
@@ -84,6 +84,7 @@ export default function AdminPayrollPage() {
 
   // Edit Salary Modal
   const [isEditSalaryModalOpen, setIsEditSalaryModalOpen] = useState(false);
+  const [isSavingSalary, setIsSavingSalary] = useState(false);
   const [editSalaryForm, setEditSalaryForm] = useState<EmployeeSalaryConfig>({
     employeeId: '',
     employeeName: '',
@@ -207,14 +208,36 @@ export default function AdminPayrollPage() {
   // Handle Save / Update Salary Config Submit
   const handleSaveSalaryConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editSalaryForm.employeeId) return;
-
-    try {
-      await updateSalaryConfig(editSalaryForm);
-      showToast(`✓ Salary structure updated for ${editSalaryForm.employeeName}!`, 'success');
+    if (!editSalaryForm.employeeId) {
       setIsEditSalaryModalOpen(false);
+      return;
+    }
+
+    setIsSavingSalary(true);
+    try {
+      // 1. Update salary structure in PayrollContext (Firestore employee_salaries + users + cache)
+      await updateSalaryConfig(editSalaryForm);
+
+      // 2. Mirror into CRMContext employees state so all active tabs/screens update immediately
+      if (updateEmployee) {
+        await updateEmployee(editSalaryForm.employeeId, {
+          baseSalary: Number(editSalaryForm.baseSalary) || 0,
+          salary: Number(editSalaryForm.baseSalary) || 0,
+          bankName: editSalaryForm.bankName || '',
+          accountNumber: editSalaryForm.accountNumber || '',
+          ifscCode: editSalaryForm.ifscCode || '',
+          upiId: editSalaryForm.upiId || '',
+          dealIncentiveRatePerKw: Number(editSalaryForm.dealIncentiveRatePerKw) || 0
+        } as any);
+      }
+
+      showToast(`✓ Salary structure updated for ${editSalaryForm.employeeName}!`, 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to update salary structure', 'error');
+      console.error('Failed to update salary structure:', err);
+      showToast(err?.message || 'Failed to update salary structure', 'error');
+    } finally {
+      setIsSavingSalary(false);
+      setIsEditSalaryModalOpen(false); // ALWAYS CLOSE THE MODAL!
     }
   };
 
@@ -1581,11 +1604,16 @@ export default function AdminPayrollPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '0.5rem' }}>
-                <button type="button" className="btn-outline" onClick={() => setIsEditSalaryModalOpen(false)}>
+                <button type="button" className="btn-outline" onClick={() => setIsEditSalaryModalOpen(false)} disabled={isSavingSalary}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" style={{ background: '#0284C7', borderColor: '#0284C7' }}>
-                  Save Salary Structure
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  style={{ background: '#0284C7', borderColor: '#0284C7' }}
+                  disabled={isSavingSalary}
+                >
+                  {isSavingSalary ? 'Saving Structure...' : 'Save Salary Structure'}
                 </button>
               </div>
             </form>

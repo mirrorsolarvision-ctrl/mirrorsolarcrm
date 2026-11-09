@@ -12,6 +12,7 @@ import type { AttendanceRecord } from '../types/attendance';
 import type { Employee, MockLead } from './CRMContext';
 import { useAuth } from './AuthContext';
 import { useAudit } from './AuditLogContext';
+import { sanitizeForFirestore } from '../utils/firestoreUtils';
 
 interface PayrollContextType {
   salaryConfigs: EmployeeSalaryConfig[];
@@ -69,7 +70,16 @@ const DEFAULT_SALARY_CONFIGS: EmployeeSalaryConfig[] = [
 ];
 
 export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [salaryConfigs, setSalaryConfigs] = useState<EmployeeSalaryConfig[]>(DEFAULT_SALARY_CONFIGS);
+  const [salaryConfigs, setSalaryConfigs] = useState<EmployeeSalaryConfig[]>(() => {
+    try {
+      const cached = localStorage.getItem('crm_salary_configs_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_SALARY_CONFIGS;
+  });
   const [advances, setAdvances] = useState<EmployeeAdvanceRecord[]>([]);
   const [payrolls, setPayrolls] = useState<MonthlyPayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,42 +155,87 @@ export const PayrollProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, []);
 
-  // Helper: Get salary config for employee or provide sensible default
-  const getSalaryConfig = (employeeId: string): EmployeeSalaryConfig | undefined => {
-    return salaryConfigs.find(s => s.employeeId === employeeId);
+  // Helper: Get salary config for employee with alias/case-insensitive matching
+  const getSalaryConfig = (employeeIdOrCode: string): EmployeeSalaryConfig | undefined => {
+    if (!employeeIdOrCode) return undefined;
+    const cleanId = employeeIdOrCode.trim().toLowerCase();
+    return salaryConfigs.find(s => {
+      const sId = (s.employeeId || '').trim().toLowerCase();
+      const sName = (s.employeeName || '').trim().toLowerCase();
+      return sId === cleanId || sName === cleanId;
+    });
   };
 
-  // Update or set Salary Config
+  // Update or set Salary Config across all backend and frontend layers
   const updateSalaryConfig = async (config: EmployeeSalaryConfig) => {
-    const payload = {
+    if (!config || !config.employeeId) return;
+
+    const cleanPayload: EmployeeSalaryConfig = sanitizeForFirestore({
       ...config,
+      employeeId: config.employeeId.trim(),
+      employeeName: config.employeeName || '',
+      baseSalary: Number(config.baseSalary) || 0,
+      dealIncentiveRatePerKw: Number(config.dealIncentiveRatePerKw) || 0,
+      salaryType: config.salaryType || 'MONTHLY',
+      bankName: config.bankName || '',
+      accountNumber: config.accountNumber || '',
+      ifscCode: config.ifscCode || '',
+      upiId: config.upiId || '',
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.name || 'Admin'
-    };
+    });
 
+    // 1. Instant optimistic local state update and localStorage cache
+    setSalaryConfigs(prev => {
+      const idx = prev.findIndex(s => (s.employeeId || '').toLowerCase() === cleanPayload.employeeId.toLowerCase());
+      let updated: EmployeeSalaryConfig[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = cleanPayload;
+      } else {
+        updated = [cleanPayload, ...prev];
+      }
+      try {
+        localStorage.setItem('crm_salary_configs_cache', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 2. Persist to Firestore /employee_salaries/{id}
     try {
-      await setDoc(doc(db, 'employee_salaries', config.employeeId), payload, { merge: true });
+      await setDoc(doc(db, 'employee_salaries', cleanPayload.employeeId), cleanPayload, { merge: true });
     } catch (err) {
-      console.warn('Fallback local update for salary config:', err);
+      console.warn('Fallback local update for employee_salaries:', err);
     }
 
-    setSalaryConfigs(prev => {
-      const idx = prev.findIndex(s => s.employeeId === config.employeeId);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = payload;
-        return updated;
-      }
-      return [payload, ...prev];
-    });
+    // 3. Mirror directly into Firestore /users/{id} for cross-portal consistency
+    try {
+      await setDoc(doc(db, 'users', cleanPayload.employeeId), {
+        baseSalary: cleanPayload.baseSalary,
+        salary: cleanPayload.baseSalary,
+        dealIncentiveRatePerKw: cleanPayload.dealIncentiveRatePerKw,
+        bankName: cleanPayload.bankName,
+        accountNumber: cleanPayload.accountNumber,
+        ifscCode: cleanPayload.ifscCode,
+        upiId: cleanPayload.upiId,
+        updatedAt: cleanPayload.updatedAt
+      }, { merge: true });
+    } catch (err) {
+      console.warn('Could not mirror salary to users collection:', err);
+    }
 
-    await logAction({
-      action: 'SALARY_CONFIG_UPDATED',
-      entityType: 'Payroll',
-      entityId: config.employeeId,
-      entityLabel: `Salary updated for ${config.employeeName}: ₹${config.baseSalary.toLocaleString()}/mo`,
-      newValue: payload
-    });
+    // 4. Safe audit log
+    try {
+      await logAction({
+        action: 'SALARY_CONFIG_UPDATED',
+        entityType: 'Payroll',
+        entityId: cleanPayload.employeeId,
+        entityLabel: `Salary updated for ${cleanPayload.employeeName}: ₹${cleanPayload.baseSalary.toLocaleString()}/mo`,
+        newValue: cleanPayload
+      });
+    } catch (err) {
+      console.warn('Salary update audit log skipped:', err);
+    }
   };
 
   // Add Advance
